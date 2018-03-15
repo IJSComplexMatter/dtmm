@@ -152,4 +152,3 @@ texinfo_documents = [
     (master_doc, 'dtmm', 'dtmm Documentation',
      author, 'dtmm', 'One line description of project.',
      'Miscellaneous'),
-]
