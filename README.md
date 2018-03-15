@@ -1,2 +1,2 @@
 # dtmm
-Diffractive transmission matrix method
+Diffractive Transfer Matrix Method
