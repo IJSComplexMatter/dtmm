@@ -10,6 +10,8 @@ Welcome to dtmm's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+test
+
 .. plot::
 
    import matplotlib.pyplot as plt
