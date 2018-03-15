@@ -26,7 +26,7 @@ author = 'Andrej Petelin'
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
-release = '0.0.1.dev0'
+release = '0.0.1'
 
 
 # -- General configuration ---------------------------------------------------
@@ -39,6 +39,8 @@ release = '0.0.1.dev0'
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    'sphinx.ext.githubpages',
+    'matplotlib.sphinxext.plot_directive',
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -152,3 +154,7 @@ texinfo_documents = [
     (master_doc, 'dtmm', 'dtmm Documentation',
      author, 'dtmm', 'One line description of project.',
      'Miscellaneous'),
+]
+
+
+# -- Extension configuration -------------------------------------------------
