@@ -29,6 +29,61 @@ version = ''
 release = '0.0.1'
 
 
+# custom matplotlib plot_template
+import sys,os
+sys.path.insert(0, os.path.abspath(os.path.split(__file__)[0]))
+
+if sys.argv[2] in ('latex', 'latexpdf'):
+    plot_template = """
+{% for img in images %}
+.. figure:: {{ build_dir }}/{{ img.basename }}.pdf
+    {%- for option in options %}
+    {{ option }}
+    {% endfor %}
+    
+    \t{{caption}}
+{% endfor %}
+"""
+
+else:
+    plot_template = """
+{% for img in images %}
+
+.. figure:: {{ build_dir }}/{{ img.basename }}.png
+    {%- for option in options %}
+    {{ option }}
+    {% endfor %}
+
+    \t{% if html_show_formats and multi_image -%}
+    (
+    {%- for fmt in img.formats -%}
+    {%- if not loop.first -%}, {% endif -%}
+    `{{ fmt }} <{{ dest_dir }}/{{ img.basename }}.{{ fmt }}>`__
+    {%- endfor -%}
+    )
+    {%- endif -%}
+
+    {{ caption }} {% if source_link or (html_show_formats and not multi_image) %} (
+{%- if source_link -%}
+`Source code <{{ source_link }}>`__
+{%- endif -%}
+{%- if html_show_formats and not multi_image -%}
+    {%- for img in images -%}
+    {%- for fmt in img.formats -%}
+        {%- if source_link or not loop.first -%}, {% endif -%}
+        `{{ fmt }} <{{ dest_dir }}/{{ img.basename }}.{{ fmt }}>`__
+    {%- endfor -%}
+    {%- endfor -%}
+{%- endif -%}
+)
+{% endif %}
+{% endfor %}
+"""
+
+
+
+
+
 # -- General configuration ---------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -40,7 +95,8 @@ release = '0.0.1'
 # ones.
 extensions = [
     'sphinx.ext.githubpages',
-    'matplotlib.sphinxext.plot_directive',
+    #'matplotlib.sphinxext.plot_directive',
+    'plot_directive'
 ]
 
 # Add any paths that contain templates here, relative to this directory.
