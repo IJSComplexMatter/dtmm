@@ -13,7 +13,8 @@ from __future__ import absolute_import, print_function, division
 import numpy as np
 
 from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE
-from dtmm.window import blackman
+from dtmm.window import blackman, aperture
+from dtmm.color import load_tcmf
 
 import numba as nb
 
@@ -132,7 +133,7 @@ def illumination2field(waves, k0, beta = 0., phi = 0., refind = 1., pol = None):
     k0 = np.asarray(k0)
     fieldv = np.zeros(beta.shape + (2,) + k0.shape + (4,) + waves.shape[-2:], dtype = CDTYPE)
     
-    if beta.shape != (): 
+    if beta.ndim > 0: 
         for i,data in enumerate(fieldv):
         
             data[0,...,0,:,:] = waves[i]
@@ -147,6 +148,17 @@ def illumination2field(waves, k0, beta = 0., phi = 0., refind = 1., pol = None):
             fieldv[1,...,2,:,:] = waves
             fieldv[1,...,3,:,:] = -waves
     return fieldv
+
+
+def illumination_data(shape, wavelengths, beta = 0., phi = 0., 
+                      refind = 1., pixelsize = 1., diameter = 0.9, alpha = 0.1, pol = None):
+    wavenumbers = 2*np.pi/np.asarray(wavelengths) * pixelsize
+    window = aperture(shape, diameter, alpha)
+    waves = illumination_waves(shape, wavenumbers, beta = beta, phi = phi, window = window)
+    field = illumination2field(waves, wavenumbers, beta = beta, phi = phi, refind = 1., pol = pol)
+    cmf = load_tcmf(wavelengths)
+    return field, wavenumbers, cmf
+    
 
 def _wave2field(wave,k0,beta,phi, refind = 1, out = None):
     k0 = np.asarray(k0)[...,np.newaxis,np.newaxis] #make it broadcastable
@@ -209,4 +221,4 @@ def mean_betaphi(wave, k0, beta, phi):
     beta[0] = (betax**2+betay**2)**0.5
     phi[0] = np.arctan2(betay,betax)
 
-__all__ = ["illumination_betaphi", "illumination_waves", "illumination2field", "betaphi","planewave"]
+__all__ = ["illumination_betaphi", "illumination_waves", "illumination2field", "betaphi","planewave","illumination_data"]

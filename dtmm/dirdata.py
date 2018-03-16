@@ -97,13 +97,17 @@ def plot_director(data):
 #                    out[i,j,k] = fill
 #    return out  
    
-def eps(refind):
+def refind(n1 = 1, n3 = None, n2 = None):
     """Returns material array (eps) from a list of input refractive indices"""
-    if isinstance(refind, (list,tuple)):
-        n = len(refind)
-        out = np.ones(shape = (n,3), dtype = FDTYPE)
-        for rind in refind:
-            
+    if n3 is None:
+        if n2 is None:
+            n3 = n1
+            n2 = n1
+        else:
+            raise ValueError("Both n2, and n3 must be set")
+    if n2 is None:
+        n2 = n1
+    return np.array([n1,n2,n3])
     
 def _r3(shape):
     """Returns r vector array of given shape."""
@@ -114,7 +118,7 @@ def _r3(shape):
     #r = ((xx/(nx*scale))**2 + (yy/(ny*scale))**2 + (zz/(nz*scale))**2) ** 0.5 
     #return r
     
-def nematic_droplet(shape, radius, profile = "r", director = False):
+def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
     """Returns nematic director data of a nematic droplet with a given radius.
     
     Parameters
@@ -129,12 +133,12 @@ def nematic_droplet(shape, radius, profile = "r", director = False):
         profile with director orientation specified with the parameter "x", "y",
         or "z".
     director : bool, optional
-        Whether to output director data, instead of stack data
+        Whether to output mask data as well
         
     Returns
     -------
-    mask, director: tuple(array, array)
-        A tuple of director mask and director data arrays.
+    out : array or tuple of arrays 
+        A director data array, or tuple of director mask and director data arrays.
     """
     
     nz, nx, ny = shape
@@ -156,8 +160,44 @@ def nematic_droplet(shape, radius, profile = "r", director = False):
             out[...,i][m] = 1.
         except KeyError:
             raise ValueError("Unsupported profile type!")
-           
-    return mask, out
+    if retmask == True:
+        return mask, out
+    else: 
+        return out
+
+def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5):
+    """Returns nematic droplet data.
+    
+    This function returns a stack, mask and material arrays of a 
+    nematic droplet, suitable for light propagation calculation tests.
+    
+    Parameters
+    ----------
+    shape : tuple
+        (nz,nx,ny) shape of the stack. First dimension is the 
+        number of layers, second and third are the x and y dimensions of the box.
+    radius : float
+        radius of the droplet.
+    profile : str, optional
+        Director profile type. It can be a radial profile "r", or homeotropic 
+        profile with director orientation specified with the parameter "x", "y",
+        or "z".
+    no : float, optional
+        Ordinary refractive index of the material (1.5 by default)
+    ne : float, optional
+        Extraordinary refractive index (1.6 by default)
+    nhost : float, optional
+        Host material refractive index (1.5 by default)
+        
+    Returns
+    -------
+    out : tuple  
+        A (stack, mask, material) tuple of arrays.
+    """
+    mask, director = nematic_droplet_director(shape, radius, profile = profile, retmask = True)
+    material = refind2eps([refind(nhost), refind(no,ne)])
+    return director2stack(director), mask, material
+    
     
 @numba.njit([NF32DTYPE[:,:,:,:](NF32DTYPE[:,:,:,:])])
 def director2stack(data):
