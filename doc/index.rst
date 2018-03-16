@@ -16,8 +16,6 @@ Welcome to dtmm's documentation!
    tutorial
 
 
-
-
 Indices and tables
 ==================
 
