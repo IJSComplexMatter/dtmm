@@ -42,7 +42,6 @@ There is a also a simple visualizer of the field::
 
    Simulated optical polarizing microscope image of a radial nematic director profile in a nematic droplet.
 
-
 Curious enough? Read the :ref:`quickstart`.
 
 
