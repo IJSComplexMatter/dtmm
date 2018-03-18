@@ -1,7 +1,7 @@
 Installation
 ============
 
-The code is hosted at GitHub. You have to clone the repository or download the code from `repository`_ and run::
+The code is hosted at GitHub. You have to clone or download the code from the `repository`_ and run::
 
     python setup.py install
 
@@ -12,13 +12,13 @@ Requirements
 
 Prior to installing, you should have a working python 2.7 or 3.x environment consisting of:
 
-* numba
+* numba >=0.35.0
 * numpy
 * scipy
 * numexpr
 * matplotlib
 
-The package relies heavily on `numba`_, which is sometimes difficult to install by hand, so I suggest you install `anaconda`_, `canopy`_ or any other python distribution that comes shipped with the above packages.
+The package relies heavily on `numba`_, which is sometimes difficult to install by hand, so I suggest you install `anaconda`_, `canopy`_ or any other python distribution that comes shipped with the above packages, and make sure that you have recent enough version of numba installed.
 
 For faster calculation, one should also install `mkl_fft`_ that is readily available in `anaconda`_.
 

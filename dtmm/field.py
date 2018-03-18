@@ -12,7 +12,7 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE,  NUMBA_TARGET, NUMBA_PARALLEL
+from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, NUDTYPE,  NUMBA_TARGET, NUMBA_PARALLEL
 #from dtmm.wave import mean_betaphi, betaphi
 from dtmm.rotation import  _calc_rotations_uniaxial
 from dtmm.linalg import _inv4x4, _dotmr2
@@ -262,6 +262,21 @@ def _alphaffi_xy_vec(beta,phi,rv, element,eps0,dummy,alpha,F,Fi):
     _dotmr2(F,rv,F)
     _inv4x4(F,Fi)
 
+
+@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NCDTYPE[:,:],NUDTYPE[:],NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:,:])],
+                 "(),(),(m),(l),(k,o),(),(n)->(n),(n,n),(n,n)", target = NUMBA_TARGET)
+def _alphaffi_xy_vec2(beta,phi,rv, element,eps0,mask,dummy,alpha,F,Fi):
+    #Fi is a 4x4 matrix... we can use 3x3 part for Rotation matrix and Fi[3] for eps  temporary data
+    R = Fi.real 
+    eps = Fi[3] 
+    i = mask[0]
+    assert i < eps0.shape[0]
+    _uniaxial_order(element[0],eps0[i],eps) #store caluclated eps values in Fi[3]
+    _calc_rotations_uniaxial(phi[0],element,R) #store rotation matrix in Fi.real[0:3,0:3]
+    _alpha_F(beta[0],eps,R,alpha,F)
+    _dotmr2(F,rv,F)
+    _inv4x4(F,Fi)
+
    
 #@nb.jit([(NCDTYPE[:],NCDTYPE[:],NFDTYPE[:,:],NCDTYPE[:])])
 #def _delta(alpha,eps,R,out):
@@ -305,6 +320,10 @@ def alphaffi(beta,phi,element,eps0,*args,**kw):
 def alphaffi_xy(beta,phi,element,eps0,*args,**kw):
     rv = rotation_vector2(phi)
     return _alphaffi_xy_vec(beta,phi,rv,element,eps0,_dummy_array,*args,**kw)
+
+def alphaffi_xy2(beta,phi,element,eps0,mask,*args,**kw):
+    rv = rotation_vector2(phi)
+    return _alphaffi_xy_vec2(beta,phi,rv,element,eps0,mask,_dummy_array,*args,**kw)
 
 def alphaffi0(beta,phi,n = 1.,*args,**kw):
     element = [0.,0.,0.]
@@ -550,4 +569,4 @@ def field2spectersum(field, out):
 #    return _field_vector(beam,k0,pol,n,_dummy_array,*args,**kw)
 #    
 
-__all__ = ["alphaffi_xy","alphaffi", "jonesvec","phasem_t", "phasem_r","phasem","field2specter"]
+__all__ = ["alphaffi_xy","alphaffi_xy2","alphaffi", "jonesvec","phasem_t", "phasem_r","phasem","field2specter"]

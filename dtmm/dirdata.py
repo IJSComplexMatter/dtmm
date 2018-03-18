@@ -13,41 +13,93 @@ import numpy as np
 #from dir_to_stack import dirtostack
 
 import numba
+import sys
 
 from dtmm.conf import  NF32DTYPE, F32DTYPE, FDTYPE
 
-def read_director(file, shape, dtype = "float32", nvec = "xyz"):
+
+def read_director(file, shape, dtype = "float32",  endian = sys.byteorder, nvec = "xyz"):
     """Reads raw director data from a binary file. 
     
-    Shape must be provided. It defines shape of the compute box. 
+    A convinient way to read director data from file. It uses :func:`read_data``
+
+    Parameters
+    ----------
+    file : str or file
+        Open file object or filename.
+    shape : sequence of ints
+        Shape of the data array, e.g., ``(50, 24, 34, 3)``
+    dtype : data-type
+        Data type of the raw data. It is used to determine the size of the items 
+        in the file.
+    endian : str, optional
+        Endianess of the data in file, e.g. 'little' or 'big'. If endian is 
+        specified and it is different than sys.endian, data is byteswapped. 
+        By default no byteswapping is done. 
+    nvec : str, optional
+        Order of the director data coordinates. Any permutation of 'x', 'y' and 
+        'z', e.g. 'yxz', 'zxy' ... 
     """
     try:
-        i,j,k = shape
-        shape = i,j,k,3
+        i,j,k,c = shape
     except:
-        raise TypeError("shape must be director data shape (x,y,z)")
-    data = read_data(file, shape, dtype)
-
+        raise TypeError("shape must be director data shape (z,x,y,n)")
+    data = read_raw(file, shape, dtype, endian)
+    return raw2director(data, nvec)
+    
+def raw2director(data, nvec = "xyz"):
+    """Converts raw data to valid director format.
+    
+    Parameters
+    ----------
+    data : array
+        Data array
+    nvec : str, optional
+        Order of the director data coordinates. Any permutation of 'x', 'y' and 
+        'z', e.g. 'yxz', 'zxy' ...        
+    """
     if nvec != "xyz":
         index = {"x" : 0, "y": 1, "z" : 2}
         out = np.empty_like(data)
         for i,idn in enumerate(nvec):
-            j = index[idn]
+            j = index.pop(idn)
             out[...,j] = data[...,i]
         return out
     else:
-        return data
-    
+        return data    
 
-def read_data(file, shape, dtype):
-    """Reads raw data from a binary file.
+def read_raw(file, shape, dtype, sep = "", endian = sys.byteorder):
+    """Reads raw data from a binary or text file.
     
-    A valid shape and array dtype must be provided.
+    Parameters
+    ----------
+    file : str or file
+        Open file object or filename.
+    shape : sequence of ints
+        Shape of the data array, e.g., ``(50, 24, 34, 3)``
+    dtype : data-type
+        Data type of the raw data. It is used to determine the size of the items 
+        in the file.
+    sep : str
+        Separator between items if file is a text file.
+        Empty ("") separator means the file should be treated as binary.
+        Spaces (" ") in the separator match zero or more whitespace characters.
+        A separator consisting only of spaces must match at least one
+        whitespace.
+    endian : str, optional
+        Endianess of the data in file, e.g. 'little' or 'big'. If endian is 
+        specified and it is different than sys.endian, data is byteswapped. 
+        By default no byteswapping is done.
     """  
     dtype = np.dtype(dtype)
     count = np.multiply.reduce(shape) * dtype.itemsize
-    a = np.fromfile(file, dtype, count)
-    return a.reshape(shape)  
+    a = np.fromfile(file, dtype, count, sep)
+    if endian == sys.byteorder:
+        return a.reshape(shape)  
+    elif endian not in ("little", "big"):
+        raise ValueError("Endian should be either 'little' or 'big'")
+    else:
+        return a.reshape(shape).byteswap(True)
 
 def plot_director(data):
     """Plots director data."""
@@ -98,7 +150,7 @@ def plot_director(data):
 #    return out  
    
 def refind(n1 = 1, n3 = None, n2 = None):
-    """Returns material array (eps) from a list of input refractive indices"""
+    """Returns material array (eps)."""
     if n3 is None:
         if n2 is None:
             n3 = n1
@@ -165,23 +217,24 @@ def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
     else: 
         return out
 
-def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5):
+def nematic_droplet_data(shape, radius, profile = "r", 
+                         no = 1.5, ne = 1.6, nhost = 1.5):
     """Returns nematic droplet data.
     
-    This function returns a stack, mask and material arrays of a 
+    This function returns a stack, material and mask arrays of a 
     nematic droplet, suitable for light propagation calculation tests.
     
     Parameters
     ----------
     shape : tuple
-        (nz,nx,ny) shape of the stack. First dimension is the 
-        number of layers, second and third are the x and y dimensions of the box.
+        (nz,nx,ny) shape of the stack. First dimension is the number of layers, 
+        second and third are the x and y dimensions of the compute box.
     radius : float
         radius of the droplet.
     profile : str, optional
         Director profile type. It can be a radial profile "r", or homeotropic 
-        profile with director orientation specified with the parameter "x", "y",
-        or "z".
+        profile with director orientation specified with the parameter "x", 
+        "y", or "z".
     no : float, optional
         Ordinary refractive index of the material (1.5 by default)
     ne : float, optional
@@ -191,12 +244,12 @@ def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost
         
     Returns
     -------
-    out : tuple  
-        A (stack, mask, material) tuple of arrays.
+    out : tuple of length 3
+        A (stack, material, mask) tuple of arrays.
     """
     mask, director = nematic_droplet_director(shape, radius, profile = profile, retmask = True)
     material = refind2eps([refind(nhost), refind(no,ne)])
-    return director2stack(director), mask, material
+    return director2stack(director), material, mask
     
     
 @numba.njit([NF32DTYPE[:,:,:,:](NF32DTYPE[:,:,:,:])])

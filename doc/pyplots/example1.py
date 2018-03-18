@@ -1,26 +1,23 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Hello nematic droplet example
-"""
+"""Hello nematic droplet example"""
 
-import numpy as np
 import dtmm
 #: pixel size in nm
-PIXELSIZE = 400 
+PIXELSIZE = 100 
 #: compute box dimensions
-NLAYERS, XSIZE, YSIZE = 50, 164, 164
+NLAYERS, XSIZE, YSIZE = 60, 128, 128
 #: illumination wavelengths in nm
-WAVELENGTHS = np.linspace(380,700,7)
+WAVELENGTHS = range(380,780,40)
 #: lets make some experimental data
-stack, mask, material = dtmm.nematic_droplet_data((NLAYERS, XSIZE, YSIZE), 
-                radius = 20, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
+stack, material, mask = dtmm.nematic_droplet_data((NLAYERS, XSIZE, YSIZE), 
+                radius = 30, profile = "r", no = 1.5, ne = 1.7, nhost = 1.5)
 
 field, wavenumbers, cmf = dtmm.illumination_data((XSIZE, YSIZE), WAVELENGTHS, refind = 1.5,
-                                             pixelsize = PIXELSIZE, diameter = 0.9) 
-#out = dtmm.transmit_field(field, wavenumbers, stack, mask, material)
+                                             pixelsize = PIXELSIZE, diameter = 0.8) 
+out = dtmm.transmit_field(field, wavenumbers, stack, material, mask)
 
-viewer = dtmm.field_viewer(field, wavenumbers, cmf, refind = 1.5, 
-                           polarizer = 0, focus = -25, analizer = 0)
+viewer = dtmm.field_viewer(out, wavenumbers, cmf, refind = 1.5, sample = 0, 
+                           polarizer = 0, focus = -30, analizer = 90)
 viewer.plot()
 viewer.show()

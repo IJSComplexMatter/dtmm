@@ -8,4 +8,4 @@ from .dirdata import read_director, refind2eps, director2stack, nematic_droplet_
 from .color import *
 from .field import *
 from .fviewer import field_viewer
-from .diffract import propagate
+from .diffract import propagate, transmit_field

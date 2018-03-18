@@ -11,7 +11,7 @@ from __future__ import absolute_import, print_function, division
 from dtmm.conf import FDTYPE,DTMMConfig
 from dtmm.wave import betaphi
 from dtmm.dirdata import uniaxial_order, refind2eps
-from dtmm.field import alphaffi_xy, phasem,phasem_r, phasem_t
+from dtmm.field import alphaffi_xy, phasem,phasem_r, phasem_t, alphaffi_xy2
 from dtmm.linalg import ftransmit, dotmdm, dotmf, dotmm
 from dtmm.print_tools import print_progress
 from dtmm.fft import fft2, ifft2
@@ -106,6 +106,66 @@ def propagate(fieldv,ks,stack,eps, beta0 = 0., phi0 = 0., eps0 = None, layer0 = 
         fieldv = ftransmit(f,alpha,fi, fieldv, ks, out = out) 
     print_progress(n,n,level = verbose_level)
     return fieldv
+
+def transmit_field(fieldv,wavenumbers,stack,material, mask = None, beta0 = 0., 
+                   phi0 = 0., eps0 = None, layer0 = None,
+              diffraction = True, mode = "t", out = None):
+    
+    stack = np.asarray(stack)
+    ks = np.asarray(wavenumbers)
+    n = len(stack)
+    
+    if mask is None:
+        mask = np.zeros(shape = (n,)+fieldv.shape[-2:], dtype = "uint8")
+    else:
+        mask = np.asarray(mask)
+    fieldv = np.asarray(fieldv)
+    if out is None:
+        out = np.empty_like(fieldv)
+    else:
+        if not isinstance(out, np.ndarray) or out.shape != fieldv.shape or out.dtype != fieldv.dtype:
+            raise TypeError("Output array invalid!")
+           
+    
+
+    if eps0 is None:
+        eps0 = uniaxial_order(0.,material[0])
+        eps0 = eps0.mean(axis = tuple(range(eps0.ndim-1)))
+    else:
+        eps0 = np.asarray(eps0)
+        assert eps0.ndim == 1
+    if layer0 is None:
+        layer0 = np.array((0.,0.,0.))
+    else:
+        layer0 = np.asarray(layer0)
+        assert layer0.ndim == 1
+    shape = fieldv.shape[-2:]
+        
+    dmat = diffraction_matrix(shape, ks, eps = eps0, layer = layer0, d = 1., mode = mode)
+    
+    #modify diffriction matrix to remove accumulated average phase shift
+    alpha, f, fi = alphaffi_xy(beta0,phi0,layer0,eps0)
+    if mode == "t":
+        pmat = phasem_t(alpha, -ks)   
+    else:
+        pmat = phasem(alpha, -ks) 
+    #phase back shift matrix
+    cmat = dotmdm(f,pmat,fi)
+    #compute corrected diffraction matrix
+    dmat = dotmm(dmat,cmat[:,None,None,:,:],dmat)
+    
+
+    
+    verbose_level = DTMMConfig.verbose
+    for i,layer in enumerate(stack):
+        print_progress(i,n,level = verbose_level)
+        alpha, f, fi = alphaffi_xy2(beta0,phi0,layer,material,mask[i])
+        if diffraction:
+            fieldv = diffract(fieldv, dmat, out = out)
+        fieldv = ftransmit(f,alpha,fi, fieldv, ks, out = out) 
+    print_progress(n,n,level = verbose_level)
+    return fieldv
+
 
 def layer_matrices(shape, ks, eps = (1,1,1), layer = (0.,0.,0.)):
     ks = np.asarray(ks)

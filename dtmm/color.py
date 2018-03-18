@@ -16,7 +16,8 @@ import numpy as np
 import numba
 import os
 
-DATAPATH = os.path.join(os.path.dirname(__file__), "data")
+#DATAPATH = os.path.join(os.path.dirname(__file__), "data")
+DATAPATH = os.path.dirname(__file__)
 
 #2-deg XYZ 5nm CMFs 
 CMFPATH = os.path.join(DATAPATH, "CIE1931XYZ.dat" )
@@ -106,10 +107,9 @@ def spec2xyz(spec,cmf,xyz):
 def specter2color(spec, cmf, norm = False, gamma = True, gray = False, out = None):
     """Converts specter data to color (RGB or gray).
     
-    Specter shape must be [...,k], where wavelength
-    iteration goes over the last axis. cmf must be a valid color matchin function
-    array of size [n,3] If n != k, specter data is interpolated to match the 
-    data in cmf function.
+    Specter shape must be [...,k], where wavelengths are in the last axis. cmf 
+    must be a valid color matchin function array of size [n,3] If n != k, 
+    specter data is interpolated to match the data in cmf function.
     
     Parameters
     ----------
