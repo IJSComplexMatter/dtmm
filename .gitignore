@@ -1,0 +1,4 @@
+dtmm/__pycache__
+dtmm/*.pyc
+dtmm/doc/_build
+dtmm/doc/__pycache__
