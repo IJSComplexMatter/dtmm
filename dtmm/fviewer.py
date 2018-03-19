@@ -35,8 +35,9 @@ def redim(a, ndim=1):
         new_shape = (np.multiply.reduce(old_shape[0:n+1]),) + old_shape[n+1:]
     return a.reshape(new_shape)
 
-def field_viewer(field, wavenumbers, cmf = None, refind = 1., mode = "t", focus = 0,
+def field_viewer(field_waves, cmf = None, refind = 1., mode = "t", focus = 0,
                  intensity = 1., polarizer = None, sample = None, analizer = None):
+    field, wavenumbers = field_waves
     if field.ndim < 4:
         raise TypeError("Incompatible field shape")
     

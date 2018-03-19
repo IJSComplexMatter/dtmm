@@ -107,10 +107,11 @@ def propagate(fieldv,ks,stack,eps, beta0 = 0., phi0 = 0., eps0 = None, layer0 = 
     print_progress(n,n,level = verbose_level)
     return fieldv
 
-def transmit_field(fieldv,wavenumbers,stack,material, mask = None, beta0 = 0., 
+def transmit_field(field_waves,data, beta0 = 0., 
                    phi0 = 0., eps0 = None, layer0 = None,
               diffraction = True, mode = "t", out = None):
-    
+    d, mask, material, stack = data
+    fieldv, wavenumbers = field_waves
     stack = np.asarray(stack)
     ks = np.asarray(wavenumbers)
     n = len(stack)
@@ -164,7 +165,7 @@ def transmit_field(fieldv,wavenumbers,stack,material, mask = None, beta0 = 0.,
             fieldv = diffract(fieldv, dmat, out = out)
         fieldv = ftransmit(f,alpha,fi, fieldv, ks, out = out) 
     print_progress(n,n,level = verbose_level)
-    return fieldv
+    return fieldv, wavenumbers
 
 
 def layer_matrices(shape, ks, eps = (1,1,1), layer = (0.,0.,0.)):

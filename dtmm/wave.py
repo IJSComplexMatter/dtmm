@@ -157,7 +157,7 @@ def illumination_data(shape, wavelengths, beta = 0., phi = 0.,
     waves = illumination_waves(shape, wavenumbers, beta = beta, phi = phi, window = window)
     field = illumination2field(waves, wavenumbers, beta = beta, phi = phi, refind = 1., pol = pol)
     cmf = load_tcmf(wavelengths)
-    return field, wavenumbers, cmf
+    return (field, wavenumbers), cmf
     
 
 def _wave2field(wave,k0,beta,phi, refind = 1, out = None):

@@ -19,17 +19,23 @@ Wavelengths are defined in nanometers, while dimensions (coordinates) are define
 *optical_data*
 ++++++++++++++
 
-It is best to go with the example::
+It is best to go with the example:
+
+.. doctest::
 
    >>> import dtmm
    >>> optical_data = dtmm.nematic_droplet_data((60, 128, 128), 
    ...    radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
-Here we have generated some test data, a nematic droplet with a radius of 30 pixels placed in a compute box of shape (60,128,128), that is, 60 layers of shape (128,128). Director profile is radial, with ordinary refractive index of 1.5 and extraordinary refractive index of 1.6 placed in an isotropic host with refractive index of 1.5. The optical data is a tuple of a scalar and three arrays::
+Here we have generated some test data, a nematic droplet with a radius of 30 pixels placed in a compute box of shape (60,128,128), that is, 60 layers of shape (128,128). Director profile is radial, with ordinary refractive index of 1.5 and extraordinary refractive index of 1.6 placed in an isotropic host with refractive index of 1.5. The optical data is a tuple of a scalar and three arrays
+
+.. doctest::
 
    >>> thickness, material_id, material_eps, angles = optical_data
 
-Here, `thickness` describes the thickness of layer(s) in the optical data. It is a float measured in pixel units, in our case it is simply::
+Here, `thickness` describes the thickness of layer(s) in the optical data. It is a float measured in pixel units, in our case it is simply:
+
+.. doctest::
 
    >>> thickness
    1.0 
@@ -89,6 +95,8 @@ where the `wavenumbers` are computed from the wavelengths and pixel size and def
 
    >>> field.shape
    (2,10,4,128,128)
+
+
 
 
 
