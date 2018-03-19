@@ -152,7 +152,7 @@ class FieldViewer(object):
             self._sfocus = Slider(self.axfocus, "focus",kwargs.get("fmin",self.focus-100),kwargs.get("fmax",self.focus + 100),valinit = self.focus, valfmt='%.1f')
             self._ids1 = self._sfocus.on_changed(update_focus)
 
-        return self.fig, self.ax
+        return self.fig
     
     
     @property

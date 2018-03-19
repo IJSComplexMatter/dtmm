@@ -10,7 +10,7 @@ NLAYERS, XSIZE, YSIZE = 60, 128, 128
 #: illumination wavelengths in nm
 WAVELENGTHS = range(380,780,40)
 #: lets make some experimental data
-stack, material, mask = dtmm.nematic_droplet_data((NLAYERS, XSIZE, YSIZE), 
+thickness, mask, material, stack = dtmm.nematic_droplet_data((NLAYERS, XSIZE, YSIZE), 
                 radius = 30, profile = "r", no = 1.5, ne = 1.7, nhost = 1.5)
 
 field, wavenumbers, cmf = dtmm.illumination_data((XSIZE, YSIZE), WAVELENGTHS, refind = 1.5,

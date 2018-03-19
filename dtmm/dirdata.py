@@ -219,10 +219,10 @@ def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
 
 def nematic_droplet_data(shape, radius, profile = "r", 
                          no = 1.5, ne = 1.6, nhost = 1.5):
-    """Returns nematic droplet data.
+    """Returns nematic droplet optical_data.
     
-    This function returns a stack, material and mask arrays of a 
-    nematic droplet, suitable for light propagation calculation tests.
+    This function returns a thickness, material_id, material_eps, angles tuple 
+    of a nematic droplet, suitable for light propagation calculation tests.
     
     Parameters
     ----------
@@ -244,12 +244,12 @@ def nematic_droplet_data(shape, radius, profile = "r",
         
     Returns
     -------
-    out : tuple of length 3
-        A (stack, material, mask) tuple of arrays.
+    out : tuple of length 4
+        A (thickness, material_id, material_eps, angles) tuple of arrays.
     """
     mask, director = nematic_droplet_director(shape, radius, profile = profile, retmask = True)
     material = refind2eps([refind(nhost), refind(no,ne)])
-    return director2stack(director), material, mask
+    return 1., mask, material, director2stack(director)
     
     
 @numba.njit([NF32DTYPE[:,:,:,:](NF32DTYPE[:,:,:,:])])
@@ -278,6 +278,35 @@ def director2stack(data):
                 tmp[1] = theta
                 tmp[2] = phi
     return out
+
+director2angles = director2stack
+
+@numba.njit([NF32DTYPE[:,:,:,:](NF32DTYPE[:,:,:,:])])
+def angles2director(data):
+    """Converts angles data (order,theta,phi) to director (nx,ny,nz)"""
+    nz,nx,ny,c = data.shape
+    out = np.empty(shape = (nz,nx,ny,3),dtype = F32DTYPE)
+
+    if c != 3:
+        raise TypeError("invalid shape")
+    for i in range(nz):
+        for j in range(nx):
+            for k in range(ny):
+                vec = data[i,j,k]
+                s = vec[0]
+                theta = vec[1]
+                phi = vec[2]
+                tmp = out[i,j,k]
+
+                ct = np.cos(theta)
+                st = np.sin(theta)
+                cf = np.cos(phi)
+                sf = np.sin(phi)
+                tmp[0] = s*cf*st
+                tmp[1] = s*sf*st
+                tmp[2] = s*ct
+    return out
+
 
 def add_isotropic_border(data, shape, xoff = None, yoff = None, zoff = None):
     """Adds isotropic border area to director or stack data"""
