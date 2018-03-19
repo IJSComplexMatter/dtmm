@@ -13,7 +13,7 @@ First, we should get familiar with the data model that is used internally for co
 Units
 +++++
 
-Computation and data model is viewed in pixel units. In the computation, size of the pixel  is defined, and the rest of the physical parameters (dimensions, wavenumbers) are defined in pixel units.
+Wavelengths are defined in nanometers, while dimensions (coordinates) are defined in pixel units. In the computation, size of the pixel is defined as a parameter, and the rest of the physical parameters (dimensions, wavenumbers) are defined in pixel units.
 
 
 *optical_data*

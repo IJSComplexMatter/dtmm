@@ -62,7 +62,7 @@ def plot_director(director, fig = None, ax = None):
     v = director[...,1]
     w = director[...,2]
 
-    ax.quiver(xx, yy, zz, u, v, w,normalize = True, arrow_length_ratio = 0.3,length = 0.9)#, length=0.1, normalize=True)
+    ax.quiver(xx, yy, zz, u, v, w, arrow_length_ratio = 0.3,length = 0.9)#, length=0.1, normalize=True)
     
     return fig
 
@@ -70,18 +70,5 @@ def plot_angles(angles, fig = None, ax = None):
     director = dtmm.angles2director(angles)
     return plot_director(director, fig = None, ax = None)
     
-
-director = dtmm.nematic_droplet_director((60, 128, 128), 
-       radius = 30, profile = "r")
-    
-optical_data = dtmm.nematic_droplet_data((60, 128, 128), 
-       radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
-
-
-t,id,e,a = optical_data
-
-fig = plot_angles(a[26:-26,58:-58,58:-58])
-fig.show()
-#plot_material_id(id, 1)
 
 
