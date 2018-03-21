@@ -1,5 +1,5 @@
 matplotlib
 numpy 
 scipy
-numba
+numba>=0.35
 numexpr

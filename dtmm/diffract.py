@@ -107,7 +107,7 @@ def propagate(fieldv,ks,stack,eps, beta0 = 0., phi0 = 0., eps0 = None, layer0 = 
     print_progress(n,n,level = verbose_level)
     return fieldv
 
-def transmit_field(field_waves,data, beta0 = 0., 
+def transmit_field(field_waves, data, beta0 = 0., 
                    phi0 = 0., eps0 = None, layer0 = None,
               diffraction = True, mode = "t", out = None):
     d, mask, material, stack = data

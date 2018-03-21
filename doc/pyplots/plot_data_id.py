@@ -8,4 +8,4 @@ data = dtmm.nematic_droplet_data((60, 128, 128),
 thickness, material_id, material_eps, angles = data
 
 fig = dtmm.plot_id(material_id, id = 1)
-#fig.show()
+fig.show()

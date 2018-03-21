@@ -249,7 +249,7 @@ def nematic_droplet_data(shape, radius, profile = "r",
     """
     mask, director = nematic_droplet_director(shape, radius, profile = profile, retmask = True)
     material = refind2eps([refind(nhost), refind(no,ne)])
-    return 1., mask, material, director2stack(director)
+    return np.ones(shape = (shape[0],)), mask, material, director2stack(director)
     
     
 @numba.njit([NF32DTYPE[:,:,:,:](NF32DTYPE[:,:,:,:])])
@@ -281,31 +281,25 @@ def director2stack(data):
 
 director2angles = director2stack
 
-@numba.njit([NF32DTYPE[:,:,:,:](NF32DTYPE[:,:,:,:])])
-def angles2director(data):
+@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:])], "(n)->(n)")
+def angles2director(data, out):
     """Converts angles data (order,theta,phi) to director (nx,ny,nz)"""
-    nz,nx,ny,c = data.shape
-    out = np.empty(shape = (nz,nx,ny,3),dtype = F32DTYPE)
-
+    c = data.shape[0]
     if c != 3:
         raise TypeError("invalid shape")
-    for i in range(nz):
-        for j in range(nx):
-            for k in range(ny):
-                vec = data[i,j,k]
-                s = vec[0]
-                theta = vec[1]
-                phi = vec[2]
-                tmp = out[i,j,k]
 
-                ct = np.cos(theta)
-                st = np.sin(theta)
-                cf = np.cos(phi)
-                sf = np.sin(phi)
-                tmp[0] = s*cf*st
-                tmp[1] = s*sf*st
-                tmp[2] = s*ct
-    return out
+    s = data[0]
+    theta = data[1]
+    phi = data[2]
+
+    ct = np.cos(theta)
+    st = np.sin(theta)
+    cf = np.cos(phi)
+    sf = np.sin(phi)
+    out[0] = s*cf*st
+    out[1] = s*sf*st
+    out[2] = s*ct
+
 
 
 def add_isotropic_border(data, shape, xoff = None, yoff = None, zoff = None):

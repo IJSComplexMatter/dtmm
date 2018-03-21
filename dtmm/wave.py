@@ -20,12 +20,6 @@ import numba as nb
 
 import dtmm.fft as fft
 
-
-#@nb.vectorize([NCDTYPE(NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE)], target = "parallel")
-#def _exp_ikr(kx,ky,xx,yy):
-#    kr = xx*kx + yy*ky
-#    return np.exp(1j*kr)
-
 def betaphi(shape, k0):
     """Returns beta, phi of all possible plane eigenwaves.
     
@@ -131,22 +125,27 @@ def illumination2field(waves, k0, beta = 0., phi = 0., refind = 1., pol = None):
     beta = np.asarray(beta)
     phi = np.asarray(phi)
     k0 = np.asarray(k0)
-    fieldv = np.zeros(beta.shape + (2,) + k0.shape + (4,) + waves.shape[-2:], dtype = CDTYPE)
+    if pol is None:
+        fieldv = np.zeros(beta.shape + (2,) + k0.shape + (4,) + waves.shape[-2:], dtype = CDTYPE)
+    else:
+        fieldv = np.zeros(beta.shape + k0.shape + (4,) + waves.shape[-2:], dtype = CDTYPE)
     
     if beta.ndim > 0: 
         for i,data in enumerate(fieldv):
-        
-            data[0,...,0,:,:] = waves[i]
-            data[0,...,1,:,:] = waves[i]
-            
-            data[1,...,2,:,:] = waves[i]
-            data[1,...,3,:,:] = -waves[i]
+            if pol is None:
+                data[0,...,0,:,:] = waves[i]
+                data[0,...,1,:,:] = waves[i]
+                
+                data[1,...,2,:,:] = waves[i]
+                data[1,...,3,:,:] = -waves[i]
     else:
+        if pol is None:
             fieldv[0,...,0,:,:] = waves
             fieldv[0,...,1,:,:] = waves
             
             fieldv[1,...,2,:,:] = waves
             fieldv[1,...,3,:,:] = -waves
+
     return fieldv
 
 
