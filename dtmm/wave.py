@@ -37,8 +37,8 @@ def betaphi(shape, k0):
     """
     k0 = np.asarray(k0)[...,np.newaxis,np.newaxis] #make it broadcastable
     #ax, ay = map(np.fft.fftfreq, shape,(d,)*len(shape))
-    ax, ay = map(np.fft.fftfreq, shape)
-    xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "ij") 
+    ay, ax = map(np.fft.fftfreq, shape)
+    xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
     phi = np.arctan2(yy,xx)
     beta = (2 * np.pi / k0) * np.sqrt(xx**2 + yy**2)
     return beta, phi
@@ -61,8 +61,8 @@ def illumination_betaphi(NA, radius = 2.):
         
     """
     shape = (1+2*int(radius),1+2*int(radius))
-    ax, ay = [np.arange(-l // 2 + 1., l // 2 + 1.) for l in shape]
-    xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "ij") 
+    ay, ax = [np.arange(-l // 2 + 1., l // 2 + 1.) for l in shape]
+    xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
     phi = np.arctan2(yy,xx)
     beta = np.sqrt(xx**2 + yy**2)/radius*NA
     mask = (beta <= NA)
@@ -75,8 +75,8 @@ def betaxy(shape, k0):
     a given wave number k0 and step size d"""
     #ax, ay = map(np.fft.fftfreq, shape,(d,)*len(shape))
     k0 = np.asarray(k0)[...,np.newaxis,np.newaxis] #make it broadcastable
-    ax, ay = map(np.fft.fftfreq, shape)
-    xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "ij") 
+    ay, ax = map(np.fft.fftfreq, shape)
+    xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
     betax = 2 * np.pi * xx/k0
     betay = 2 * np.pi * yy/k0
     return betax, betay
@@ -102,8 +102,8 @@ def planewave(shape, k0, beta , phi, out = None):
     k0 = np.asarray(k0)[...,np.newaxis,np.newaxis] #make it broadcastable
     beta = np.asarray(beta)[...,np.newaxis,np.newaxis]
     phi = np.asarray(phi)[...,np.newaxis,np.newaxis]
-    ax, ay = [np.arange(-l // 2 + 1., l // 2 + 1.) for l in shape]
-    xx, yy = np.meshgrid(ax, ay, indexing = "ij", copy = False)
+    ay, ax = [np.arange(-l // 2 + 1., l // 2 + 1.) for l in shape]
+    xx, yy = np.meshgrid(ax, ay, indexing = "xy", copy = False)
     kx = k0*beta*np.cos(phi)
     ky = k0*beta*np.sin(phi)
     #return _exp_ikr(kx,ky,xx,yy)

@@ -18,11 +18,11 @@ import sys
 from dtmm.conf import  NF32DTYPE, F32DTYPE, FDTYPE
 
 
-def read_director(file, shape, dtype = "float32",  endian = sys.byteorder, nvec = "xyz"):
+def read_director(file, shape, dtype = "float32",  endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
     """Reads raw director data from a binary file. 
     
-    A convinient way to read director data from file. It uses :func:`read_data``
-
+    A convinient way to read director data from file. 
+    
     Parameters
     ----------
     file : str or file
@@ -45,19 +45,63 @@ def read_director(file, shape, dtype = "float32",  endian = sys.byteorder, nvec 
     except:
         raise TypeError("shape must be director data shape (z,x,y,n)")
     data = read_raw(file, shape, dtype, endian)
-    return raw2director(data, nvec)
+    return raw2director(data, order, nvec)
+
+def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None, thickness = None):
+    """Builds optical data from director data"""
+    angles = director2angles(director)
+    if thickness is None:
+        thickness = np.ones((len(director),))
+    if mask is not None:
+        eps = refind2eps([[nhost,nhost,nhost], [no,no,ne]])
+        angles[mask == 0 ] = 0.
+    else:
+        eps = refind2eps([[no,no,ne]])
+        id = np.zeros(shape = director.shape[:-1], dtype = "uint32")
+    return thickness, id, eps, angles
+        
+def validate_data(data):
+    """Validates optical data"""
+    thickness, id, material, angles = data
+    thickness = np.asarray(thickness, dtype = "float32")
+    id = np.asarray(id, dtype = "uint32")
+    material = np.asarray(material, dtype = "complex64")
+    angles = np.asarray(angles, dtype = "float32")
     
-def raw2director(data, nvec = "xyz"):
+def raw2director(data, order = "zyxn", nvec = "xyz"):
     """Converts raw data to valid director format.
     
     Parameters
     ----------
     data : array
         Data array
+    order : str, optional
+        Data order. It can be any permutation of 'xyzn'. Defaults to 'zyxn'. It
+        describes what are the meaning of axes in data.
     nvec : str, optional
         Order of the director data coordinates. Any permutation of 'x', 'y' and 
-        'z', e.g. 'yxz', 'zxy' ...        
+        'z', e.g. 'yxz', 'zxy'. Defaults to 'xyz'  
+        
+    Returns
+    -------
+    director : array
+        A new array or same array (if no trasposing and data copying was made)
+        
+    Example
+    -------
+    
+    >>> a = np.random.randn(10,11,12,3)
+    >>> director = raw2director(a, "xyzn")
     """
+    if order != "zyxn":
+        #if not in zxyn order, then we must transpose data
+        try:
+            axes = (order.find(c) for c in "zyxn")
+            axes = tuple((i for i in axes if i != -1))
+            data = np.transpose(data, axes)
+        except:
+            raise ValueError("Invalid value for 'order'. Must be a permutation of 'xyzn' characters")
+        
     if nvec != "xyz":
         index = {"x" : 0, "y": 1, "z" : 2}
         out = np.empty_like(data)
@@ -101,22 +145,22 @@ def read_raw(file, shape, dtype, sep = "", endian = sys.byteorder):
     else:
         return a.reshape(shape).byteswap(True)
 
-def plot_director(data):
-    """Plots director data."""
-    x,y,z,c = data.shape
-    
-    # Make the grid
-    x, y, z = np.meshgrid(np.arange(0., x, 1.),
-                          np.arange(0., y, 1.),
-                          np.arange(0., z, 1.))
-    
-    # Set the direction data for the arrows
-    u = data[...,0]
-    v = data[...,1]
-    w = data[...,2]
-    
-    src = mlab.pipeline.vector_field(u, v, w)
-    return mlab.pipeline.vector_cut_plane(src, mask_points=2, scale_factor=3)
+#def plot_director(data):
+#    """Plots director data."""
+#    x,y,z,c = data.shape
+#    
+#    # Make the grid
+#    x, y, z = np.meshgrid(np.arange(0., x, 1.),
+#                          np.arange(0., y, 1.),
+#                          np.arange(0., z, 1.))
+#    
+#    # Set the direction data for the arrows
+#    u = data[...,0]
+#    v = data[...,1]
+#    w = data[...,2]
+#    
+#    src = mlab.pipeline.vector_field(u, v, w)
+#    return mlab.pipeline.vector_cut_plane(src, mask_points=2, scale_factor=3)
     #return mlab.pipeline.vectors(src, mask_points=20, scale_factor=3.)
     
     #return mlab.quiver3d(x, y, z, u, v, w, scale_factor = 0.5)    
@@ -163,9 +207,9 @@ def refind(n1 = 1, n3 = None, n2 = None):
     
 def _r3(shape):
     """Returns r vector array of given shape."""
-    nz,nx,ny = [l//2 for l in shape]
-    az, ax, ay = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
-    zz, xx, yy = np.meshgrid(az, ax, ay, indexing = "ij")
+    nz,ny,nx = [l//2 for l in shape]
+    az, ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
+    zz,yy,xx = np.meshgrid(az,ay,ax, indexing = "ij")
     return xx, yy, zz
     #r = ((xx/(nx*scale))**2 + (yy/(ny*scale))**2 + (zz/(nz*scale))**2) ** 0.5 
     #return r
@@ -193,8 +237,8 @@ def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
         A director data array, or tuple of director mask and director data arrays.
     """
     
-    nz, nx, ny = shape
-    out = np.zeros(shape = (nz,nx,ny,3), dtype = F32DTYPE)
+    nz, ny, nx = shape
+    out = np.zeros(shape = (nz,ny,nx,3), dtype = F32DTYPE)
     xx, yy, zz = _r3(shape)
     
     r = (xx**2 + yy**2 + zz**2) ** 0.5 

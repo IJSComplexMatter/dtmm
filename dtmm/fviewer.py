@@ -104,7 +104,7 @@ class FieldViewer(object):
         
         plt.subplots_adjust(bottom=0.25)  
         self.calculate_image()
-        self.axim = self.ax.imshow(self.image)
+        self.axim = self.ax.imshow(self.image, origin = "lower")
 
         def update_sample(d):
             self.sample = d

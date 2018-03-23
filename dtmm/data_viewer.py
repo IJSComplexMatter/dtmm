@@ -15,12 +15,12 @@ import numpy as np
 
 def _r3(shape, center = False):
     """Returns r vector array of given shape."""
-    nz,nx,ny = [l//2 for l in shape]
+    nz,ny,nx = [l//2 for l in shape]
     if center == False:
-        az, ax, ay = [np.arange(l) for l in shape]
+        az, ay, ax = [np.arange(l) for l in shape]
     else:
-        az, ax, ay = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
-    zz, xx, yy = np.meshgrid(az, ax, ay, indexing = "ij")
+        az, ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
+    zz, yy, xx = np.meshgrid(az, ax, ay, indexing = "ij")
     return xx, yy, zz
 
 def _add_mask(mask,data, lim):

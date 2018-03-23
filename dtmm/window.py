@@ -15,9 +15,9 @@ from dtmm.conf import FDTYPE
 
 def _r(shape, scale = 1.):
     """Returns radius array of given shape."""
-    nx,ny = [l//2 for l in shape]
-    ax, ay = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
-    xx, yy = np.meshgrid(ax, ay, indexing = "ij")
+    ny,nx = [l//2 for l in shape]
+    ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
+    xx, yy = np.meshgrid(ax, ay, indexing = "xy")
     r = ((xx/(nx*scale))**2 + (yy/(ny*scale))**2) ** 0.5    
     return r
 
@@ -54,4 +54,4 @@ if __name__ == "__main__":
     plt.subplot(121)
     plt.imshow(aperture((33,33),diameter = 0.8))
     plt.subplot(122)
-    plt.imshow(blackman((32,32)))
+    plt.imshow(blackman((32,39)))

@@ -32,7 +32,7 @@ This creates light field, wavenumbers and color matching table between 380 nm an
 
 .. doctest::
 
-   >>> out = dtmm.transmit_field(field_waves, data)
+   >>> out = dtmm.transmit_field(field_waves, optical_data)
 
 Finally, the transmitted field can be visualized:
 
