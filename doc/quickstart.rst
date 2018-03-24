@@ -25,9 +25,11 @@ Coordinate system, units and conventions
 * Propagation is said to be *backward propagation* if the the wave vector has a negative *z* component.
 * Light enters the material at *z=0*  at the bottom of the sample and exits at the top of the sample.
 * The sample is defined by a single layer or sequence of layers - a *stack*. The first layer being the one at the bottom of the stack.
-* Internally, optical parameters are stored in memory as a C-contiguous array. 
+* Internally, optical parameters are stored in memory as a C-contiguous array.
+ 
    * For 3D (*stack*) with axes (i,j,k,...) the axes are *z*, *y*, *x*, *parameter(s)*.
    * For 2D (*layer*) with axes (i,j,...) the axes are *y*, *x*, *parameter(s)*.
+
 * Optical parameters data is stored in single precision "float32" and "complex64".
 * Computation is done with double precision.
 
@@ -46,6 +48,7 @@ Parameter :math:`\beta` is a fundamental parameter in transfer matrix method. Th
 
 *optical_data*
 ++++++++++++++
+
 
 .. doctest::
 
@@ -97,15 +100,14 @@ The real part of the dielectric constant is the refractive index squared and the
    >>> eps_angles[0,0,0]
    array([ 0.,  0.,  0.], dtype=float32)
 
-while inside of the sphere, these define the length of the director, theta, and phi angles. 
-
+while inside of the sphere, these three elements are
 
 .. doctest::
 
    >>> eps_angles[30,64,64] #z=30, y = 64, x = 64
    array([ 0.99999994,  0.9553166 ,  0.78539819], dtype=float32)
 
-The first element is always 1. because it defends the length of the director vector. the second value describes the :math:`\theta_m` angle and the last describes the :math:`\phi_m`  angle.
+The first element is always 1 because it defines the length of the director vector, the second value describes the :math:`\theta_m` angle, and the last describes the :math:`\phi_m`  angle.
 
 We can plot the director around the center (around the point defect) of the droplet by
 
@@ -117,11 +119,11 @@ We can plot the director around the center (around the point defect) of the drop
 
 .. note::
 
-   matplotlib cannot handle quiver plot of large data sets, so here we limited dataset visualization to nearby center points.
+   matplotlib cannot handle quiver plot of large data sets, so you have to limit dataset visualization to limited number of points. The center argument was used to set the coordinate system origin to compute box center point and we used xlim, ylim and zlim arguments to slice data.
     
 .. plot:: pyplots/plot_data_angles.py
 
-   LC director of the nematic droplet near the center of the sphere. Director is computed from director angles. 
+   LC director of the nematic droplet near the center of the sphere. Director is computed from director angles. There is a point defect in the origin. 
 
 Director length in the `eps_angles` data should normally be 1. However, you can set any value. This value is then used to compute the refractive indices of the material. In fact this value is treated as a nematic order parameter, which is used to compute the refractive indices from the following formula:
 

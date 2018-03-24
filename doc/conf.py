@@ -98,9 +98,12 @@ extensions = [
     'sphinx.ext.githubpages',
     "sphinx.ext.doctest",
     "sphinx.ext.imgmath",
+    #"sphinx.ext.jsmath",
     #'matplotlib.sphinxext.plot_directive',
     'plot_directive'
 ]
+
+imgmath_image_format = "svg"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

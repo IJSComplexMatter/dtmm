@@ -67,9 +67,10 @@ def validate_data(data):
     id = np.asarray(id, dtype = "uint32")
     material = np.asarray(material, dtype = "complex64")
     angles = np.asarray(angles, dtype = "float32")
+    return thickness, id, material, angles
     
 def raw2director(data, order = "zyxn", nvec = "xyz"):
-    """Converts raw data to valid director format.
+    """Converts raw data to director array.
     
     Parameters
     ----------
