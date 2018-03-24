@@ -96,8 +96,10 @@ else:
 # ones.
 extensions = [
     'sphinx.ext.githubpages',
+    'sphinx.ext.napoleon',
     "sphinx.ext.doctest",
     "sphinx.ext.imgmath",
+    "sphinx.ext.autodoc",
     #"sphinx.ext.jsmath",
     #'matplotlib.sphinxext.plot_directive',
     'plot_directive'

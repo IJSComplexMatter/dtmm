@@ -16,6 +16,7 @@ Welcome to dtmm's documentation!
    installation
    quickstart
    tutorial
+   reference
 
 
 Indices and tables
