@@ -12,9 +12,7 @@ Welcome to dtmm's documentation!
 
    introduction
    installation
-   quickstart
    datamodel
-   tutorial
    optimization
    reference
 
