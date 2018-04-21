@@ -5,6 +5,11 @@
 import dtmm
 import numpy as np
 
+import matplotlib
+
+if matplotlib.__version__.split(".")[0] != "2":
+    1/0
+
 
 #: pixel size in nm
 PIXELSIZE = 200
