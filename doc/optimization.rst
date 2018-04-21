@@ -6,7 +6,7 @@ In the :mod:`dtmm.conf` there are several configuration options
 Parallelization
 ---------------
 
-All computationally expensive numerical algorithms have been implemented in numba with parallel execution possibilities. By default, parallel execution is disabled for two reasons. In parallel mode, the functions have to be compiled at runtime. This adds significant time overhead when importing the package. Secondly, automatic parallelization of vectorized functions is a new feature in numba and is still experimental according to numba documentation.
+All computationally expensive numerical algorithms have been implemented in numba using @vectorize or @guvecgorize and can be performed with target="parallel" option. By default, parallel execution is disabled for two reasons. In parallel mode, the functions have to be compiled at runtime. This adds significant time overhead when importing the package. Secondly, automatic parallelization of vectorized functions is a new feature in numba and is still experimental according to numba documentation.
 
 You can enable parallel target for numba functions by setting the *DTMM_TARGET_PARALLEL* environment variable. This has to be set prior to importing the package::
 
