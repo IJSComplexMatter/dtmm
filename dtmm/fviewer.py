@@ -10,9 +10,11 @@ import scipy.ndimage as nd
 import numexpr
 
 from dtmm.color import load_tcmf, specter2color
-from dtmm.diffract import FieldDiffract
+from dtmm.diffract import diffract, diffraction_matrix
 from dtmm.field import field2specter
 from dtmm.jones import polarizer_matrix, apply_polarizer_matrix
+from dtmm.wave import k0
+from dtmm.data import refind2eps
 
 VIEWER_PARAMETERS = ("analizer", "polarizer", "sample", "intensity", "focus")
 
@@ -35,25 +37,30 @@ def redim(a, ndim=1):
         new_shape = (np.multiply.reduce(old_shape[0:n+1]),) + old_shape[n+1:]
     return a.reshape(new_shape)
 
-def field_viewer(field_waves, cmf = None, refind = 1., mode = "t", focus = 0,
-                 intensity = 1., polarizer = None, sample = None, analizer = None):
-    field, wavenumbers = field_waves
+def field_viewer(field_waves, cmf = None, n = 1., mode = None, focus = 0,
+                 intensity = 1., polarizer = None, sample = None, analizer = None,
+                 window = None):
+    field, wavelengths, pixelsize = field_waves
+    wavenumbers = k0(wavelengths, pixelsize)
     if field.ndim < 4:
-        raise TypeError("Incompatible field shape")
-    
-    diff = FieldDiffract(field.shape[-2:],wavenumbers,refind, mode = mode)    
+        raise ValueError("Incompatible field shape")
+   
     if cmf is None:
-        cmf = load_tcmf()
-    return FieldViewer(field, diffract = diff, focus = focus, intensity = intensity, polarizer = polarizer,
-                       sample = sample, analizer = analizer, cmf = cmf)
+        cmf = load_tcmf(wavelengths)
+    return FieldViewer(field, wavenumbers, focus = focus, mode = mode, intensity = intensity, polarizer = polarizer,
+                       sample = sample, analizer = analizer, cmf = cmf, window = window)
+
+
             
 class FieldViewer(object):       
-    def __init__(self,field, diffract, focus = 0,
-                 intensity = 1., polarizer = None, sample = None, analizer = None, cmf = None):
+    def __init__(self,field,ks, focus = 0, mode = "t",
+                 intensity = 1., polarizer = None, sample = None, analizer = None, cmf = None, window = None):
         if field.ndim < 4:
-            raise TypeError("Incompatible field shape")
-        
-        self.diffract = diffract
+            raise ValueError("Incompatible field shape")
+        self.mode = mode  
+        self.epsv = refind2eps([1.,1.,1.])
+        self.epsa = np.array([0.,0.,0.])
+        self.ks = ks
         self.ifield = field
         
         self.ofield = np.empty_like(field)
@@ -65,6 +72,7 @@ class FieldViewer(object):
         self.sample = sample
         self.analizer = analizer
         self.focus = focus
+        self.window = window
         
         if cmf is None:
             self.cmf = load_tcmf()
@@ -153,7 +161,7 @@ class FieldViewer(object):
             self._sfocus = Slider(self.axfocus, "focus",kwargs.get("fmin",self.focus-100),kwargs.get("fmax",self.focus + 100),valinit = self.focus, valfmt='%.1f')
             self._ids1 = self._sfocus.on_changed(update_focus)
 
-        return self.fig
+        return self.fig, self.ax
     
     
     @property
@@ -174,7 +182,7 @@ class FieldViewer(object):
     @polarizer.setter 
     def polarizer(self, angle):
         if angle is not None and self.ifield.ndim >= 5 and self.ifield.shape[-5] != 2:
-            raise TypeError("Cannot set polarizer. Incompatible field shape.")
+            raise ValueError("Cannot set polarizer. Incompatible field shape.")
         self._polarizer = angle
         self._updated_parameters.add("polarizer")
 
@@ -219,7 +227,7 @@ class FieldViewer(object):
         """Returns viewer parameters as dict"""
         return {name : getattr(self,name) for name in VIEWER_PARAMETERS}
         
-    def calculate_specter(self, recalc = False):
+    def calculate_specter(self, recalc = False, **params):
         """Calculates field specter.
         
         Parameters
@@ -228,13 +236,11 @@ class FieldViewer(object):
             If specified, it forces recalculation. Otherwise, result is calculated
             only if calculation parameters have changed.
         """
-
+        self.set_parameters(**params)
         if recalc or "focus" in self._updated_parameters:
-            if self.focus is None:
-                self.diffract.distance = 0.
-            else:
-                self.diffract.distance = self.focus
-            self.diffract.calculate(self.ifield, out = self.ofield)
+            d = 0 if self.focus is None else self.focus
+            dmat = diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = d, epsv = self.epsv, epsa = self.epsa, mode = self.mode)
+            diffract(self.ifield,dmat,window = self.window,out = self.ofield)
             recalc = True
         if recalc or "polarizer" in self._updated_parameters or "analizer" in self._updated_parameters or "sample" in self._updated_parameters:
             sample = self.sample
@@ -244,12 +250,12 @@ class FieldViewer(object):
                 tmp = redim(self.ofield, ndim = 5)
                 out = np.empty_like(tmp[0])
             else:
-                angle = np.pi/180*(self.polarizer - sample)
+                angle = -np.pi/180*(self.polarizer - sample)
                 c,s = np.cos(angle),np.sin(angle)  
                 tmp = redim(self.ofield, ndim = 6)
                 out = np.empty_like(tmp[0,0])
             if self.analizer is not None:
-                angle = np.pi/180*(self.analizer - sample)
+                angle = -np.pi/180*(self.analizer - sample)
                 pmat = polarizer_matrix(angle)
             
             for i,data in enumerate(tmp):
@@ -277,7 +283,7 @@ class FieldViewer(object):
              self._updated_parameters.clear()
         return self.specter
     
-    def calculate_image(self, gamma = True, gray = False, recalc = False):
+    def calculate_image(self, gamma = True, gray = False, recalc = False, **params):
         """Calculates RGB image
         
         Parameters
@@ -286,16 +292,17 @@ class FieldViewer(object):
             If specified, it forces recalculation. Otherwise, result is calculated
             only if calculation parameters have changed.
         """
-        specter = self.calculate_specter(recalc)
+        
+        specter = self.calculate_specter(recalc,**params)
         if recalc or "intensity" in self._updated_parameters:
             if self.intensity is not None:
-                if self.diffract.mode == "r":
+                if self.mode == "r":
                     norm = -1./self.intensity
                 else:
                     norm = 1./self.intensity
                 self.image = specter2color(specter,self.cmf, norm = norm, gamma = gamma, gray = gray) 
             else:
-                if self.diffract.mode == "r":
+                if self.mode == "r":
                     self.image = specter2color(specter,self.cmf, norm = -1., gamma = gamma, gray = gray) 
                 else:
                     self.image = specter2color(specter,self.cmf, gamma = gamma, gray = gray) 
@@ -326,5 +333,8 @@ class FieldViewer(object):
     def show(self):
         """Shows plot"""
         plt.show()
+
+
+
 
     

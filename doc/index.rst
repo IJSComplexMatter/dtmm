@@ -6,8 +6,6 @@
 Welcome to dtmm's documentation!
 ================================
 
-`dtmm` is a python package for coherent light transmission or reflection calculation and visualization in layered homogeneous or inhomogeneous materials. This package can be used, for instance, for simulating optical polarizing microscope images of liquid-crystalline materials. 
-
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
@@ -15,7 +13,9 @@ Welcome to dtmm's documentation!
    introduction
    installation
    quickstart
+   datamodel
    tutorial
+   optimization
    reference
 
 

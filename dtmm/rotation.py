@@ -10,7 +10,7 @@ from numba import jit
 import numba as nb
 
 
-from dtmm.conf import NCDTYPE, NFDTYPE, CDTYPE, FDTYPE, UDTYPE,NUMBA_TARGET
+from dtmm.conf import NCDTYPE, NFDTYPE, CDTYPE, FDTYPE, UDTYPE,NUMBA_TARGET, NUMBA_CACHE
 
 
 def _check_matrix(mat, shape, dtype):
@@ -53,14 +53,14 @@ def rotation_matrix(yaw,theta,phi, output = None):
     _rotation_matrix(yaw,theta,phi,output)
     return output
 
-@nb.njit([(NFDTYPE,NFDTYPE[:])])
+@nb.njit([(NFDTYPE,NFDTYPE[:])], cache = NUMBA_CACHE)
 def _rotation_vector2(angle, out):
     c = np.cos(angle)
     s = np.sin(angle)
     out[0] = c
     out[1] = s
 
-@nb.njit([(NFDTYPE,NFDTYPE[:,:])])
+@nb.njit([(NFDTYPE,NFDTYPE[:,:])], cache = NUMBA_CACHE)
 def _rotation_matrix2(angle, out):
     c = np.cos(angle)
     s = np.sin(angle)
@@ -69,11 +69,11 @@ def _rotation_matrix2(angle, out):
     out[0,1] = -s
     out[1,1] = c 
     
-@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:,:])], "(),(n)->(n,n)", target = NUMBA_TARGET)
+@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:,:])], "(),(n)->(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def _rotation_matrix2_vec(angle,dummy, out):
     _rotation_matrix2(angle[0], out)
     
-@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:])], "(),(n)->(n)", target = NUMBA_TARGET)
+@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:])], "(),(n)->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def _rotation_vector2_vec(angle,dummy, out):
     _rotation_vector2(angle[0], out)
 
@@ -91,7 +91,7 @@ def rotation_matrix_z(angle):
 def rotation_matrix_y(angle):
     return np.array([[cos(angle),0,-sin(angle)],[0,1.,0.],[sin(angle),0,cos(angle)]])       
             
-@jit('i8(f8,f8,f8,f8[:,:])',nopython = True) 
+@jit('i8(f8,f8,f8,f8[:,:])',nopython = True, cache = NUMBA_CACHE) 
 def _rotation_matrix(yaw,theta,phi, R):
     """Fills rotation matrix values R = Rphi.Rtheta.Ryaw, where rphi and Ryaw are 
     rotations around y and Rtheta around z axis. 
@@ -141,7 +141,7 @@ def rotation_matrix_uniaxial(theta,phi, output = None):
     _rotation_matrix_uniaxial(theta,phi,output)
     return output
 
-@jit('f8[:,:](f8,f8,f8[:,:])',nopython = True) 
+@jit('f8[:,:](f8,f8,f8[:,:])',nopython = True, cache = NUMBA_CACHE) 
 def _rotation_matrix_uniaxial(theta,phi, R):
     """Fills rotation matrix values R = Rphi.Rtheta, where rphiis
     rotations around y and Rtheta around z axis. 
@@ -190,7 +190,7 @@ def rotate_diagonal_tensor(R,diagonal,output = None):
     _rotate_diagonal_tensor(R,diagonal,output)
     return output 
         
-@jit('i8(f8[:,:],c16[:],c16[:])',nopython = True)
+@jit('i8(f8[:,:],c16[:],c16[:])',nopython = True, cache = NUMBA_CACHE)
 def _rotate_diagonal_tensor(R,diagonal,out):
     """Calculates out = R.diagonal.RT of a diagonal tensor"""
     for i in range(3):
@@ -216,7 +216,7 @@ def diagional_tensor_to_matrix(tensor, output = None):
     _diagonal_tensor_to_matrix(tensor, output)
     return output
 
-@jit('i8(c16[:],c16[:,:])',nopython = True)
+@jit('i8(c16[:],c16[:,:])',nopython = True, cache = NUMBA_CACHE)
 def _tensor_to_matrix(tensor, matrix):
     matrix[0,0] = tensor[0]
     matrix[1,1] = tensor[1]
@@ -229,7 +229,7 @@ def _tensor_to_matrix(tensor, matrix):
     matrix[2,1] = tensor[5]
     return 0
 
-@jit('i8(c16[:],c16[:,:])',nopython = True)
+@jit('i8(c16[:],c16[:,:])',nopython = True, cache = NUMBA_CACHE)
 def _diagonal_tensor_to_matrix(tensor, matrix):
     matrix[0,0] = tensor[0]
     matrix[1,1] = tensor[1]
@@ -242,14 +242,14 @@ def _diagonal_tensor_to_matrix(tensor, matrix):
     matrix[2,1] = 0.
     return 0
     
-@jit('i8(f8,f8[:],f8[:,:])',nopython = True)
+@jit('i8(f8,f8[:],f8[:,:])',nopython = True, cache = NUMBA_CACHE)
 def _calc_rotations_uniaxial(phi0,element,R):
     theta = element[1]
     phi = element[2] -phi0
     _rotation_matrix_uniaxial(theta,phi, R)
     return 0    
 
-@jit('i8(f8,f8[:,:])',nopython = True)
+@jit('i8(f8,f8[:,:])',nopython = True, cache = NUMBA_CACHE)
 def _calc_rotations_isotropic(phi0,R):
     theta = np.pi/2
     #theta = 0.
@@ -257,7 +257,7 @@ def _calc_rotations_isotropic(phi0,R):
     _rotation_matrix_uniaxial(theta,phi, R)
     return 0   
 
-@jit('i8(f8,f8[:],f8[:,:])',nopython = True)
+@jit('i8(f8,f8[:],f8[:,:])',nopython = True, cache = NUMBA_CACHE)
 def _calc_rotations(phi0,element,R):
     yaw = 0
     theta = element[1]

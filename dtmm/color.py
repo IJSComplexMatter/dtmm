@@ -1,16 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Oct 10 09:44:09 2017
-
-@author: andrej
-
 Color conversion functions and utilities...
-
 """
 
 from __future__ import absolute_import, print_function, division
 
-from dtmm.conf import FDTYPE, NUMBA_TARGET, NFDTYPE, NCDTYPE
+from dtmm.conf import FDTYPE, NUMBA_TARGET, NFDTYPE, NCDTYPE, NUMBA_CACHE
 
 import numpy as np
 import numba
@@ -33,10 +28,10 @@ SRGBSLOPE = 12.92
 SRGBLINPOINT = 0.0031308
 SRGBA = 0.055
 
-
-@numba.vectorize([NFDTYPE(NFDTYPE, NFDTYPE)], nopython = True, target = NUMBA_TARGET) 
+@numba.vectorize([NFDTYPE(NFDTYPE, NFDTYPE)], nopython = True, target = NUMBA_TARGET, cache = NUMBA_CACHE) 
 def apply_gamma(value, gamma):
-    """Applies standard gamma function (transfer function) to the given (linear) data"""
+    """apply_gamma(value, gamma):
+    Applies standard gamma function (transfer function) to the given (linear) data."""
     if value > 1.:
         return 1.
     if value < 0:
@@ -44,9 +39,9 @@ def apply_gamma(value, gamma):
     else:
         return value**(1./gamma)
 
-@numba.vectorize([NFDTYPE(NFDTYPE)], nopython = True, target = NUMBA_TARGET) 
+@numba.vectorize([NFDTYPE(NFDTYPE)], nopython = True, target = NUMBA_TARGET, cache = NUMBA_CACHE) 
 def apply_srgb_gamma(value):
-    """Applies sRGB gamma function (transfer function)  to the given (linear) data"""
+    """Applies sRGB gamma function (transfer function) to the given (linear) data."""
     if value < SRGBLINPOINT:
         if value < 0.:
             return 0.
@@ -58,23 +53,26 @@ def apply_srgb_gamma(value):
         else:
             return (1+SRGBA)*value**SRGBIGAMMA-SRGBA
 
-@numba.guvectorize([(NFDTYPE[:], NFDTYPE[:])], '(n)->(n)', target = NUMBA_TARGET)
+@numba.guvectorize([(NFDTYPE[:], NFDTYPE[:])], '(n)->(n)', target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def xyz2srgb(xyz, rgb):
-    """Converts XYZ value to RGB value based on the sRGB working space with D65 reference white."""
+    """Converts XYZ value to RGB value based on the sRGB working space with 
+    D65 reference white."""
     xyz0 = xyz[0]
     xyz1 = xyz[1]
     xyz2 = xyz[2]
     for k in range(3):
         rgb[k] = XYZ2RGBD65[k,0] * xyz0 +  XYZ2RGBD65[k,1]* xyz1 +  XYZ2RGBD65[k,2]* xyz2
         
-@numba.guvectorize([(NFDTYPE[:], NFDTYPE[:])], '(n)->(n)', target = NUMBA_TARGET)
+@numba.guvectorize([(NFDTYPE[:], NFDTYPE[:])], '(n)->(n)', target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def xyz2gray(xyz, gray):
-    """Converts XYZ value to Gray color"""
+    """xyz2gray(xyz):
+    Converts XYZ value to Gray color
+    """
     y = xyz[1]
     for k in range(3):
         gray[k] = y
         
-@numba.jit([NFDTYPE(NFDTYPE,NFDTYPE[:])], nopython = True)            
+@numba.jit([NFDTYPE(NFDTYPE,NFDTYPE[:])], nopython = True, cache = NUMBA_CACHE)            
 def interpolate1d(x, data):
     nmax= data.shape[0]-1
     assert nmax >= 0
@@ -87,25 +85,43 @@ def interpolate1d(x, data):
     k = f-i
     return (1.-k)*data[i] + (k)*data[i+1]
         
-@numba.guvectorize([(NFDTYPE[:],NFDTYPE[:,:],NFDTYPE[:])], '(k),(n,m)->(m)', target = NUMBA_TARGET)
+@numba.guvectorize([(NFDTYPE[:],NFDTYPE[:,:],NFDTYPE[:])], '(n),(n,m)->(m)', target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def spec2xyz(spec,cmf,xyz):
-    """Converts specter array to xyz value, given a color matching function (cmf array)"""            
-    if spec.shape[0] == cmf.shape[0]:
-        for j in range(cmf.shape[1]):
-            xyz[j] = 0.
-            for i in range(cmf.shape[0]):
-                xyz[j] = xyz[j] + cmf[i,j]*spec[i]
-    else:
-        nmax = cmf.shape[0]-1
-        assert nmax > 0
-        for j in range(cmf.shape[1]):
-            xyz[j] = 0.
-            for i in range(cmf.shape[0]):
-                x = i/nmax
-                xyz[j] = xyz[j] + cmf[i,j]*interpolate1d(x, spec)
+    """spec2xyz(spec,cmf):
+    Converts specter array to xyz value.
+    
+    Parameters
+    ----------
+    spec : array_like
+        Input specter data
+    cmf : array_like
+        Color matching function
+        
+    Returns
+    -------
+    xyz : ndarray
+        Computed xyz value.
+    """  
+    for j in range(cmf.shape[1]):
+        xyz[j] = 0.
+        for i in range(cmf.shape[0]):
+            xyz[j] = xyz[j] + cmf[i,j]*spec[i]          
+#    if spec.shape[0] == cmf.shape[0]:
+#        for j in range(cmf.shape[1]):
+#            xyz[j] = 0.
+#            for i in range(cmf.shape[0]):
+#                xyz[j] = xyz[j] + cmf[i,j]*spec[i]
+#    else:
+#        nmax = cmf.shape[0]-1
+#        assert nmax > 0
+#        for j in range(cmf.shape[1]):
+#            xyz[j] = 0.
+#            for i in range(cmf.shape[0]):
+#                x = i/nmax
+#                xyz[j] = xyz[j] + cmf[i,j]*interpolate1d(x, spec)
             
 def specter2color(spec, cmf, norm = False, gamma = True, gray = False, out = None):
-    """Converts specter data to color (RGB or gray).
+    """Converts specter data to RGB data (color or gray).
     
     Specter shape must be [...,k], where wavelengths are in the last axis. cmf 
     must be a valid color matchin function array of size [n,3] If n != k, 
@@ -119,9 +135,10 @@ def specter2color(spec, cmf, norm = False, gamma = True, gray = False, out = Non
     cmf : array
         A color matching function (array of shape [n,3]) that converts the specter data 
         to a XYZ color.
-    norm : bool, optional
+    norm : bool or float, optional
         If set to False, no data normalization is performed (default). If True,
         internally, xyz data is normalized in the range [0,1.], so that no clipping occurs.
+        If it is a float, data is normalized to this value.
     gamma : bool or float, optional
         If gamma is True srgb gamma function is applied (default). If float is
         provided, standard gamma factor is applied with a given gamma value. If False,
@@ -131,11 +148,19 @@ def specter2color(spec, cmf, norm = False, gamma = True, gray = False, out = Non
     out : array, optional
         Output array
         
+    Returns
+    -------
+    rgb : ndarray
+        A computed RGB value.
+        
+    Notes
+    -----
+    Numpy broadcasting rules apply to spec and cmf.
         
     Example
     -------
     >>> cmf = load_tcmf()
-    >>> specter2color([1], cmf)#should be close to 1,1,1
+    >>> specter2color([1]*81, cmf)#should be close to 1,1,1
     array([ 0.99994901,  1.        ,  0.99998533])
     """
     #if isinstance(spec, list):
@@ -161,12 +186,33 @@ def specter2color(spec, cmf, norm = False, gamma = True, gray = False, out = Non
   
 def normalize_specter(spec, cmf, out = None):
     """Normalizes specter based on the color matching function (cmf array) so that
-    calculated Y value is 1."""
-    xyz = spec2xyz(spec,cmf, out)
+    calculated Y value is 1.
+    
+    Parameters
+    ----------
+    spec : array_like
+        Input illuminant specter data
+    cmf : array_like
+        Color matching function
+    out : ndarray, optional
+        Output array.
+        
+    Returns
+    -------
+    normalized_spec : ndarray
+        A normalized version of the input specter
+        
+    Notes
+    -----
+    Numpy broadcasting rules apply to spec and cmf.
+    """
+    xyz = spec2xyz(spec,cmf)
     norm = xyz[...,1] #Y value is ligtness.. normalize it to this
     return np.divide(spec,norm,out)
 
-def load_tcmf(wavelengths = None, illuminant = "D65", norm = True, retx = False, single_wavelength = False):
+
+def load_tcmf(wavelengths = None, illuminant = "D65", norm = True, retx = False, 
+              single_wavelength = False):
     """Loads transmission color matching function.
     
     This functions loads a CIE XYZ color matching function and transforms it
@@ -200,22 +246,18 @@ def load_tcmf(wavelengths = None, illuminant = "D65", norm = True, retx = False,
     Example
     -------
     >>> cmf = load_tcmf()
-    >>> specter2color([1], cmf) #should be close to 1,1,1
+    >>> specter2color([1]*81, cmf) #should be close to 1,1,1
     array([ 0.99994901,  1.        ,  0.99998533])
     """
 
     if single_wavelength == True:
         x, cmf = load_cmf(wavelengths, single_wavelength = True,retx = True)
         spec = load_specter(wavelengths = x, illuminant = illuminant)
-        if norm == True:
-            spec = normalize_specter(spec, cmf)
-        cmf = spec[:,np.newaxis]*cmf    
+        cmf = cmf2tcmf(cmf, spec, norm = norm)  
     else:
         x,cmf = load_cmf(retx = True)
         spec = load_specter(wavelengths = x, illuminant = illuminant)
-        if norm == True:
-            spec = normalize_specter(spec, cmf)
-        cmf = spec[:,np.newaxis]*cmf
+        cmf = cmf2tcmf(cmf, spec, norm = norm) 
         if wavelengths is not None:
             cmf = integrate_data(wavelengths, x,cmf)
             x = wavelengths
@@ -224,7 +266,34 @@ def load_tcmf(wavelengths = None, illuminant = "D65", norm = True, retx = False,
     else:
         return cmf
 
-        
+def cmf2tcmf(cmf, spec, norm = True, out = None):
+    """Converts CMF table to specter-normalized transmission CMF table
+    
+    Parameters
+    ----------
+    cmf : array_like
+        Color matchinf function array
+    spec : array_like
+        Illuminant specter array
+    norm : bool, optional
+       Whether to normalize illuminant specter before constructing the CMF.
+    out : ndarray, optional
+       Output array
+    
+    Returns
+    -------
+    out : ndarray
+        A transmission color matching function array.
+       
+    Notes
+    -----
+    Numpy broadcasting rules apply to spec and cmf.
+    """
+    if norm == True:
+        spec = normalize_specter(spec, cmf)
+    return np.multiply(spec[:,np.newaxis],cmf, out = out) 
+    
+
 def load_specter(wavelengths = None, illuminant = "D65", retx = False):
     """Loads illuminant specter data.
     
@@ -261,7 +330,7 @@ def load_specter(wavelengths = None, illuminant = "D65", retx = False):
         return data
 
 
-def load_cmf(wavelengths = None,  single_wavelength = False,retx = False):
+def load_cmf(wavelengths = None,  single_wavelength = False, retx = False):
     """Load XYZ Color Matching function as an array.
     
     This function loads 5nm tabulated data and re-calculates xyz array on a given range of
@@ -278,7 +347,7 @@ def load_cmf(wavelengths = None,  single_wavelength = False,retx = False):
         Should the selected wavelengths be returned as well.
     single_wavelength : bool, optional
         If specified, color matching function for single wavelengths specter is
-        calculated by interpolatiin. By default, specter is assumed to be 
+        calculated by interpolation. By default, specter is assumed to be 
         continuous between the specified wavelengts, and data is integrated instead.
         
     Returns
@@ -290,7 +359,7 @@ def load_cmf(wavelengths = None,  single_wavelength = False,retx = False):
     data = np.loadtxt(CMFPATH)
     x, data = np.ascontiguousarray(data[:,0]),  np.ascontiguousarray(data[:,1:])
     if single_wavelength == True and wavelengths is not None:
-        data = interpolate_data(wavelengths, x,data)
+        data = interpolate_data(wavelengths, x, data)
         x = wavelengths
     elif wavelengths is not None:
         data = integrate_data(wavelengths, x,data)
@@ -305,54 +374,83 @@ def interpolate_data(x, x0, data):
     data = np.asarray(data)
     x0 = np.asarray(x0)
     x = np.asarray(x)
-    out = np.zeros(shape = (len(x), data.shape[1]), dtype = data.dtype)   
+    out = np.zeros(shape = x.shape + (data.shape[1],), dtype = data.dtype)   
     rows, cols = data.shape  
     for i in range(cols):
-        out[:,i] = np.interp(x, x0, data[:,i],left = 0., right = 0.)
+        out[...,i] = np.interp(x, x0, data[:,i],left = 0., right = 0.)
     return out           
 
+#def integrate_data(x,x0,cmf):
+#    cmf = np.asarray(cmf)
+#    x0 = np.asarray(x0)
+#    x = np.asarray(x)
+#    out = np.zeros(shape = (len(x), cmf.shape[1]), dtype = cmf.dtype) 
+#    n = len(x)
+#    triang = np.array([0.,1,0])
+#    for i in range(n):
+#        if i == 0:
+#            data = np.interp(x0,x[0:i+2],triang[1:],left = 0.)
+#        elif i == n-1:
+#            data = np.interp(x0,x[i-1:i+1],triang[:-1],right = 0.)
+#        else:
+#            data = np.interp(x0,x[i-1:i+2],triang)      
+#        out[i,:] = (cmf*data[:,np.newaxis]).sum(0)
+#    return out
+ 
 def integrate_data(x,x0,cmf):
     cmf = np.asarray(cmf)
     x0 = np.asarray(x0)
-    x = np.asarray(x)
+    xout = np.asarray(x)
     out = np.zeros(shape = (len(x), cmf.shape[1]), dtype = cmf.dtype) 
     n = len(x)
-    triang = np.array([0.,1,0])
     for i in range(n):
         if i == 0:
-            data = np.interp(x0,x[0:i+2],triang[1:],left = 0.)
-        elif i == n-1:
-            data = np.interp(x0,x[i-1:i+1],triang[:-1],right = 0.)
-        else:
-            data = np.interp(x0,x[i-1:i+2],triang)      
-        out[i,:] = (cmf*data[:,np.newaxis]).sum(0)
-    return out
+            x,y = _rxn(xout,i)
+            data = (interpolate_data(x,x0,cmf)*y[:,None]).sum(0)
             
+        elif i == n-1:
+            x,y  = _lxn(xout,i)
+            data = (interpolate_data(x,x0,cmf)*y[:,None]).sum(0) 
+        else:
+            x,y  = _rxn(xout,i)
+            tmp = (interpolate_data(x,x0,cmf)*y[:,None])
+            tmp[0] = tmp[0]/2 #first element is counted two times...
+            data = tmp.sum(0)
+            x,y  = _lxn(xout,i)
+            tmp = (interpolate_data(x,x0,cmf)*y[:,None])
+            tmp[0] = tmp[0]/2 #first element is counted two times...
+            data += tmp.sum(0)
+        out[i,:] = data
+    return out  
+ 
+def _rxn(x,i):
+    xlow, xhigh = x[i], x[i+1]
+    dx = (xhigh - xlow)/5.
+    n = int(dx-1)+1
+    dx = dx/n
+    xout = np.linspace(xlow,xhigh,n+1)
+    yout = np.linspace(1.,0.,n+1)*dx
+    return xout,yout
+
+def _lxn(x,i):
+    xlow, xhigh = x[i-1], x[i]
+    dx = (xhigh - xlow)/5.
+    n = int(dx-1)+1
+    dx = dx/n
+    xout = np.linspace(xhigh,xlow,n+1)
+    yout = np.linspace(1.,0.,n+1)*dx
+    return xout,yout
+
 
 __all__ = ["specter2color", "load_tcmf", "load_cmf", "load_specter"]
-        
-#def _convolve_data(data, width):
-#    data = np.asarray(data)
-#    width = int(width)
-#    rows,cols = data.shape
-#    
-#    #first convert data to 1nm spacing through interpolation
-#    lmin = int(min(data[:,0]))
-#    lmax = int(max(data[:,0]))
-#    lambdas = range(lmin, lmax+1)
-#    out = _interpolate_data(data, lambdas)
-#    #perform convolution with a rectangular filter of a given width
-#    v = np.array([1./width]*width)
-#    for i in range(1,cols):
-#        out[:,i] = np.convolve(out[:,i],v, mode = "same")   
-#    return out                 
+                    
    
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
     import matplotlib.pyplot as plt
     num = 81
-    for num in (81,40,20,10,5):
+    for num in (81,41,21,11,5):
         wavelengths = np.linspace(380,780,num)
         x,xyz = load_tcmf(wavelengths, norm = True,retx = True, single_wavelength = True)
         

@@ -5,7 +5,10 @@ Custom 2D FFT functions.
 
 numpy, scipy and mkl_fft do not have fft implemented such that output argument 
 can be provided. This implementation adds the output argument for fft2 and 
-ifft2 functions.
+ifft2 functions. 
+
+Also, for mkl_fft, the computation can be performed in parallel using ThreadPool.
+
 """
 
 from dtmm.conf import DTMMConfig, CDTYPE
@@ -14,8 +17,9 @@ import numpy as np
 import scipy.fftpack as spfft
 import numpy.fft as npfft
 
-from functools import reduce
+from multiprocessing.pool import ThreadPool
 
+from functools import reduce
 
 if MKL_FFT_INSTALLED == True:
     import mkl_fft
@@ -28,18 +32,36 @@ def _set_out(a,out):
             out[...] = a 
     return out
 
+def _sequential_inplace_fft(fft,array):
+    [fft(d,overwrite_x = True) for d in array] 
+  
+def _optimal_workers(size, nthreads):
+    if size%nthreads == 0:
+        return nthreads
+    else:
+        return _optimal_workers(size, nthreads-1)
+    
 def _reshape(a):
     shape = a.shape
     newshape = reduce((lambda x,y: x*y), shape[:-2] or [1])
-    newshape = (newshape,) + shape[-2:]
+    if DTMMConfig.nthreads > 1:
+        n = _optimal_workers(newshape,DTMMConfig.nthreads)
+        newshape = (n,newshape//n,) + shape[-2:]
+    else:
+        newshape = (newshape,) + shape[-2:]
     a = a.reshape(newshape)
     return shape, a    
 
 def __mkl_fft(fft,a,out):
     out = _set_out(a,out)
     shape, out = _reshape(out)
-    #I am reshaping, because doing fft sequentially is much faster
-    [fft(d,overwrite_x = True) for d in out] 
+    if DTMMConfig.nthreads > 1:
+        pool = ThreadPool(DTMMConfig.nthreads)
+        workers = [pool.apply_async(_sequential_inplace_fft, args = (fft,d)) for d in out] 
+        results = [w.get() for w in workers]
+        pool.close()
+    else:
+        _sequential_inplace_fft(fft,out)
     return out.reshape(shape)    
 
 def _mkl_fft2(a,out = None):
@@ -103,8 +125,15 @@ def fft2(a, out = None):
         return _mkl_fft2(a, out)
     elif libname == "scipy":
         return _sp_fft2(a, out)
+    elif libname == "numpy":
+        return _np_fft2(a, out) 
     else:
-        return _np_fft2(a, out)    
+        if out is None:
+            return np.fft.fft2(a)
+        else:
+            out[...] = np.fft.fft2(a)
+            return out
+    
     
 def ifft2(a, out = None): 
     """Computes ifft2 of the input complex array.
@@ -128,6 +157,12 @@ def ifft2(a, out = None):
     
     elif libname == "scipy":
         return _sp_ifft2(a, out)
+    elif libname == "numpy":
+        return _np_ifft2(a, out)  
     else:
-        return _np_ifft2(a, out)        
+        if out is None:
+            return np.fft.fft2(a)
+        else:
+            out[...] = np.fft.fft2(a)
+            return out      
  

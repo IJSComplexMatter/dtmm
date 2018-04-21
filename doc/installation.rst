@@ -3,7 +3,7 @@ Installation
 
 The code is hosted at GitHub. No official release exists yet, so you have to clone or download the latest development code from the `repository`_ and run::
 
-    python setup.py install
+    $ python setup.py install
 
 which should install the package, provided that all requirements are met.
 
@@ -32,19 +32,19 @@ Installing in Canopy
 After you have downloaded the package, open the canopy code editor and start the Package manager (tools -> Package Manager). Install the above listed packages and then start the
 canopy terminal (tools -> Canopy Terminal) and `cd` to the downloaded source code and run::
 
-    python setup.py install
+    $ python setup.py install
 
 Installing in Anaconda
 ----------------------
 
 After you have downloaded the package, open the terminal (command prompt) `cd` to the downloaded source code and run::
 
-    conda install numba scipy matplotlib numba numexpr
-    python setup.py install
+    $ conda install numba scipy matplotlib numba numexpr
+    $ python setup.py install
 
 optionally, for faster computation, you can install `mkl_fft` through the `intel` channel::
 
-    conda install -c intel mkl_fft
+    $ conda install -c intel mkl_fft
 
 
 .. _repository: https://github.com/IJSComplexMatter/dtmm

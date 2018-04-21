@@ -1,13 +1,14 @@
 Library Reference
 =================
 
-.. currentmodule:: dtmm
+.. .. currentmodule:: dtmm
 
 
-.. automodule:: dtmm.wave
+.. .. automodule:: dtmm.color
    :members:
 
 
-
+.. .. automodule:: dtmm.wave
+   :members:
 
 

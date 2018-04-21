@@ -105,6 +105,10 @@ extensions = [
     'plot_directive'
 ]
 
+import os 
+
+plot_working_directory = os.path.abspath("../examples")
+
 imgmath_image_format = "svg"
 
 # Add any paths that contain templates here, relative to this directory.

@@ -30,21 +30,19 @@ def blackman(shape):
     out[mask] = 0.
     return out
 
-def tukey(shape,alpha=0.1):
-    """Returns a tukey window of a given shape and alpha parameter"""
-    return aperture(shape, diameter = 1., alpha = alpha)
-
 def aperture(shape, diameter = 1., alpha = 0.1):
     """Returns aperture window function. It is basically a tukey filter with a given diameter"""
     r = _r(shape, scale = diameter)
-    out = np.ones(shape, FDTYPE)
+    return tukey(r,alpha)
+
+def tukey(r,alpha = 0.1):
+    out = np.ones(r.shape, FDTYPE)
     mask = r > (1-alpha)
     if alpha > 0.:
         tmp = 1/2*(1-np.cos(np.pi*(r-1)/alpha))
         out[mask] = tmp[mask]
     mask = (r>= 1.)
     out[mask] = 0.
-    
     return out  
 
 __all__ = ["aperture", "blackman"]

@@ -12,9 +12,10 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE
+from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, FDTYPE, NUMBA_CACHE
 from dtmm.window import blackman, aperture
-from dtmm.color import load_tcmf
+
+#from dtmm.diffract import transmitted_field
 
 import numba as nb
 
@@ -41,34 +42,11 @@ def betaphi(shape, k0):
     xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
     phi = np.arctan2(yy,xx)
     beta = (2 * np.pi / k0) * np.sqrt(xx**2 + yy**2)
+    #phi[0] = 1#phi[0]+0.001
+    #phi[:,0] = 1#phi[:,0]+0.001
+    #beta[0,0] = 1#0.001
     return beta, phi
 
-def illumination_betaphi(NA, radius = 2.):
-    """Returns beta, phi values for illumination.
-    
-    Parameters
-    ----------
-    NA : float
-        Numerical aperture of the illumination.
-    radius : float, optional
-        Radius of the illumination in pixel values. Output length will be
-        approx Pi*radius**2.
-        
-    Returns
-    -------
-    array, array
-        beta, phi arrays 
-        
-    """
-    shape = (1+2*int(radius),1+2*int(radius))
-    ay, ax = [np.arange(-l // 2 + 1., l // 2 + 1.) for l in shape]
-    xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
-    phi = np.arctan2(yy,xx)
-    beta = np.sqrt(xx**2 + yy**2)/radius*NA
-    mask = (beta <= NA)
-    return beta[mask], phi[mask]
-
- 
 
 def betaxy(shape, k0):
     """Returns betax, betay arrays of plane eigenwaves with 
@@ -83,7 +61,7 @@ def betaxy(shape, k0):
 
 def k0(wavelength,d = 1.):
     """Calculate wave number in vacuum from a given wavelength"""
-    return 2*np.pi/wavelength * d
+    return 2*np.pi/np.asarray(wavelength) * d
 
 def eigenwave(shape, i, j, amplitude = None, out = None):
     """Returns a planewave with a given fourier coefficients i and j"""
@@ -109,54 +87,6 @@ def planewave(shape, k0, beta , phi, out = None):
     #return _exp_ikr(kx,ky,xx,yy)
     return np.exp((1j*(kx*xx+ky*yy)),out)
 
-def illumination_waves(shape, k0, beta = 0., phi = 0., window = None, out = None):
-    k0 = np.asarray(k0)
-    beta = np.asarray(beta)[...,np.newaxis]
-    phi = np.asarray(phi)[...,np.newaxis]
-    if not k0.ndim in (0,1):
-        raise TypeError("k0, must be an array with dimesion 1")
-    out = planewave(shape, k0, beta, phi, out)
-    if window is None:
-        return out
-    else:
-        return out*window
-    
-def illumination2field(waves, k0, beta = 0., phi = 0., refind = 1., pol = None):
-    beta = np.asarray(beta)
-    phi = np.asarray(phi)
-    k0 = np.asarray(k0)
-    if pol is None:
-        fieldv = np.zeros(beta.shape + (2,) + k0.shape + (4,) + waves.shape[-2:], dtype = CDTYPE)
-    else:
-        fieldv = np.zeros(beta.shape + k0.shape + (4,) + waves.shape[-2:], dtype = CDTYPE)
-    
-    if beta.ndim > 0: 
-        for i,data in enumerate(fieldv):
-            if pol is None:
-                data[0,...,0,:,:] = waves[i]
-                data[0,...,1,:,:] = waves[i]
-                
-                data[1,...,2,:,:] = waves[i]
-                data[1,...,3,:,:] = -waves[i]
-    else:
-        if pol is None:
-            fieldv[0,...,0,:,:] = waves
-            fieldv[0,...,1,:,:] = waves
-            
-            fieldv[1,...,2,:,:] = waves
-            fieldv[1,...,3,:,:] = -waves
-
-    return fieldv
-
-
-def illumination_data(shape, wavelengths, beta = 0., phi = 0., 
-                      refind = 1., pixelsize = 1., diameter = 0.9, alpha = 0.1, pol = None):
-    wavenumbers = 2*np.pi/np.asarray(wavelengths) * pixelsize
-    window = aperture(shape, diameter, alpha)
-    waves = illumination_waves(shape, wavenumbers, beta = beta, phi = phi, window = window)
-    field = illumination2field(waves, wavenumbers, beta = beta, phi = phi, refind = 1., pol = pol)
-    cmf = load_tcmf(wavelengths)
-    return (field, wavenumbers), cmf
     
 
 def _wave2field(wave,k0,beta,phi, refind = 1, out = None):
@@ -206,7 +136,7 @@ def eigenwave_field(shape, k0, i,j, pol = (1,0),n = 1, out = None):
     beta, phi = mean_betaphi(wave, k0)
     return _wave2field(wave,k0,beta,phi, n = n, out = out)
     
-@nb.guvectorize([(NCDTYPE[:,:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:])], "(n,m),()->(),()")
+@nb.guvectorize([(NCDTYPE[:,:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:])], "(n,m),()->(),()", cache = NUMBA_CACHE)
 def mean_betaphi(wave, k0, beta, phi):
     """Calculates mean beta and phi of a given wave array. """
     b = blackman(wave.shape)
@@ -220,4 +150,4 @@ def mean_betaphi(wave, k0, beta, phi):
     beta[0] = (betax**2+betay**2)**0.5
     phi[0] = np.arctan2(betay,betax)
 
-__all__ = ["illumination_betaphi", "illumination_waves", "illumination2field", "betaphi","planewave","illumination_data"]
+__all__ = [ "betaphi","planewave"]

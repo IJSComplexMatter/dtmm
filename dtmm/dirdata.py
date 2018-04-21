@@ -15,7 +15,7 @@ import numpy as np
 import numba
 import sys
 
-from dtmm.conf import  NF32DTYPE, F32DTYPE, FDTYPE
+from dtmm.conf import  NF32DTYPE, F32DTYPE, FDTYPE,NF64DTYPE, F64DTYPE, NUMBA_CACHE
 
 
 def read_director(file, shape, dtype = "float32",  endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
@@ -53,6 +53,8 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None, thick
     if thickness is None:
         thickness = np.ones((len(director),))
     if mask is not None:
+        if nhost is None:
+            nhost = no
         eps = refind2eps([[nhost,nhost,nhost], [no,no,ne]])
         angles[mask == 0 ] = 0.
     else:
@@ -61,13 +63,53 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None, thick
     return thickness, id, eps, angles
         
 def validate_data(data):
-    """Validates optical data"""
-    thickness, id, material, angles = data
+    """Validates optical data.
+    
+    This function inspects validity of the optical data, and makes proper data
+    conversions to match the optical data format. In case data is not valid and 
+    it cannot be converted to a valid data it raises an exception (ValueError). 
+    
+    Parameters
+    ----------
+    data : tuple of optical data
+        A valid optical data tuple.
+    
+    Returns
+    -------
+    data : tuple
+        Validated optical data tuple. 
+    """
+    thickness, material, angles = data
     thickness = np.asarray(thickness, dtype = "float32")
-    id = np.asarray(id, dtype = "uint32")
-    material = np.asarray(material, dtype = "complex64")
+    if thickness.ndim == 0:
+        thickness = thickness[None] #make it 1D
+    elif thickness.ndim != 1:
+        raise ValueError("Thickess dimension should be 1.")
+    n = len(thickness)
+    material = np.asarray(material)
+    if np.issubdtype(material.dtype, np.complexfloating):
+        material = np.asarray(material, dtype = "complex64")
+    else:
+        material = np.asarray(material, dtype = "float32")
+    if material.ndim == 1 or material.ndim==3:
+        material = np.asarray([material for i in range(n)], dtype = material.dtype)
+    if len(material) != n:
+        raise ValueError("Material length should match thickness length")
+    if material.ndim not in (2,4):
+        raise ValueError("Material dimensions should be 2 or 4")
     angles = np.asarray(angles, dtype = "float32")
-    return thickness, id, material, angles
+    if angles.ndim == 1 or angles.ndim == 3:
+        angles = np.asarray([angles for i in range(n)], dtype = angles.dtype)
+    if len(angles) != n:
+        raise ValueError("Angles length should match thickness length")
+    if angles.ndim not in (2,4):
+        raise ValueError("Angles dimensions should be 2 or 4")
+    if angles.ndim == 4:
+        if material.ndim == 4:
+            if material.shape != angles.shape:
+                raise ValueError("Incompatible shapes for angles and material")
+        
+    return thickness, material, angles
     
 def raw2director(data, order = "zyxn", nvec = "xyz"):
     """Converts raw data to director array.
@@ -229,7 +271,7 @@ def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
         Director profile type. It can be a radial profile "r", or homeotropic 
         profile with director orientation specified with the parameter "x", "y",
         or "z".
-    director : bool, optional
+    retmask : bool, optional
         Whether to output mask data as well
         
     Returns
@@ -295,38 +337,65 @@ def nematic_droplet_data(shape, radius, profile = "r",
     mask, director = nematic_droplet_director(shape, radius, profile = profile, retmask = True)
     material = refind2eps([refind(nhost), refind(no,ne)])
     return np.ones(shape = (shape[0],)), mask, material, director2stack(director)
-    
-    
-@numba.njit([NF32DTYPE[:,:,:,:](NF32DTYPE[:,:,:,:])])
-def director2stack(data):
-    """Converts director data (nx,ny,nz) to stack data (order,theta phi).
-    Director data should be a vector with size 0 <= order <= 1."""
-    nz,nx,ny,c = data.shape
-    out = np.empty(shape = (nz,nx,ny,3),dtype = F32DTYPE)
 
+def nematic_droplet_data2(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5):
+    mask0, director = nematic_droplet_director(shape, radius, profile = profile, retmask = True)
+    material = np.empty(shape = shape + (3,), dtype = F32DTYPE)
+    material[mask0,:] =  refind2eps([no,no,ne])[None,...] 
+    material[np.logical_not(mask0),:] = refind2eps([nhost,nhost,nhost])[None,...] 
+    return np.ones(shape = (shape[0],)), material, director2stack(director)
+
+
+#    
+#@numba.njit([NF32DTYPE[:,:,:,:](NF32DTYPE[:,:,:,:])])
+#def director2stack(data):
+#    """Converts director data (nx,ny,nz) to stack data (order,theta phi).
+#    Director data should be a vector with size 0 <= order <= 1."""
+#    nz,nx,ny,c = data.shape
+#    out = np.empty(shape = (nz,nx,ny,3),dtype = F32DTYPE)
+#
+#    if c != 3:
+#        raise TypeError("invalid shape")
+#    for i in range(nz):
+#        for j in range(ny):
+#            for k in range(nx):
+#                vec = data[i,j,k]
+#                x = vec[0]
+#                y = vec[1]
+#                z = vec[2]
+#                phi = np.arctan2(y,x)
+#                theta = np.arctan2(np.sqrt(x**2+y**2),z)
+#                tmp = out[i,j,k]
+#                #id = tmp.view(UDTYPE)
+#                
+#                #id[0] = 0
+#                tmp[0] = np.sqrt(x**2+y**2+z**2)
+#                tmp[1] = theta
+#                tmp[2] = phi
+#    return out
+
+
+@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NF64DTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
+def director2stack(data, out):
+    """Converts angles data (order,theta,phi) to director (nx,ny,nz)"""
+    c = data.shape[0]
     if c != 3:
         raise TypeError("invalid shape")
-    for i in range(nz):
-        for j in range(nx):
-            for k in range(ny):
-                vec = data[i,j,k]
-                x = vec[0]
-                y = vec[1]
-                z = vec[2]
-                phi = np.arctan2(y,x)
-                theta = np.arctan2(np.sqrt(x**2+y**2),z)
-                tmp = out[i,j,k]
-                #id = tmp.view(UDTYPE)
-                
-                #id[0] = 0
-                tmp[0] = np.sqrt(x**2+y**2+z**2)
-                tmp[1] = theta
-                tmp[2] = phi
-    return out
+
+    x = data[0]
+    y = data[1]
+    z = data[2]
+    phi = np.arctan2(y,x)
+    theta = np.arctan2(np.sqrt(x**2+y**2),z)
+    s = np.sqrt(x**2+y**2+z**2)
+    out[0] = s
+    out[1] = theta
+    out[2] = phi
+
 
 director2angles = director2stack
 
-@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:])], "(n)->(n)")
+@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NF64DTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
 def angles2director(data, out):
     """Converts angles data (order,theta,phi) to director (nx,ny,nz)"""
     c = data.shape[0]
@@ -361,22 +430,24 @@ def add_isotropic_border(data, shape, xoff = None, yoff = None, zoff = None):
     out[:,xoff:data.shape[1]+xoff,yoff:data.shape[2]+yoff,:] = data
     return out 
 
-@numba.njit(["complex64[:](complex64[:],complex64[:])","complex128[:](complex128[:],complex128[:])"])  
+_REFIND_DECL = ["(float32[:],float32[:])","(float64[:],float64[:])","(complex64[:],complex64[:])","(complex128[:],complex128[:])"]
+
+@numba.njit(_REFIND_DECL, cache = NUMBA_CACHE)  
 def _refind2eps(refind, out):
     out[0] = refind[0]**2
     out[1] = refind[1]**2
     out[2] = refind[2]**2
-    return out
 
-@numba.guvectorize(["(complex64[:],complex64[:])","(complex128[:],complex128[:])"],"(n)->(n)")  
+@numba.guvectorize(_REFIND_DECL,"(n)->(n)", cache = NUMBA_CACHE)  
 def refind2eps(refind, out):
     """Converts three eigen (complex) refractive indices to three eigen dielectric tensor elements"""
     assert refind.shape[0] == 3
     _refind2eps(refind, out)
+   
     
-    
-
-@numba.njit(["complex64[:](float32,complex64[:],complex64[:])","complex128[:](float64,complex128[:],complex128[:])"])
+_EPS_DECL = ["(float32,float32[:],float32[:])","(float64,float64[:],float64[:])",
+             "(float32,complex64[:],complex64[:])","(float64,complex128[:],complex128[:])"]
+@numba.njit(_EPS_DECL, cache = NUMBA_CACHE)
 def _uniaxial_order(order, eps, out):
     m = (eps[0] + eps[1] + eps[2])/3.
     delta = eps[2] - (eps[0] + eps[1])/2.
@@ -393,7 +464,9 @@ def _uniaxial_order(order, eps, out):
     
     return out
 
-@numba.guvectorize(["(float32[:],complex64[:],complex64[:])","(float64[:],complex128[:],complex128[:])"],"(),(n)->(n)")
+_EPS_DECL_VEC = ["(float32[:],float32[:],float32[:])","(float64[:],float64[:],float64[:])",
+             "(float32[:],complex64[:],complex64[:])","(float64[:],complex128[:],complex128[:])"]
+@numba.guvectorize(_EPS_DECL_VEC ,"(),(n)->(n)", cache = NUMBA_CACHE)
 def uniaxial_order(order, eps, out):
     """
     uniaxial_order(order, eps)
@@ -409,33 +482,33 @@ def uniaxial_order(order, eps, out):
     assert eps.shape[0] == 3
     _uniaxial_order(order[0], eps, out)
     
-@numba.guvectorize(["(complex64[:],float32[:],complex64[:])","(complex128[:],float64[:],complex128[:])"],"(n),()->(n)")
-def eps2ueps(eps, order, out):
-    """
-    eps2ueps(eps, order)
-    
-    Calculates uniaxial dielectric tensor of a material with a given orientational order parameter
-    from a diagonal dielectric (eps) tensor of the same material with perfect order (order = 1)
-    
-    >>> eps2ueps([1,2,3.],0)
-    array([ 2.+0.j,  2.+0.j,  2.+0.j])
-    >>> eps2ueps([1,2,3.],1)
-    array([ 1.5+0.j,  1.5+0.j,  3.0+0.j])
-    """
-    assert eps.shape[0] == 3
-    _uniaxial_order(order[0], eps, out)
-    
-@numba.guvectorize(["(complex64[:],complex64[:])","(complex128[:],complex128[:])"],"(n)->(n)")
-def eps2ieps(eps, out):
-    """
-    eps2ieps(eps)
-    
-    Calculates isotropic dielectric tensor of a material with a given orientational order parameter order=0
-    from a diagonal dielectric (eps) tensor of the same material with perfect order (order = 1)
-
-    """
-    assert eps.shape[0] == 3
-    _uniaxial_order(0., eps, out)
+#@numba.guvectorize(["(complex64[:],float32[:],complex64[:])","(complex128[:],float64[:],complex128[:])"],"(n),()->(n)")
+#def eps2ueps(eps, order, out):
+#    """
+#    eps2ueps(eps, order)
+#    
+#    Calculates uniaxial dielectric tensor of a material with a given orientational order parameter
+#    from a diagonal dielectric (eps) tensor of the same material with perfect order (order = 1)
+#    
+#    >>> eps2ueps([1,2,3.],0)
+#    array([ 2.+0.j,  2.+0.j,  2.+0.j])
+#    >>> eps2ueps([1,2,3.],1)
+#    array([ 1.5+0.j,  1.5+0.j,  3.0+0.j])
+#    """
+#    assert eps.shape[0] == 3
+#    _uniaxial_order(order[0], eps, out)
+#    
+#@numba.guvectorize(["(complex64[:],complex64[:])","(complex128[:],complex128[:])"],"(n)->(n)")
+#def eps2ieps(eps, out):
+#    """
+#    eps2ieps(eps)
+#    
+#    Calculates isotropic dielectric tensor of a material with a given orientational order parameter order=0
+#    from a diagonal dielectric (eps) tensor of the same material with perfect order (order = 1)
+#
+#    """
+#    assert eps.shape[0] == 3
+#    _uniaxial_order(0., eps, out)
     
 if __name__ == "__main__":
     import doctest

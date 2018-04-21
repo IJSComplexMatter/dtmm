@@ -8,7 +8,7 @@ Created on Mon Mar 19 10:32:48 2018
 
 from __future__ import absolute_import, print_function, division
 
-from dtmm.dirdata import angles2director
+from dtmm.data import angles2director, validate_optical_data
 from mpl_toolkits.mplot3d import Axes3D #needed in order to have projection 3d
 import matplotlib.pyplot as plt
 import numpy as np
@@ -37,51 +37,128 @@ def _mask(x,y,z, xlim = None, ylim = None, zlim = None):
     mask = _add_mask(mask,z, zlim)
     return mask
 
+#def plot_id(data, id = 0, center = False, xlim = None, 
+#            ylim = None, zlim = None, fig = None, ax = None,):
+#    """Plots material id of the optical data.
+#    
+#    Parameters
+#    ----------
+#    
+#    deta : optical_data or material_id 
+#        A valid optical data tuple, or material_id array
+#    id : int or array_like of ints
+#        material id or multiple material ids to plot. 
+#    """
+#    if isinstance(data, tuple):
+#        d,material_id,eps, angles = data
+#    else:
+#        material_id = data
+#    if material_id.ndim == 2:
+#        material_id = material_id[None,...]
+#    assert material_id.ndim == 3
+#    index = np.asarray(id)
+#    if index.ndim == 0:
+#        index = index[None]
+#    material_id = np.asarray(material_id,dtype = "uint32")
+#    if fig is None:
+#        fig = plt.figure()
+#    if ax is  None:
+#        ax = fig.add_subplot(111, projection='3d')
+#        ax.set_aspect('equal')
+#    xx, yy, zz = _r3(material_id.shape, center)
+#    for i in index:
+#        mask = (material_id == i)
+#        mask = _add_mask(mask,xx, xlim)
+#        mask = _add_mask(mask,yy, ylim)
+#        mask = _add_mask(mask,zz, zlim)
+#        xs = xx[mask]
+#        ys = yy[mask]
+#        zs = zz[mask]
+#        ax.scatter(xs, ys, zs,depthshade = False, s = 1, marker = ".", label = i)
+#        
+#    ax.set_xlabel('X')
+#    ax.set_ylabel('Y')
+#    ax.set_zlabel('Z')
+#    plt.legend()
+#    return fig, ax
 
-def plot_id(data, id = 0, center = False, xlim = None, 
+
+def unique_eps(material, nmax = 5):
+    n = np.multiply.reduce(material.shape[0:-1])
+    mat = material.reshape((n,material.shape[-1]))
+    eps = mat[0]
+    out = [eps]
+    for i in range(nmax-1):
+        mask = (mat[...,0] != eps[0]) | (mat[...,1] != eps[1]) | (mat[...,2] != eps[2])
+        mat = mat[mask,:]
+        try:
+            eps = mat[0]
+            out.append(eps)
+        except IndexError:
+            #no more uniqe eps values
+            break
+    return out
+        
+
+def plot_material(data, eps = None, center = False, xlim = None, 
             ylim = None, zlim = None, fig = None, ax = None,):
-    """Plots material id of the optical data.
+    """Plots material (in color) of the optical data.
     
     Parameters
     ----------
     
-    deta : optical_data or material_id 
-        A valid optical data tuple, or material_id array
-    id : int or array_like of ints
-        material id or multiple material ids to plot. 
+    deta : optical_data or material (eps)
+        A valid optical data tuple, or material array
     """
     if isinstance(data, tuple):
-        d,material_id,eps, angles = data
+        d, material, angles = validate_optical_data(data)
     else:
-        material_id = data
-    if material_id.ndim == 2:
-        material_id = material_id[None,...]
-    assert material_id.ndim == 3
-    index = np.asarray(id)
-    if index.ndim == 0:
-        index = index[None]
-    material_id = np.asarray(material_id,dtype = "uint32")
+        material = data
+    if material.ndim == 3:
+        material = material[None,...]
+    material = np.asarray(material,dtype = "float32")
+    
+    assert material.ndim == 4
+    
+    if eps is None:
+        eps = unique_eps(material)
+    else:
+        eps = np.asarray(eps)
+        if eps.ndim == 1:
+            eps = eps[None,:]
+    
+    
     if fig is None:
         fig = plt.figure()
     if ax is  None:
         ax = fig.add_subplot(111, projection='3d')
         ax.set_aspect('equal')
-    xx, yy, zz = _r3(material_id.shape, center)
-    for i in index:
-        mask = (material_id == i)
+    xx, yy, zz = _r3(material.shape[0:-1], center)
+    
+    #mmin, mmax  = material.min(), material.max()
+    #if mmax != mmin:
+    #    colors = (material-mmin)/(mmax-mmin)
+    #else:
+    #    colors = material-mmin
+    
+    for e in eps:
+        mask = (material[...,0] == e[0]) & (material[...,1] == e[1]) & (material[...,2] == e[2])
         mask = _add_mask(mask,xx, xlim)
         mask = _add_mask(mask,yy, ylim)
         mask = _add_mask(mask,zz, zlim)
         xs = xx[mask]
         ys = yy[mask]
         zs = zz[mask]
-        ax.scatter(xs, ys, zs,depthshade = False, s = 1, marker = ".", label = i)
+        #cs = colors[mask,:]
+        #ax.scatter(xs, ys, zs,depthshade = False, s = 1, marker = ".", c = cs)
+        ax.scatter(xs, ys, zs,depthshade = False, s = 1, marker = ".", label = e)
         
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     plt.legend()
-    return fig
+
+    return fig, ax
 
 def plot_director(director, fig = None, ax = None, center = False, xlim = None, 
                   ylim = None, zlim = None):
@@ -108,21 +185,24 @@ def plot_director(director, fig = None, ax = None, center = False, xlim = None,
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')    
-    return fig
+    return fig, ax
 
 def plot_angles(data, **kwargs):
     if isinstance(data, tuple):
-        d,id,eps, angles = data
+        d,eps, angles = validate_optical_data(data)
     else:
         angles = data
     director = angles2director(angles)
     return plot_director(director, **kwargs)
+
+__all__ = ["plot_material", "plot_angles", "plot_director"]
     
 if __name__ == "__main__":
     import dtmm
     import dtmm
     data = dtmm.nematic_droplet_data((60, 128, 128), 
                     radius = 30, profile = "r", no = 1.5, ne = 1.7, nhost = 1.5)
-    thickness, material_id, material_eps, angles = data
-    fig = dtmm.plot_id(material_id, id = [0,1], center = True, xlim = (-40,-20),ylim = (-10,10), zlim = (-10,10))
+    thickness, material_eps, angles = data
+
+    fig = plot_material(material_eps, center = True, xlim = (-40,-20),ylim = (-10,10), zlim = (-10,10))
     fig = dtmm.plot_angles(angles, center = True, xlim = (-3,3), ylim = (-3,3), zlim = (-3,3))

@@ -24,18 +24,17 @@ def read_environ_variable(name, default = "1"):
         return int(default)
         warnings.warn("Environment variable {0:s} was found, but its value is not valid!".format(name))
 
-if read_environ_variable("DTMM_PARALLEL"):
+if read_environ_variable("DTMM_TARGET_PARALLEL","0"):
     NUMBA_TARGET = "parallel"
     NUMBA_PARALLEL = True
 else:
     NUMBA_TARGET = "cpu"
     NUMBA_PARALLEL = False
-    
-if read_environ_variable("DTMM_CACHE","0"):
-    NUMBA_CACHE = True
-else:
-    NUMBA_CACHE = False
-    
+
+NUMBA_CACHE = False   
+if read_environ_variable("DTMM_NUMBA_CACHE"):
+    if NUMBA_PARALLEL == False:
+        NUMBA_CACHE = True    
 
 def get_home_dir():
     """
@@ -77,6 +76,73 @@ def is_module_installed(name):
 NUMBA_INSTALLED = is_module_installed("numba")
 MKL_FFT_INSTALLED = is_module_installed("mkl_fft")
 
+#cache dict for cimpute functions
+_cache = dict()
+
+def clear_cache(func = None):
+    """Clears compute cache.
+    
+    Parameters
+    ----------
+    func : function
+        A function of which cache results are to be cleared (removed from cache).
+        If not provided (default) all cache data is cleared."""
+    
+    if func is not None:
+        _cache[func].clear()
+    else:
+        for value in _cache.values():
+            value.clear()
+            
+def cached_function(f):
+    """A decorator that converts a function into a cached funcion. 
+    
+    The function needs to be a function that returns a numpy array as a result.
+    This result is then cached and future function calls with same arguments
+    return result from the cache. Function arguments must all be hashable, or
+    are small numpy arrays. The function can also take "out" keyword argument for
+    an output array in which the resulting array is copied (if not same as cashed 
+    version). 
+    """
+    
+    def to_key(arg):
+        if isinstance(arg, np.ndarray):
+            return (arg.shape, arg.dtype, tuple(arg.flat))
+        else:
+            return arg
+ 
+    
+    _cache[f] = {}
+    def _f(*args,**kwargs):
+        if DTMMConfig.cache == 0 or kwargs.get("cache",True) == False:
+            return f(*args,**kwargs)
+        func_cache = _cache[f]
+        try:
+            key = tuple((to_key(arg) for arg in args)) + tuple((to_key(arg) for arg in kwargs.values()))
+            result = func_cache[key]
+            
+            out = kwargs.get("out")
+            if out is not None:
+                if out is not result:
+                    out[...] = result
+                    #func_cache[key] = out 
+                
+                return out
+            else:
+                return result
+        except KeyError:
+            result = f(*args,**kwargs)
+            if kwargs.get("write") == False:
+                if isinstance(result, tuple):
+                    for a in result:
+                        a.setflags(write = False)
+                else:
+                    result.setflags(write = False)
+            func_cache.clear()
+            func_cache[key] = result
+            return result
+    return _f    
+    
 
 def detect_number_of_cores():
     """
@@ -133,10 +199,11 @@ class DTMMConfig(object):
         else:
             self.fftlib = "numpy"
         self.ncores = detect_number_of_cores()
-        self.nthreads = self.ncores
+        self.nthreads = 1
         self.verbose = 0
         self.cdtype = CDTYPE
         self.fdtype = FDTYPE
+        self.cache = 1
         
     def __getitem__(self, item):
         return self.__dict__[item]
@@ -152,13 +219,13 @@ def print_config():
 
 #setter functions for DDMConfig
 def set_verbose(level):
-    """Sets verbose level (0-3) used by compute functions."""
+    """Sets verbose level (0-2) used by compute functions."""
     out = DTMMConfig.verbose
     DTMMConfig.verbose = max(0,int(level))
     return out
     
 def set_nthreads(num):
-    """Sets number of threads used by compute functions."""
+    """Sets number of threads used by fft functions."""
     out = DTMMConfig.nthreads
     DTMMConfig.nthreads = max(1,int(num))
     return out
@@ -191,8 +258,12 @@ def set_nthreads(num):
 #    DDMConfig.numba = False
 #    return out 
 #    
-        
+def set_cache(level):
+    out = DTMMConfig.cache
+    DTMMConfig.cache = max(int(level),0)
+    return out
     
+          
 def set_fftlib(name = "numpy.fft"):
     """Sets fft library. Returns previous setting."""
     out, name = DTMMConfig.fftlib, str(name) 
