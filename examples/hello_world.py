@@ -1,20 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Hello nematic droplet example"""
-import os
-os.environ["DTMM_TARGET_PARALLEL"] = "0"
 
 import dtmm
 import numpy as np
 
-dtmm.conf.set_verbose(1)
 
 #: pixel size in nm
 PIXELSIZE = 200
 #: compute box dimensions
 NLAYERS, HEIGHT, WIDTH =60,96,96
 #: illumination wavelengths in nm
-WAVELENGTHS = np.linspace(380,780,40)
+WAVELENGTHS = np.linspace(380,780,10)
 #: lets make some experimental data
 
 optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
