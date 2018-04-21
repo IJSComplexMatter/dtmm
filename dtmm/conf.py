@@ -32,7 +32,7 @@ else:
     NUMBA_PARALLEL = False
 
 NUMBA_CACHE = False   
-if read_environ_variable("DTMM_NUMBA_CACHE"):
+if read_environ_variable("DTMM_NUMBA_CACHE","0"):
     if NUMBA_PARALLEL == False:
         NUMBA_CACHE = True    
 
