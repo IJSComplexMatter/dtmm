@@ -75,7 +75,7 @@ Visualize the transmitted field with matplotlib plot:
    >>> fig, ax = viewer.plot() #creates matplotlib figure and axes
    >>> fig.show()
 
-.. plot:: ../examples/hello_world.py
+.. plot:: hello_world.py
 
    Simulated optical polarizing microscope image of a nematic droplet with a radial nematic director profile. You can use sliders to change the focal plane, polarizer,  sample rotation, analizer, and light intensity.
 
