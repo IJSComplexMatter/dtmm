@@ -30,6 +30,9 @@ for k,delta in enumerate((50,150,400)):
             mask = (ws < w + delta/2.) & (ws > w - delta/2.)
             s[mask] = intensity #make band-pass specter
             im[j,i] = dc.specter2color(s,cmf)
+#    
+#    mask = (im[...,0] == 1.) |(im[...,1] == 1.) | (im[...,2] == 1. )
+#    im[mask,:]= np.nan
         
     ax.imshow(im, origin = "lower")
 

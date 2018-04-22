@@ -1,10 +1,10 @@
 Library Reference
 =================
 
-.. .. currentmodule:: dtmm
+.. currentmodule:: dtmm
 
 
-.. .. automodule:: dtmm.color
+.. automodule:: dtmm.color
    :members:
 
 
