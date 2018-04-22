@@ -68,7 +68,7 @@ which means that layer thickness is the same as layer pixel size. `material_eps`
 
 which plots dots at positions where liquid_crystal is defined (where the refractive indices are [1.5,1.6,1.6]). This plots a sphere centered in the center of the bounding box, as shown in Fig.
 
-.. plot:: ../examples/plot_material.py
+.. plot:: examples/plot_material.py
 
    LC is defined in a sphere 
 
@@ -119,7 +119,7 @@ We can plot the director around the center (around the point defect) of the drop
 
    matplotlib cannot handle quiver plot of large data sets, so you have to limit dataset visualization to limited number of points. The center argument was used to set the coordinate system origin to bounding box center point and we used xlim, ylim and zlim arguments to slice data.
     
-.. plot:: ../examples/plot_data_angles.py
+.. plot:: examples/plot_data_angles.py
 
    LC director of the nematic droplet near the center of the sphere. Director is computed from director angles. There is a point defect in the origin. 
 

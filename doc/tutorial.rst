@@ -24,7 +24,7 @@ CIE 1931 standard observer
 
 It is a 5nm tabulated data (between 380 and 780 nm) of 2-deg *XYZ* tristimulus values - a numerical representation of human vision system with three cones. This table is used to convert specter data to *XYZ* color space.
 
-.. plot:: ../examples/color_cmf.py
+.. plot:: examples/color_cmf.py
 
    XYZ tristimulus values.
 
@@ -37,7 +37,7 @@ CIE also defines several standard illuminants. We will work with a D65 standard 
    
    >>> spec = dc.load_specter()
 
-.. plot:: ../examples/color_D65.py
+.. plot:: examples/color_D65.py
 
    D65 color specter from 5nm tabulated data.
 
@@ -100,7 +100,7 @@ Transmission CMF
 We can define a transmission color matching function. The idea is to have the CMF function defined for a transmission coefficients for a specific illumination. For instance.
 
 
-.. plot:: ../examples/color_tcmf.py
+.. plot:: examples/color_tcmf.py
 
    D65-normalized XYZ tristimulus values.
 
@@ -108,7 +108,7 @@ We can define a transmission color matching function. The idea is to have the CM
 
 
 
-.. plot:: ../examples/color_bandpass_filter.py
+.. plot:: examples/color_bandpass_filter.py
    
    An example of color rendering of a D65 illuminant filtered with a band-pass filter. If the illuminant is too bright, color clipping may occur. 
 
