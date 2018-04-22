@@ -5,7 +5,7 @@ The ``dtmm`` package is a simple-to-use light (electro-magnetic field) transmiss
 
 .. note::
 
-   This package is still in its early stage of development, and it should be considered experimental. 
+   This package is still in its early stage of development, so it should be considered experimental. 
 
 Highlights
 ----------
@@ -23,13 +23,13 @@ Highlights
 Status and limitations
 ----------------------
 
-``dtmm`` is a young (experimental) project and no official release exists yet. The package was developed mainly for light propagation through liquid crystals, and as such, other use cases have not yet been tested or implemented. Also, in the current version, some limitations apply, which will be resolved in future versions:
+``dtmm`` is a young (experimental) project. The package was developed mainly for light propagation through liquid crystals, and as such, other use cases have not yet been tested or implemented. Also, in the current version, some limitations apply, which will be resolved in future versions:
 
 * Uniaxial material only - biaxial material is not yet supported.
 * Inhomogeneous layers with low birefringence material only - no double refractions. 
 * Limited color rendering functions and settings - D65 illumination only.
 * No absorption yet - real dielectric tensors only.
-* Single call multi-wavelength calculation for non-dispersive material only. 
+* Non-dispersive material only. 
 
 .. note::
 
