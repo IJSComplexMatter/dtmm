@@ -17,11 +17,11 @@ cmf = dc.load_tcmf(ws)
 
 im = np.zeros(shape = (ni,nw,3))
 
-subplots = (311,312,313)
+subplots = [plt.subplot(i) for i in (311,312,313)]
 intensities = np.linspace(0,1.5,ni)
 
 for k,delta in enumerate((50,150,400)):
-    plt.subplot(subplots[k])
+    ax = subplots[k]
     plt.title("D65 + {} nm bandwidth filter".format(delta))
     
     for i,w in enumerate(ws):
@@ -31,12 +31,14 @@ for k,delta in enumerate((50,150,400)):
             s[mask] = intensity #make band-pass specter
             im[j,i] = dc.specter2color(s,cmf)
         
-    plt.imshow(im, origin = "lower")
+    ax.imshow(im, origin = "lower")
 
-    plt.xticks([]) 
-    plt.yticks(range(ni)[::20],intensities[::20])
-    plt.ylabel("intensity [arb.]")
+    ax.set_xticks([]) 
+    ax.set_yticks(range(ni)[::20])
+    ax.set_yticklabels(intensities[::20])
+    ax.set_ylabel("intensity [arb.]")
     
-plt.xticks(range(nw)[::20],ws[::20])    
-plt.xlabel("Band-pass filter central wavelength [nm]")
-plt.show()
+ax.set_xticks(range(nw)[::20])    
+ax.set_yticklabels(ws[::20])
+ax.set_xlabel("Band-pass filter central wavelength [nm]")
+#plt.show()
