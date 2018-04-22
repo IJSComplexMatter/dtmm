@@ -39,6 +39,6 @@ for k,delta in enumerate((50,150,400)):
     ax.set_ylabel("intensity [arb.]")
     
 ax.set_xticks(range(nw)[::20])    
-ax.set_yticklabels(ws[::20])
+ax.set_xticklabels(ws[::20])
 ax.set_xlabel("Band-pass filter central wavelength [nm]")
 #plt.show()
