@@ -24,4 +24,4 @@ field_data_out = dtmm.transmit_field(field_data_in, optical_data)
 viewer = dtmm.field_viewer(field_data_out, sample = 0,
                 polarizer = 0, focus = -20, analizer = 90)
 viewer.plot()
-#viewer.show()
+viewer.show()

@@ -45,4 +45,4 @@ for k,delta in enumerate((50,150,400)):
 ax.set_xticks(range(nw)[::20])    
 ax.set_xticklabels(ws[::20])
 ax.set_xlabel("Band-pass filter central wavelength [nm]")
-#plt.show()
+plt.show()
