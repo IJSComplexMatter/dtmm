@@ -35,7 +35,9 @@ Parallelization
 
 Most computationally expensive numerical algorithms were implemented using @vectorize or @guvecgorize and can be performed with target="parallel" option. By default, parallel execution is disabled for two reasons. In parallel mode, the functions have to be compiled at runtime. This adds significant compilation time overhead when importing the package. Secondly, automatic parallelization of vectorized functions is a new feature in numba and is still experimental according to numba documentation.
 
-You can enable parallel target for numba functions by setting the *DTMM_TARGET_PARALLEL* environment variable. This has to be set prior to importing the package::
+You can enable parallel target for numba functions by setting the *DTMM_TARGET_PARALLEL* environment variable. This has to be set prior to importing the package
+
+.. doctest::
 
    >>> import os
    >>> os.environ["DTMM_TARGET_PARALLEL"] = "1"
@@ -59,7 +61,9 @@ You can select FFT library ("mkl_fft", "numpy", or "scipy") with the following::
 
 For mkl_fft there is an additional optimization step. Intel's FFT implementation is multithreaded for single FFT computation, which works well for large sized arrays, but there is a very small increase in speed when computing smaller arrays (say 256x256 and smaller). In light transmission calculation, for each wavelength, each polarization, or ray direction there are four 2D FFT and four  2D IFFT computations performed per layer. Instead of parallelizing each of the transforms it is better to make all these transforms in parallel. 
 
-FFT functions in the :mod:`dtmm.fft` ware designed to be parallelized using a ThreadPool. By default, this parallelization is disabled and you can enable ThreadPool parallelization of FFTs in :func:`dtmm.fft.fft2` and :func:`dtmm.fft.ifft2`::
+FFT functions in the :mod:`dtmm.fft` ware designed to be parallelized using a ThreadPool. By default, this parallelization is disabled and you can enable ThreadPool parallelization of FFTs:
+
+.. doctest::
 
    >>> dtmm.conf.set_nthreads(4)
    1
@@ -69,7 +73,9 @@ It is important that you disable MKL's multithreading by setting the *MKL_NUM_TH
    >>> import mkl
    >>> mkl.set_num_threads(1)
 
-You must experiment with settings a little. Depending on the size of the field_data, number of cores, the ThreadPool version may work faster or it may work slower than mkl_fft version. If you are not sure what to use, stick with stock MKL threading and default setting of::
+You must experiment with settings a little. Depending on the size of the field_data, number of cores, the ThreadPool version may work faster or it may work slower than mkl_fft version. If you are not sure what to use, stick with stock MKL threading and default setting of:
+
+.. doctest::
 
    >>> dtmm.conf.set_nthreads(1)
    4
@@ -77,7 +83,6 @@ You must experiment with settings a little. Depending on the size of the field_d
 .. note::
 
    Creating a ThreadPool in python adds some overhead (a few miliseconds). It makes sense to perform multithreading if computational complexity is high enough. MKL's threading works well for large arrays, but for multiple computations of small arrays, ThreadPool  should be faster. As a rule of a thumb, layer computation time has to be greater than 10ms to make it feasible to use ThreadPools, otherwise, stick with defaults. 
-
 
 Numba cache
 -----------

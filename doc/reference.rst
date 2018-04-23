@@ -6,6 +6,12 @@ Color Management (``dtmm.color``)
 
 .. currentmodule:: dtmm.color
 
+.. testsetup:: *
+
+   from dtmm.color import *
+   import numpy as np
+   from dtmm.linalg import *
+
 
 Load functions
 ++++++++++++++
@@ -18,6 +24,8 @@ Load functions
 
 Conversion functions
 ++++++++++++++++++++
+
+
 
 .. autofunction:: dtmm.color.specter2color
 

@@ -392,6 +392,7 @@ def load_cmf(wavelengths = None,  retx = False, single_wavelength = False):
     else:
         return data
 
+import scipy.interpolate as interpolate
 
 def interpolate_data(x, x0, data):
     data = np.asarray(data)
@@ -400,6 +401,8 @@ def interpolate_data(x, x0, data):
     out = np.zeros(shape = x.shape + (data.shape[1],), dtype = data.dtype)   
     rows, cols = data.shape  
     for i in range(cols):
+        #f = interpolate.interp1d(x0, data[:,i],fill_value = 0, kind="linear")
+        #out[...,i] = f(x)
         out[...,i] = np.interp(x, x0, data[:,i],left = 0., right = 0.)
     return out           
 
@@ -430,8 +433,8 @@ def integrate_data(x,x0,cmf):
     for i in range(n):
         if i == 0:
             x,y = _rxn(xout,i,dx)
-            data = (interpolate_data(x,x0,cmf)*y[:,None]).sum(0)
             
+            data = (interpolate_data(x,x0,cmf)*y[:,None]).sum(0)
         elif i == n-1:
             x,y  = _lxn(xout,i,dx)
             data = (interpolate_data(x,x0,cmf)*y[:,None]).sum(0) 
@@ -450,7 +453,7 @@ def integrate_data(x,x0,cmf):
 def _rxn(x,i,dx):
     xlow, xhigh = x[i], x[i+1]
     dx = (xhigh - xlow)/dx
-    n = int(dx-1)+1
+    n = int(round(dx))+1
     dx = dx/n
     xout = np.linspace(xlow,xhigh,n+1)
     yout = np.linspace(1.,0.,n+1)*dx
@@ -459,7 +462,7 @@ def _rxn(x,i,dx):
 def _lxn(x,i,dx):
     xlow, xhigh = x[i-1], x[i]
     dx = (xhigh - xlow)/dx
-    n = int(dx-1)+1
+    n = int(round(dx))+1
     dx = dx/n
     xout = np.linspace(xhigh,xlow,n+1)
     yout = np.linspace(1.,0.,n+1)*dx

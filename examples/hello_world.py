@@ -5,18 +5,12 @@
 import dtmm
 import numpy as np
 
-import matplotlib
-
-if matplotlib.__version__.split(".")[0] != "2":
-    1/0
-
-
 #: pixel size in nm
 PIXELSIZE = 200
 #: compute box dimensions
-NLAYERS, HEIGHT, WIDTH =60,96,96
+NLAYERS, HEIGHT, WIDTH =60,128,128
 #: illumination wavelengths in nm
-WAVELENGTHS = np.linspace(380,780,10)
+WAVELENGTHS = np.linspace(380,780,40)
 #: lets make some experimental data
 
 optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
