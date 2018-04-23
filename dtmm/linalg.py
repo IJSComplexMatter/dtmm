@@ -96,16 +96,26 @@ def _inv4x4(src,dst):
 
 @guvectorize([(NCDTYPE[:,:], NCDTYPE[:,:])], '(n,n)->(n,n)', target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def inv4x4(mat, output):
-    """Calculates inverse of a 4x4 complex matrix. mat and output must be complex!
+    """inv4x4(mat)
     
-    >>> a = np.random.randn(4,4) + 0j
-    >>> ai = inv4x4(a)
-    
-    >>> from numpy.linalg import inv
-    >>> ai2 = inv(a)
-    
-    >>> np.allclose(ai2,ai)
-    True
+Calculates inverse of a 4x4 complex matrix.
+
+Parameters
+----------
+mat : array_like
+    A 4x4 complex matrix.
+
+Examples
+--------
+
+>>> a = np.random.randn(4,4) + 0j
+>>> ai = inv4x4(a)
+
+>>> from numpy.linalg import inv
+>>> ai2 = inv(a)
+
+>>> np.allclose(ai2,ai)
+True
     """
     assert mat.shape[0] >= 4
     _inv4x4(mat,output)

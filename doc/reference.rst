@@ -1,16 +1,25 @@
 Library Reference
 =================
 
-.. currentmodule:: dtmm
-
-Color Conversion
+Color Management
 ----------------
 
-.. automodule:: dtmm.color
-   :members: 
+.. currentmodule:: dtmm
 
-Low Level functions
-*******************
+
+Load functions
+++++++++++++++
+
+.. autofunction:: dtmm.color.load_cmf
+
+.. autofunction:: dtmm.color.load_tcmf
+
+.. autofunction:: dtmm.color.load_specter
+
+Conversion functions
+++++++++++++++++++++
+
+.. autofunction:: dtmm.color.specter2color
 
 .. autofunction:: dtmm.color.apply_srgb_gamma
 
@@ -22,9 +31,9 @@ Low Level functions
 
 .. autofunction:: dtmm.color.xyz2gray
 
-.. .. automodule:: dtmm.wave
-   :members:
 
+4x4 linear algebra
+------------------
 
-
+.. autofunction:: dtmm.linalg.inv4x4
 
