@@ -12,6 +12,7 @@ In this tutorial you will learn how to transform specter to RGB colors using `CI
 In the :mod:`dtmm.color` there is a limited set of functions for converting computed specters to RGB images. It is not a full color engine, so only a few color conversion functions are implemented. The specter is converted to color using a `CIE 1931`_ color matching function (CMF). Conversion to color is performed as follows. Specter data is first converted to XYZ color space using the `CIE 1931`_ standard observer (5 nm tabulated) color matching function data. Then the image is converted to RGB color space (using a D65 reference white point) as specified in the `sRGB`_ standard (see `sRGB`_ wiki pages for details on sRGB color space). Data values are then clipped to (0.,1.) and finally, sRGB gamma transfer function is applied.
 
 
+
 CIE 1931 standard observer
 ++++++++++++++++++++++++++
 
