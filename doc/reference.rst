@@ -1,10 +1,10 @@
 Library Reference
 =================
 
-Color Management (`dtmm.color`)
--------------------------------
+Color Management (``dtmm.color``)
+---------------------------------
 
-.. currentmodule:: dtmm
+.. currentmodule:: dtmm.color
 
 
 Load functions
@@ -32,13 +32,17 @@ Conversion functions
 .. autofunction:: dtmm.color.xyz2gray
 
 
-4x4 linear algebra (`dtmm.linalg`)
-----------------------------------
+.. currentmodule:: dtmm.linalg
+
+4x4 linear algebra (``dtmm.linalg``)
+------------------------------------
 
 .. autofunction:: dtmm.linalg.inv4x4
 
 
-Configuration (`dtmm.conf`)
----------------------------
+.. currentmodule:: dtmm.conf
+
+Configuration (``dtmm.conf``)
+-----------------------------
 
 .. automodule:: dtmm.conf

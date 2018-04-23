@@ -12,6 +12,7 @@ By default compute functions do not print to stdout. You can set printing of pro
 
 .. doctest::
 
+   >>> import dtmm
    >>> dtmm.conf.set_verbose(1) #level 1 messages
    0
    >>> dtmm.conf.set_verbose(2) #level 2 messages (more info)

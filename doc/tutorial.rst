@@ -97,12 +97,42 @@ Since conversion to sRGB color space (from the input specter values) is a standa
 Transmission CMF
 ++++++++++++++++
 
-We can define a transmission color matching function. The idea is to have the CMF function defined for a transmission coefficients for a specific illumination. For instance.
+We can define a transmission color matching function. The idea is to have the CMF function defined for a transmission coefficients for a specific illumination so that the transmission computation becomes independent on the actual light spectra used in the experiment. For example, say we have computed transmission coefficients for a given set of wavelengths
 
+.. doctest::
+
+   >>> wavelengths = [380,480,580,680,780]
+   >>> coefficients = [1,1,1,1,1]
+
+We would like to construct a color matching function that will convert these coefficient to color, assuming a given light spectrum. We can build a transmission color matching function with
+
+.. doctest::
+
+   >>> tcmf = dc.cmf2tcmf(cmf, spec)
+
+or we could have loaded this directly with:
+
+.. doctest::
+
+   >>> tcmf2 = dc.load_tcmf()
+   >>> np.allclose(tcmf,tcmf2)
+   True
 
 .. plot:: examples/color_tcmf.py
 
    D65-normalized XYZ tristimulus values.
+
+this way we defined a new CMF function that converts unity transmission curve to bright white color (We are using D65 illuminant here).
+
+.. doctest::
+
+   >>> rgb3 = dc.specter2color([1]*81,tcmf)
+   >>> import numpy as np
+   >>> np.allclose(rgb,rgb3)
+   True
+
+All fair, but we would not like to compute transmission coefficients at all 81 wavelengths defined in the original CMF data. We need to integrate the CMF function 
+
 
 
 
