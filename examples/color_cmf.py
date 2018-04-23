@@ -14,4 +14,4 @@ plt.plot(wavelengths,cmf[...,2], label = "Z")
 plt.xlabel("Wavelength [nm]")
 
 plt.legend()
-plt.show()
+#plt.show()
