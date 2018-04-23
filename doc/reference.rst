@@ -1,8 +1,8 @@
 Library Reference
 =================
 
-Color Management
-----------------
+Color Management (`dtmm.color`)
+-------------------------------
 
 .. currentmodule:: dtmm
 
@@ -32,8 +32,13 @@ Conversion functions
 .. autofunction:: dtmm.color.xyz2gray
 
 
-4x4 linear algebra
-------------------
+4x4 linear algebra (`dtmm.linalg`)
+----------------------------------
 
 .. autofunction:: dtmm.linalg.inv4x4
 
+
+Configuration (`dtmm.conf`)
+---------------------------
+
+.. automodule:: dtmm.conf

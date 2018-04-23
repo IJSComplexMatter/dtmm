@@ -357,8 +357,8 @@ def load_cmf(wavelengths = None,  retx = False, single_wavelength = False):
     Parameters
     ----------
     wavelengths : array_like, optional
-        Wavelengths at which data is computed. If not specified (default), original
-        data from the 5nm tabulated data is returned.
+        A 1D array of wavelengths at which data is computed. If not specified 
+        (default), original data from the 5nm tabulated data is returned.
     retx : bool, optional
         Should the selected wavelengths be returned as well.
     single_wavelength : bool, optional
@@ -376,8 +376,11 @@ def load_cmf(wavelengths = None,  retx = False, single_wavelength = False):
     data = np.loadtxt(CMFPATH)
     x, data = np.ascontiguousarray(data[:,0]),  np.ascontiguousarray(data[:,1:])
     if wavelengths is not None:
-         if len(wavelengths) == 1:
-             single_wavelength = True
+        wavelengths = np.asarray(wavelengths)
+        if wavelengths.ndim != 1:
+            raise ValueError("Wavelengths has to be 1D array")
+        if len(wavelengths) == 1:
+            single_wavelength = True
     if single_wavelength == True and wavelengths is not None:
         data = interpolate_data(wavelengths, x, data)
         x = wavelengths
@@ -421,23 +424,23 @@ def integrate_data(x,x0,cmf):
     cmf = np.asarray(cmf)
     x0 = np.asarray(x0)
     xout = np.asarray(x)
-    dx = np.diff(x0)
+    dx = x0[1]-x0[0]
     out = np.zeros(shape = (len(x), cmf.shape[1]), dtype = cmf.dtype) 
     n = len(x)
     for i in range(n):
         if i == 0:
-            x,y = _rxn(xout,i,dx[0])
+            x,y = _rxn(xout,i,dx)
             data = (interpolate_data(x,x0,cmf)*y[:,None]).sum(0)
             
         elif i == n-1:
-            x,y  = _lxn(xout,i,dx[-1])
+            x,y  = _lxn(xout,i,dx)
             data = (interpolate_data(x,x0,cmf)*y[:,None]).sum(0) 
         else:
-            x,y  = _rxn(xout,i,dx[i])
+            x,y  = _rxn(xout,i,dx)
             tmp = (interpolate_data(x,x0,cmf)*y[:,None])
             tmp[0] = tmp[0]/2 #first element is counted two times...
             data = tmp.sum(0)
-            x,y  = _lxn(xout,i,dx[i-1])
+            x,y  = _lxn(xout,i,dx)
             tmp = (interpolate_data(x,x0,cmf)*y[:,None])
             tmp[0] = tmp[0]/2 #first element is counted two times...
             data += tmp.sum(0)
