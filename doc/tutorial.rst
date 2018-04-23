@@ -1,13 +1,16 @@
 Tutorial
 ========
 
+Reflections and Interference
+----------------------------
+
 Color Conversion
 ----------------
-
 
 In this tutorial you will learn how to transform specter to RGB colors using `CIE 1931`_ standard observer color matching function (see `CIE 1931`_ wiki pages for details on XYZ color space).
 
 In the :mod:`dtmm.color` there is a limited set of functions for converting computed specters to RGB images. It is not a full color engine, so only a few color conversion functions are implemented. The specter is converted to color using a `CIE 1931`_ color matching function (CMF). Conversion to color is performed as follows. Specter data is first converted to XYZ color space using the `CIE 1931`_ standard observer (5 nm tabulated) color matching function data. Then the image is converted to RGB color space (using a D65 reference white point) as specified in the `sRGB`_ standard (see `sRGB`_ wiki pages for details on sRGB color space). Data values are then clipped to (0.,1.) and finally, sRGB gamma transfer function is applied.
+
 
 CIE 1931 standard observer
 ++++++++++++++++++++++++++
@@ -134,14 +137,53 @@ this way we defined a new CMF function that converts unity transmission curve to
 All fair, but we would not like to compute transmission coefficients at all 81 wavelengths defined in the original CMF data. We need to integrate the CMF function 
 
 
+.. doctest::
 
+   >>> itcmf = dc.integrate_data(wavelengths, np.linspace(380,780,81), tcmf)
 
+which results in a new CMF function applicable to transmission coefficients defined at new  (different) wavelengths
+
+We could have built this data directly by:
+
+.. doctest::
+
+   >>> itcmf = dc.load_tcmf(wavelengths)
+
+Now we can compute 
+
+   >>> rgb4 = dc.specter2color(coefficients,itcmf)
+   >>> import numpy as np
+   >>> np.allclose(rgb,rgb4)
+   True
+
+Color Rendering
++++++++++++++++
+
+Not all colors can be displayed on a sRGB monitor. Colors that are out of gamut (R,G,B) chanels are larger than 1. or smaller than 0. are clipped. For instance, a D65 light that gives (R,G,B) = (1,1,1)* intensity filtered with a 150 nm band-pass filter already has colors clipped at some higher values of intensities. These colors are more vivid and saturated at light intensity of 1. 
 
 
 .. plot:: examples/color_bandpass_filter.py
    
    An example of color rendering of a D65 illuminant filtered with a band-pass filter. If the illuminant is too bright, color clipping may occur. 
 
+Also, with sRGB color space we cannot render all colors, especially in the green part of the spectrum. For example, let us compute RGB values of a D65 light filtered with a band-pass filter between 500 and 550 nm.
+
+.. doctest::
+
+   >>> tcmf = dc.load_tcmf([500,550])
+   >>> xyz = dc.spec2xyz([1.,1.], tcmf)
+   >>> rgb = dc.xyz2srgb(xyz)
+   >>> rgb
+   array([-0.37267476,  0.67704885, -0.0234957 ])
+
+gives a strong negative value in the red channel, which shows that the color is too saturated to be displayed in a sRGB color space. After we apply gamma (which clips the RGB channels to (0,1.)) we get
+
+.. doctest::
+
+   >>> dc.apply_srgb_gamma(rgb)
+   array([ 0.        ,  0.84176254,  0.        ])
+
+with the blue and red channel clipped. We should have used wide-gamut color space and a monitor capable of displaying wider gamuts to display this color properly. As stated already, this package was not intended to be a full color management system and you should use your own CMS system if you need more complex color transforms and rendering.
 
 .. _`CIE 1931`: https://en.wikipedia.org/wiki/CIE_1931_color_space
 .. _`sRGB`: https://en.wikipedia.org/wiki/SRGB

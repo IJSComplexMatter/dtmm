@@ -31,7 +31,6 @@ Conversion functions
 
 .. autofunction:: dtmm.color.xyz2gray
 
-
 .. currentmodule:: dtmm.linalg
 
 4x4 linear algebra (``dtmm.linalg``)

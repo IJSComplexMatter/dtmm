@@ -22,7 +22,7 @@ intensities = np.linspace(0,1.5,ni)
 
 for k,delta in enumerate((50,150,400)):
     ax = subplots[k]
-    plt.title("D65 + {} nm bandwidth filter".format(delta))
+    ax.set_title("D65 + {} nm bandwidth filter".format(delta))
     
     for i,w in enumerate(ws):
         for j, intensity in enumerate(intensities):
