@@ -8,9 +8,9 @@ import numpy as np
 #: pixel size in nm
 PIXELSIZE = 200
 #: compute box dimensions
-NLAYERS, HEIGHT, WIDTH =60,128,128
+NLAYERS, HEIGHT, WIDTH =60,96,96
 #: illumination wavelengths in nm
-WAVELENGTHS = np.linspace(380,780,40)
+WAVELENGTHS = np.linspace(380,780,10)
 #: lets make some experimental data
 
 optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
@@ -22,6 +22,6 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
 field_data_out = dtmm.transmit_field(field_data_in, optical_data)
 
 viewer = dtmm.field_viewer(field_data_out, sample = 0,
-                polarizer = 0, focus = -20, analizer = 90, mode ="b")
+                polarizer = 0, focus = -20, analizer = 90)
 viewer.plot()
 viewer.show()

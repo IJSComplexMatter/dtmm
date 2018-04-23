@@ -401,9 +401,9 @@ def interpolate_data(x, x0, data):
     out = np.zeros(shape = x.shape + (data.shape[1],), dtype = data.dtype)   
     rows, cols = data.shape  
     for i in range(cols):
-        #f = interpolate.interp1d(x0, data[:,i],fill_value = 0, kind="linear")
-        #out[...,i] = f(x)
-        out[...,i] = np.interp(x, x0, data[:,i],left = 0., right = 0.)
+        f = interpolate.interp1d(x0, data[:,i],fill_value = 0, kind="nearest")
+        out[...,i] = f(x)
+        #out[...,i] = np.interp(x, x0, data[:,i],left = 0., right = 0.)
     return out           
 
 #def integrate_data(x,x0,cmf):
