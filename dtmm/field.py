@@ -30,7 +30,7 @@ sqrt = np.sqrt
 def illumination_betaphi(NA, nrays = 13):
     """Returns beta, phi values for illumination.
     
-    This function ca be used to define beta and phi arrays that can be used to
+    This function can be used to define beta and phi arrays that can be used to
     construct illumination data with the :func:`illumination_data` function.
     The resulting beta,phi parameters define directions of rays for the input 
     light with a homogeneous angular distribution of rays - input

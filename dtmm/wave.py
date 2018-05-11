@@ -12,8 +12,8 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, FDTYPE, NUMBA_CACHE
-from dtmm.window import blackman, aperture
+from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE,  NUMBA_CACHE
+from dtmm.window import blackman
 
 #from dtmm.diffract import transmitted_field
 

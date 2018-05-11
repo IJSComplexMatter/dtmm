@@ -51,7 +51,7 @@ Here we have generated some test optical data, a nematic droplet with a radius o
 
    >>> thickness, material_eps, eps_angles = optical_data
 
-`thickness` describes the thickness of layer(s) in the optical data. It is a float (in case of a single layer) or array of floats (in case of a stack of layers). It is measured in pixel units. In our case it is an array of ones of length 60:
+`thickness` describes the thickness of layers in the optical data. It is an array of floats. It is measured in pixel units. In our case it is an array of ones of length 60:
 
 .. doctest::
 
@@ -59,18 +59,18 @@ Here we have generated some test optical data, a nematic droplet with a radius o
    >>> np.allclose(thickness, np.ones(shape = (60,)))
    True 
 
-which means that layer thickness is the same as layer pixel size. `material_eps` is an array of shape (60,128,128,3) of dtype "float32" and describes the eigenvalues of the dielectric tensor of the material. In our case we have two types of material, a host material (the one surrounding the droplet), and a liquid crystal material. We can plot this data:
+which means that layer thickness is the same as layer pixel size. `material_eps` is an array of shape (60,128,128,3) of dtype "float32" and describes the three eigenvalues of the dielectric tensor of the material. In our case we have two types of material, a host material (the one surrounding the droplet), and a liquid crystal material. We can plot this data:
 
 .. doctest::
 
-   >>> fig, ax = dtmm.plot_material(material_eps, dtmm.refind2eps([1.5,1.6,1.6]))
+   >>> fig, ax = dtmm.plot_material(material_eps, dtmm.refind2eps([1.5,1.5,1.6]))
    >>> fig.show()
 
-which plots dots at positions where liquid_crystal is defined (where the refractive indices are [1.5,1.6,1.6]). This plots a sphere centered in the center of the bounding box, as shown in Fig.
+which plots dots at positions where liquid_crystal is defined (where the refractive indices are [1.5,1.5,1.6]). This plots a sphere centered in the center of the bounding box, as shown in Fig.
 
 .. plot:: examples/plot_material.py
 
-   LC is defined in a sphere 
+   LC is defined in a sphere .
 
 `material_eps` is an array of shape (60,128,128,3). Material is defined by three real (or complex) dielectric tensor eigenvalues (refractive indices squared):
 
@@ -87,7 +87,7 @@ The real part of the dielectric constant is the refractive index squared and the
 
    In the current implementation, complex part of the dielectric tensor is ignored in the computation. This will change in the future.
 
-`eps_angles` is an array of shape (60,128,128,3) and describe optical axis angles in each point in the bounding box. For isotropic material these are all meaningless and are zero, so outside of the sphere, these are all zero:
+`eps_angles` is an array of shape (60,128,128,3) and describe optical axis angles measured in radians in voxel. For isotropic material these are all meaningless and are zero, so outside of the sphere, these are all zero:
 
 .. doctest::
 
@@ -117,7 +117,7 @@ We can plot the director around the center (around the point defect) of the drop
 
 .. note::
 
-   matplotlib cannot handle quiver plot of large data sets, so you have to limit dataset visualization to limited number of points. The center argument was used to set the coordinate system origin to bounding box center point and we used xlim, ylim and zlim arguments to slice data.
+   matplotlib cannot handle quiver plot of large data sets, so you have to limit dataset visualization to a small number of points. The center argument was used to set the coordinate system origin to bounding box center point and we used xlim, ylim and zlim arguments to slice data.
     
 .. plot:: examples/plot_data_angles.py
 
@@ -145,7 +145,7 @@ Field Data
 
    >>> import numpy as np
    >>> pixelsize = 100
-   >>> wavelengths = np.linspace(380,780,10)
+   >>> wavelengths = [500,600]
    >>> shape = (128,128)
    >>> field_data = dtmm.illumination_data(shape, wavelengths, 
    ...       pixelsize = pixelsize)
@@ -161,7 +161,7 @@ Now, the `field` array shape in our case is:
 .. doctest::
 
    >>> field.shape
-   (2, 10, 4, 128, 128)
+   (2, 2, 4, 128, 128)
 
 which should be understood as follows. The first axis is for the polarization of the field. With the :func:`.waves.illumination_data` we have built initial field of the incoming light that was specified with no polarization, therefore, :func:`.waves.illumination_data` build waves with *x* and *y* polarizations, respectively, so that it can be used in the field viewer later. The second axis is for the wavelengths of interest, therefore, the length of this axis is 10, as
 
@@ -170,6 +170,27 @@ which should be understood as follows. The first axis is for the polarization of
    >>> len(wavelengths)
    10
 
-The third axis is for the EM field elements, that is, the *E_x*, *H_y*, *E_y* and *H_x* components of the EM field. The last two axes are for the height, width coordinates (*y*, *x*).
+The third axis is for the EM field elements, that is, the *E_x*, *H_y*, *E_y* and *H_x* components of the EM field. The last two axes are for the height, width coordinates (*y*, *x*). 
+
+A multi-ray data can be built by providing the *beta* and *phi* parameters (see the :ref:`conventions` for definitions):
+
+.. doctest::
+
+   >>> field_data = dtmm.illumination_data(shape, wavelengths, 
+   ...       pixelsize = pixelsize, beta = (0,0.1,0.2), phi = (0.,0.,np.pi/6)) 
+   >>> field, wavelengths, pixelsize = field_data
+   >>> field.shape
+   (3, 2, 2, 4, 128, 128)  
+
+If a single polarization, but multiple rays are used, the shape is: 
+
+.. doctest::
+
+   >>> field_data = dtmm.illumination_data(shape, wavelengths, jones = (1,0),
+   ...       pixelsize = pixelsize, beta = (0,0.1,0.2), phi = (0.,0.,np.pi/6)) 
+   >>> field, wavelengths, pixelsize = field_data
+   >>> field.shape
+   (3, 2, 4, 128, 128)  
+
 
 

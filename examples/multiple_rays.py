@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Hello nematic droplet example"""
+"""Multiple ray example"""
 
 import dtmm
 import numpy as np
@@ -17,11 +17,6 @@ WAVELENGTHS = range(380,780,40)
 optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
            profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
-#t,e,a = optical_data
-
-#mask = a[...,2]!= 0.
-
-#a[mask,2] = 0.
 
 beta, phi = dtmm.illumination_betaphi(0.1,23)
 

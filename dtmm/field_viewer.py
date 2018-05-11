@@ -36,9 +36,14 @@ def redim(a, ndim=1):
         new_shape = (np.multiply.reduce(old_shape[0:n+1]),) + old_shape[n+1:]
     return a.reshape(new_shape)
 
-def field_viewer(field_waves, cmf = None, n = 1., mode = None, focus = 0,
-                 intensity = 1., polarizer = None, sample = None, analyzer = None,
-                 window = None):
+def field_viewer(field_waves, cmf = None, n = 1., mode = None,
+                 window = None, **parameters):
+    """Returns a FieldViewer object for optical microsope simulation
+    
+    Parameters
+    ----------
+    
+    """
     field, wavelengths, pixelsize = field_waves
     wavenumbers = k0(wavelengths, pixelsize)
     if field.ndim < 4:
@@ -48,8 +53,7 @@ def field_viewer(field_waves, cmf = None, n = 1., mode = None, focus = 0,
         cmf = load_tcmf(wavelengths)
     viewer = FieldViewer(field, wavenumbers, mode = mode, n = n,
                        cmf = cmf, window = window)
-    viewer.set_parameters(focus = focus, intensity = intensity, polarizer = polarizer,
-                          sample = sample, analyzer = analyzer)
+    viewer.set_parameters(**parameters)
     return viewer
 
 
@@ -289,7 +293,7 @@ class FieldViewer(object):
         return self.specter
     
     def calculate_image(self, gamma = True, gray = False, recalc = False, **params):
-        """Calculates RGB image
+        """Calculates RGB image.
         
         Parameters
         ----------
@@ -301,7 +305,7 @@ class FieldViewer(object):
         recalc : bool, optional
             If specified, it forces recalculation. Otherwise, result is calculated
             only if calculation parameters have changed.
-        params: keyword argument, optional
+        params: keyword arguments
             Any additional keyword arguments that are passed dirrectly to 
             set_parameters method.
             
