@@ -163,12 +163,12 @@ Now, the `field` array shape in our case is:
    >>> field.shape
    (2, 2, 4, 128, 128)
 
-which should be understood as follows. The first axis is for the polarization of the field. With the :func:`.waves.illumination_data` we have built initial field of the incoming light that was specified with no polarization, therefore, :func:`.waves.illumination_data` build waves with *x* and *y* polarizations, respectively, so that it can be used in the field viewer later. The second axis is for the wavelengths of interest, therefore, the length of this axis is 10, as
+which should be understood as follows. The first axis is for the polarization of the field. With the :func:`.waves.illumination_data` we have built initial field of the incoming light that was specified with no polarization, therefore, :func:`.waves.illumination_data` build waves with *x* and *y* polarizations, respectively, so that it can be used in the field viewer later. The second axis is for the wavelengths of interest, therefore, the length of this axis is 2, as
 
 .. doctest::
 
    >>> len(wavelengths)
-   10
+   2
 
 The third axis is for the EM field elements, that is, the *E_x*, *H_y*, *E_y* and *H_x* components of the EM field. The last two axes are for the height, width coordinates (*y*, *x*). 
 
@@ -194,7 +194,7 @@ If a single polarization, but multiple rays are used, the shape is:
 
 How does it look like? Let us apply a circular aperture to the field and plot it. The field is a cross section of a plane wave with wave vector defined by the wavelength, pixel size and direction (beta, phi) as can be seen in the images.  
 
-.. plot:: examples/plot_field.py
+.. .. plot:: examples/plot_field.py
 
    The real part of the Ex component of the EM field for the three directions (beta, phi) and two wavelengths. Top row is for 500nm data, bottom row is 600nm data.
 

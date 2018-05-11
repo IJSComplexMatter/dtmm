@@ -101,16 +101,16 @@ For numerical aperture of NA = 0.1 you can call
 
 .. doctest::
 
-   >>> beta, phi = dtmm.illumination_betaphi(0.1, 13)
+   >>> beta, phi = dtmm.illumination_betaphi(0.1, 21)
 
-which constructs direction parameters (beta, phi) of input rays of numerical aperture of 0.1 and with approximate number of rays of 13. In our case 
+which constructs direction parameters (beta, phi) of input rays of numerical aperture of 0.1 and with approximate number of rays of 21. In our case 
 
 .. doctest::
 
    >>> len(beta)
-   13
+   21
  
-we have 13 rays evenly distributed in a cone of numerical aperture of 0.1. To calculate the transmitted field we now have to pass these ray parameters to the transmit_field function::
+we have 21 rays evenly distributed in a cone of numerical aperture of 0.1. To calculate the transmitted field we now have to pass these ray parameters to the transmit_field function::
 
    >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, beta = beta, phi = phi)
    >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi)
