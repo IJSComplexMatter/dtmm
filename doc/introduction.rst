@@ -5,7 +5,7 @@ Introduction
 
 .. note::
 
-   This package is still in its early stage of development, so it should be considered experimental. No official release exists yet!
+   This package is still in its early stage of development, so it should be considered experimental. No official release exists yet! The package and the documentation is actively being worked on, so please stay tuned. The core functionality has been defined and the package is ready for use and testing, but much needs to be done to documentation and code cleanup, etc.. Expect also some minor API changes in the near future.
 
 License
 -------
@@ -72,7 +72,7 @@ Transmit the field through the sample:
 
 .. doctest::
 
-   >>> field_data_out = dtmm.transmit_field(field_data_in, optical_data)
+   >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data)
 
 Visualize the transmitted field with matplotlib plot:
 
@@ -80,7 +80,7 @@ Visualize the transmitted field with matplotlib plot:
 
    >>> viewer = dtmm.field_viewer(field_data_out)
    >>> viewer.set_parameters(sample = 0, polarizer = 0,
-   ...      focus = -20, analizer = 90)
+   ...      focus = -20, analyzer = 90)
    >>> fig, ax = viewer.plot() #creates matplotlib figure and axes
    >>> fig.show()
 

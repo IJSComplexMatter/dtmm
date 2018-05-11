@@ -15,7 +15,7 @@ from dtmm.jones import polarizer_matrix, apply_polarizer_matrix
 from dtmm.wave import k0
 from dtmm.data import refind2eps
 
-VIEWER_PARAMETERS = ("analizer", "polarizer", "sample", "intensity", "focus")
+VIEWER_PARAMETERS = ("analyzer", "polarizer", "sample", "intensity", "focus")
 
 def redim(a, ndim=1):
     """Reshapes dimensions of input array by flattenig over first few dimensions. If
@@ -37,7 +37,7 @@ def redim(a, ndim=1):
     return a.reshape(new_shape)
 
 def field_viewer(field_waves, cmf = None, n = 1., mode = None, focus = 0,
-                 intensity = 1., polarizer = None, sample = None, analizer = None,
+                 intensity = 1., polarizer = None, sample = None, analyzer = None,
                  window = None):
     field, wavelengths, pixelsize = field_waves
     wavenumbers = k0(wavelengths, pixelsize)
@@ -49,7 +49,7 @@ def field_viewer(field_waves, cmf = None, n = 1., mode = None, focus = 0,
     viewer = FieldViewer(field, wavenumbers, mode = mode, n = n,
                        cmf = cmf, window = window)
     viewer.set_parameters(focus = focus, intensity = intensity, polarizer = polarizer,
-                          sample = sample, analizer = analizer)
+                          sample = sample, analyzer = analyzer)
     return viewer
 
 
@@ -73,7 +73,7 @@ class FieldViewer(object):
         self.intensity = 1.
         self.polarizer = None
         self.sample = None
-        self.analizer = None
+        self.analyzer = None
         self.focus = 0
         self.window = window
         
@@ -105,9 +105,9 @@ class FieldViewer(object):
         smax : float, optional
             Maximum value for sample rotation angle.  
         amin : float, optional
-            Minimimum value for analizer angle.
+            Minimimum value for analyzer angle.
         amax : float, optional
-            Maximum value for analizer angle.  
+            Maximum value for analyzer angle.  
         """
         
         self.fig, self.ax = plt.subplots()
@@ -128,8 +128,8 @@ class FieldViewer(object):
             self.intensity = d
             self.update_plot()
             
-        def update_analizer(d):
-            self.analizer = d
+        def update_analyzer(d):
+            self.analyzer = d
             self.update_plot()
 
         def update_polarizer(d):
@@ -154,10 +154,10 @@ class FieldViewer(object):
             self.axsample = plt.axes(axes.pop())
             self._ssample = Slider(self.axsample, "sample",kwargs.get("smin",-180),kwargs.get("smax",180),valinit = self.sample, valfmt='%.1f')
             self._ids3 = self._ssample.on_changed(update_sample)    
-        if self.analizer is not None:
-            self.axanalizer = plt.axes(axes.pop())
-            self._sanalizer = Slider(self.axanalizer, "analizer",kwargs.get("amin",0),kwargs.get("amax",90),valinit = self.analizer, valfmt='%.1f')
-            self._ids2 = self._sanalizer.on_changed(update_analizer)
+        if self.analyzer is not None:
+            self.axanalyzer = plt.axes(axes.pop())
+            self._sanalyzer = Slider(self.axanalyzer, "analyzer",kwargs.get("amin",0),kwargs.get("amax",90),valinit = self.analyzer, valfmt='%.1f')
+            self._ids2 = self._sanalyzer.on_changed(update_analyzer)
         if self.focus is not None:    
             self.axfocus = plt.axes(axes.pop())
             self._sfocus = Slider(self.axfocus, "focus",kwargs.get("fmin",self.focus-100),kwargs.get("fmax",self.focus + 100),valinit = self.focus, valfmt='%.1f')
@@ -199,14 +199,14 @@ class FieldViewer(object):
         self._updated_parameters.add("focus")
         
     @property
-    def analizer(self):
-        """Analizer angle"""
-        return self._analizer    
+    def analyzer(self):
+        """Analyzer angle"""
+        return self._analyzer    
         
-    @analizer.setter   
-    def analizer(self, angle):
-        self._analizer = angle
-        self._updated_parameters.add("analizer")
+    @analyzer.setter   
+    def analyzer(self, angle):
+        self._analyzer = angle
+        self._updated_parameters.add("analyzer")
         
     @property
     def intensity(self):
@@ -247,7 +247,7 @@ class FieldViewer(object):
             dmat = diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = d, epsv = self.epsv, epsa = self.epsa, mode = self.mode)
             diffract(self.ifield,dmat,window = self.window,out = self.ofield)
             recalc = True
-        if recalc or "polarizer" in self._updated_parameters or "analizer" in self._updated_parameters or "sample" in self._updated_parameters:
+        if recalc or "polarizer" in self._updated_parameters or "analyzer" in self._updated_parameters or "sample" in self._updated_parameters:
             sample = self.sample
             if sample is None:
                 sample = 0.
@@ -259,8 +259,8 @@ class FieldViewer(object):
                 c,s = np.cos(angle),np.sin(angle)  
                 tmp = redim(self.ofield, ndim = 6)
                 out = np.empty_like(tmp[0,0])
-            if self.analizer is not None:
-                angle = -np.pi/180*(self.analizer - sample)
+            if self.analyzer is not None:
+                angle = -np.pi/180*(self.analyzer - sample)
                 pmat = polarizer_matrix(angle)
             
             for i,data in enumerate(tmp):
@@ -271,7 +271,7 @@ class FieldViewer(object):
                 else: 
                     ffield = data
                     
-                if self.analizer is not None:
+                if self.analyzer is not None:
                     pfield = apply_polarizer_matrix(pmat, ffield, out = out)
                 else:
                     pfield = ffield

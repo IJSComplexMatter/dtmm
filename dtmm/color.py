@@ -400,9 +400,9 @@ def interpolate_data(x, x0, data):
     out = np.zeros(shape = x.shape + (data.shape[1],), dtype = data.dtype)   
     rows, cols = data.shape  
     for i in range(cols):
-        f = interpolate.interp1d(x0, data[:,i],fill_value = 0, kind="nearest")
-        out[...,i] = f(x)
-        #out[...,i] = np.interp(x, x0, data[:,i],left = 0., right = 0.)
+        #f = interpolate.interp1d(x0, data[:,i],fill_value = 0, kind="linear")
+        #out[...,i] = f(x)
+        out[...,i] = np.interp(x, x0, data[:,i],left = 0., right = 0.)
     return out           
 
 #def integrate_data(x,x0,cmf):
@@ -452,7 +452,8 @@ def integrate_data(x,x0,cmf):
 def _rxn(x,i,dx):
     xlow, xhigh = x[i], x[i+1]
     dx = (xhigh - xlow)/dx
-    n = int(round(dx))+1
+    #n = int(round(dx))+1
+    n = int(dx-1)+1
     dx = dx/n
     xout = np.linspace(xlow,xhigh,n+1)
     yout = np.linspace(1.,0.,n+1)*dx
@@ -461,7 +462,8 @@ def _rxn(x,i,dx):
 def _lxn(x,i,dx):
     xlow, xhigh = x[i-1], x[i]
     dx = (xhigh - xlow)/dx
-    n = int(round(dx))+1
+    #n = int(round(dx))+1
+    n = int(dx-1)+1
     dx = dx/n
     xout = np.linspace(xhigh,xlow,n+1)
     yout = np.linspace(1.,0.,n+1)*dx

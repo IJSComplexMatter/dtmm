@@ -21,7 +21,7 @@ field_data_out = dtmm.transfer_field(field_data_in, optical_data)
 
 viewer = dtmm.field_viewer(field_data_out)
 viewer.set_parameters(sample = 0, intensity = 2.,
-                polarizer = 0, focus = -20, analizer = 90)
+                polarizer = 0, focus = -20, analyzer = 90)
 
 fig,ax = viewer.plot()
 fig.show()
