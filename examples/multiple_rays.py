@@ -23,14 +23,14 @@ beta, phi = dtmm.illumination_betaphi(0.1,23)
 window = dtmm.aperture((HEIGHT,WIDTH), 1,0.2)
 
 field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, beta = beta, phi = phi,
-                                             pixelsize = PIXELSIZE, window = window, n = 1.5) 
+                                             pixelsize = PIXELSIZE, window = window) 
 
 window = dtmm.aperture((HEIGHT,WIDTH), 1,0.1)
 
 field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, 
-                                     phi = phi, nin = 1.5, nout = 1.5)
+                                     phi = phi, npass = 1,nstep = 1, diffraction = True)
 
-viewer = dtmm.field_viewer(field_data_out, sample = 0, intensity = 2,n = 1.5,
+viewer = dtmm.field_viewer(field_data_out, sample = 0, intensity = 2,
                 polarizer = 0, focus = -20, analyzer = 90)
 fig, ax = viewer.plot()
 fig.show()

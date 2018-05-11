@@ -38,7 +38,7 @@ Installing in Anaconda
 
 After you have downloaded the package, open the terminal (command prompt) `cd` to the downloaded source code and run::
 
-    $ conda install numba scipy matplotlib numba
+    $ conda install numba scipy matplotlib numba numexpr
     $ python setup.py install
 
 Optionally, for faster FFT computation, you can install `mkl_fft` through the `intel` channel::
