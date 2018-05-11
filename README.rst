@@ -40,7 +40,7 @@ of use.
 License
 -------
 
-``dtmm`` will be released under MIT license so you will be able to use it freely, however, I will ask you to cite the *... some future paper*. In the mean time you can play with the current development version freely, but i kindly ask you not to redistribute the code, or use or publish data based on the results of the package. **Please wait until the package is officially released!**
+``dtmm`` will be released under MIT license so you will be able to use it freely, however, I will ask you to cite the *... some future paper*. In the mean time you can play with the current development version freely, but i kindly ask you not to redistribute the code or  publish data obtained with this package. **Please wait until the package is officially released!**
 
 
 

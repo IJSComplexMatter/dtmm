@@ -10,7 +10,7 @@ Introduction
 License
 -------
 
-``dtmm`` will be released under MIT license so you will be able to use it freely, however, I will ask you to cite the *... some future paper*. In the mean time you can play with the current development version freely, but i kindly ask you not to redistribute the code, or use or publish data based on the results of the package. **Please wait until the package is officially released!**
+``dtmm`` will be released under MIT license so you will be able to use it freely, however, I will ask you to cite the *... some future paper*. In the mean time you can play with the current development version freely, but i kindly ask you not to redistribute the code or  publish data obtained with this package. **Please wait until the package is officially released!**
 
 Highlights
 ----------
@@ -86,7 +86,7 @@ Visualize the transmitted field with matplotlib plot:
 
 .. plot:: examples/hello_world.py
 
-   Simulated optical polarizing microscope image of a nematic droplet with a radial nematic director profile (a point defect in the middle of the sphere). You can use sliders to change the focal plane, polarizer, sample rotation, analizer, and light intensity.
+   Simulated optical polarizing microscope image of a nematic droplet with a radial nematic director profile (a point defect in the middle of the sphere). You can use sliders to change the focal plane, polarizer, sample rotation, analyzer, and light intensity.
 
 Curious enough? Read the :ref:`quickstart`.
 
