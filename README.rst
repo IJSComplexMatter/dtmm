@@ -20,7 +20,7 @@ Optional:
 Installation
 ------------
 
-No official release exists yet, so you have to clone or download the latest development code from the `repository`_ and run::
+No official release exists yet, so you have to clone or download the latest development code and run::
 
     $ python setup.py install
 
@@ -42,11 +42,5 @@ License
 
 ``dtmm`` will be released under MIT license so you will be able to use it freely, however, I will ask you to cite the *... some future paper*. In the mean time you can play with the current development version freely, but i kindly ask you not to redistribute the code, or use or publish data based on the results of the package. **Please wait until the package is officially released!**
 
-Share your experience
----------------------
-
-Let me know of any bugs, suggestions you may have.
-
-**Enjoy!**
 
 
