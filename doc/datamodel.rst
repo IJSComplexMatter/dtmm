@@ -72,6 +72,8 @@ which plots dots at positions where liquid_crystal is defined (where the refract
 
    LC is defined in a sphere .
 
+
+
 `material_eps` is an array of shape (60,128,128,3). Material is defined by three real (or complex) dielectric tensor eigenvalues (refractive indices squared):
 
 .. doctest::
@@ -122,6 +124,8 @@ We can plot the director around the center (around the point defect) of the drop
 .. plot:: examples/plot_data_angles.py
 
    LC director of the nematic droplet near the center of the sphere. Director is computed from director angles. There is a point defect in the origin. 
+
+
 
 .. Director length in the `eps_angles` data should normally be 1. However, you can set any      value. This value is then used to compute the refractive indices of the material. In fact this value is treated as a nematic order parameter, which is used to compute the refractive indices from the following formula:
 
