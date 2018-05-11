@@ -194,7 +194,7 @@ If a single polarization, but multiple rays are used, the shape is:
 
 How does it look like? Let us apply a circular aperture to the field and plot it. The field is a cross section of a plane wave with wave vector defined by the wavelength, pixel size and direction (beta, phi) as can be seen in the images.  
 
-.. .. plot:: examples/plot_field.py
+.. plot:: examples/plot_field.py
 
    The real part of the Ex component of the EM field for the three directions (beta, phi) and two wavelengths. Top row is for 500nm data, bottom row is 600nm data.
 
