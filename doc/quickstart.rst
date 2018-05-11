@@ -183,11 +183,6 @@ The viewer also allows you to play with the microscope settings dynamically.
    >>> fig, ax = viewer.plot()
    >>> fig.show()
 
-.. plot:: examples/hello_world.py
-
-   Microscope image formed by an ideal 1:1 objective.
-
-
 .. note:: 
 
     For this to work you should not use the matplotlib figure inline option in your python development environment (e.g. Spyder, jupyterlab, notebook). Matpoltlib should be able to draw to a new figure widget for sliders to work. 
