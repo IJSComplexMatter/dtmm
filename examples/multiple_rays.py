@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Hello nematic droplet example"""
-import os
-#os.environ["DTMM_PARALLEL"] = "0"
 
 import dtmm
 import numpy as np
 dtmm.conf.set_verbose(1)
-dtmm.conf.set_fftlib("mkl_fft")
+
 #: pixel size in nm
 PIXELSIZE = 200
 #: compute box dimensions
