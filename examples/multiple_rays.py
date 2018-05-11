@@ -25,7 +25,7 @@ optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
 
 #a[mask,2] = 0.
 
-beta, phi = dtmm.illumination_betaphi(0.3,53)
+beta, phi = dtmm.illumination_betaphi(0.1,23)
 
 window = dtmm.aperture((HEIGHT,WIDTH), 1,0.1)
 
@@ -34,10 +34,10 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, beta = beta
 
 window = dtmm.aperture((HEIGHT,WIDTH), 1,0.1)
 
-field_data_out = dtmm.transmit_field(field_data_in, optical_data, beta = beta, 
+field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, 
                                      phi = phi, npass = 1,nstep = 1, diffraction = True)
 
-viewer = dtmm.field_viewer(field_data_out, sample = 0, 
-                polarizer = 0, focus = -0, analizer = 90)
+viewer = dtmm.field_viewer(field_data_out, sample = 0, intensity = 2,
+                polarizer = 0, focus = -20, analizer = 90)
 viewer.plot()
 viewer.show()

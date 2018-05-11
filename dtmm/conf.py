@@ -9,13 +9,23 @@ Created on Sat Dec  9 20:16:25 2017
 from __future__ import absolute_import, print_function, division
 
 import numpy as np
+from functools import wraps
+import os, warnings, shutil
 
-import os, warnings
+try:
+    from configparser import ConfigParser
+except:
+    #python 2.7
+    from ConfigParser import ConfigParser
 
-os.environ["NUMBA_INTEL_SVML"] = "1"
-os.environ['NUMBA_ENABLE_AVX'] = '1'
-os.environ['NUMBA_LOOP_VECTORIZE'] = '1'
-os.environ['NUMBA_OPT'] = '3'
+
+DATAPATH = os.path.dirname(__file__)
+
+
+#os.environ["NUMBA_INTEL_SVML"] = "1"
+#os.environ['NUMBA_ENABLE_AVX'] = '1'
+#os.environ['NUMBA_LOOP_VECTORIZE'] = '1'
+#os.environ['NUMBA_OPT'] = '3'
 
 def read_environ_variable(name, default = "1"):
     try:
@@ -24,17 +34,7 @@ def read_environ_variable(name, default = "1"):
         return int(default)
         warnings.warn("Environment variable {0:s} was found, but its value is not valid!".format(name))
 
-if read_environ_variable("DTMM_TARGET_PARALLEL","0"):
-    NUMBA_TARGET = "parallel"
-    NUMBA_PARALLEL = True
-else:
-    NUMBA_TARGET = "cpu"
-    NUMBA_PARALLEL = False
 
-NUMBA_CACHE = False   
-if read_environ_variable("DTMM_NUMBA_CACHE"):
-    if NUMBA_PARALLEL == False:
-        NUMBA_CACHE = True    
 
 def get_home_dir():
     """
@@ -57,12 +57,54 @@ def get_home_dir():
 HOMEDIR = get_home_dir()
 
 DTMM_CONFIG_DIR = os.path.join(HOMEDIR, ".dtmm")
-if not os.path.exists(DTMM_CONFIG_DIR):
-    os.makedirs(DTMM_CONFIG_DIR)
-
 NUMBA_CACHE_DIR = os.path.join(DTMM_CONFIG_DIR, "numba_cache")
 
-os.environ["NUMBA_CACHE_DIR"] = NUMBA_CACHE_DIR #set it to os.environ.. so that numba can use it
+if not os.path.exists(DTMM_CONFIG_DIR):
+    try:
+        os.makedirs(DTMM_CONFIG_DIR)
+    except:
+        warnings.warn("Could not create folder in user's home directory!")
+        NUMBA_CACHE_DIR = ""
+        
+
+CONF = os.path.join(DTMM_CONFIG_DIR, "dtmm.ini")
+CONF_TEMPLATE = os.path.join(DATAPATH, "dtmm.ini")
+
+config = ConfigParser()
+
+if not os.path.exists(CONF):
+    try:
+        shutil.copy(CONF_TEMPLATE, CONF)
+    except:
+        warnings.warn("Could not copy config file in user's home directory!")
+        CONF = CONF_TEMPLATE
+config.read(CONF)
+    
+def _readconfig(func, section, name, default):
+    try:
+        return func(section, name)
+    except:
+        return default
+
+
+BETAMAX = _readconfig(config.getfloat, "core", "betamax", 0.8)
+    
+if NUMBA_CACHE_DIR != "":
+    os.environ["NUMBA_CACHE_DIR"] = NUMBA_CACHE_DIR #set it to os.environ.. so that numba can use it
+
+if read_environ_variable("DTMM_TARGET_PARALLEL","0") or \
+   _readconfig(config.getboolean, "numba", "parallel", False):
+    NUMBA_TARGET = "parallel"
+    NUMBA_PARALLEL = True
+else:
+    NUMBA_TARGET = "cpu"
+    NUMBA_PARALLEL = False
+
+NUMBA_CACHE = False   
+if read_environ_variable("DTMM_NUMBA_CACHE","1") or \
+   _readconfig(config.getboolean, "numba", "cache", True):
+    if NUMBA_PARALLEL == False:
+        NUMBA_CACHE = True    
 
 
 def is_module_installed(name):
@@ -76,7 +118,7 @@ def is_module_installed(name):
 NUMBA_INSTALLED = is_module_installed("numba")
 MKL_FFT_INSTALLED = is_module_installed("mkl_fft")
 
-#cache dict for cimpute functions
+#cache dict for compute functions
 _cache = dict()
 
 def clear_cache(func = None):
@@ -105,42 +147,51 @@ def cached_function(f):
     version). 
     """
     
+    
     def to_key(arg):
         if isinstance(arg, np.ndarray):
             return (arg.shape, arg.dtype, tuple(arg.flat))
         else:
             return arg
- 
-    
-    _cache[f] = {}
-    def _f(*args,**kwargs):
-        if DTMMConfig.cache == 0 or kwargs.get("cache",True) == False:
-            return f(*args,**kwargs)
-        func_cache = _cache[f]
-        try:
-            key = tuple((to_key(arg) for arg in args)) + tuple((to_key(arg) for arg in kwargs.values()))
-            result = func_cache[key]
-            
-            out = kwargs.get("out")
-            if out is not None:
-                if out is not result:
-                    out[...] = result
-                    #func_cache[key] = out 
-                
-                return out
+        
+    def copy(result,out):
+        if out is not None:
+            if isinstance(result, tuple):
+                for i,a in enumerate(result):
+                    out[i][...] = a
             else:
-                return result
-        except KeyError:
-            result = f(*args,**kwargs)
-            if kwargs.get("write") == False:
-                if isinstance(result, tuple):
-                    for a in result:
-                        a.setflags(write = False)
-                else:
-                    result.setflags(write = False)
-            func_cache.clear()
-            func_cache[key] = result
-            return result
+                out[...] = result
+            return out
+        else:
+            return result   
+        
+    def readonly(result):
+        if isinstance(result, tuple):
+            for a in result:
+                a.setflags(write = False)
+        else:
+            result.setflags(write = False)        
+ 
+    _cache[f] = {}
+    
+    @wraps(f)
+    def _f(*args,**kwargs):
+        if DTMMConfig.cache != 0 or kwargs.pop("cache",True) == True:
+            #if cache enabbled...
+            func_cache = _cache[f]
+            key = tuple((to_key(arg) for arg in args)) + tuple((to_key(arg) for arg in kwargs.values()))
+            out = kwargs.pop("out",None)    
+            try:
+                result = func_cache[key]
+                return copy(result,out)
+            except KeyError:
+                result = f(*args,**kwargs)
+                readonly(result)
+                func_cache.clear()
+                func_cache[key] = result
+                return copy(result,out)
+        else:
+            return f(*args,**kwargs)
     return _f    
     
 
@@ -215,6 +266,7 @@ class DTMMConfig(object):
 DTMMConfig = DTMMConfig()
 
 def print_config():
+    """Prints configurtion parameters and settings."""
     print(DTMMConfig)
 
 #setter functions for DDMConfig
@@ -260,7 +312,10 @@ def set_nthreads(num):
 #    
 def set_cache(level):
     out = DTMMConfig.cache
-    DTMMConfig.cache = max(int(level),0)
+    level = max(int(level),0)
+    if level > 1:
+        warnings.warn("Cache levels higher than 1 not supported yet!")
+    DTMMConfig.cache = level
     return out
     
           
@@ -271,7 +326,6 @@ def set_fftlib(name = "numpy.fft"):
         if MKL_FFT_INSTALLED: 
             DTMMConfig.fftlib = name
         else:
-            import warnings
             warnings.warn("MKL FFT is not installed so it can not be used! Please install mkl_fft.")            
     elif name == "scipy.fftpack" or name == "scipy":
         DTMMConfig.fftlib = "scipy"

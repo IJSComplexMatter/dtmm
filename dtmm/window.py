@@ -35,13 +35,14 @@ def aperture(shape, diameter = 1., alpha = 0.1):
     r = _r(shape, scale = diameter)
     return tukey(r,alpha)
 
-def tukey(r,alpha = 0.1):
+def tukey(r,alpha = 0.1, rmax = 1.):
     out = np.ones(r.shape, FDTYPE)
-    mask = r > (1-alpha)
+    alpha = alpha * rmax
+    mask = r > rmax -alpha
     if alpha > 0.:
-        tmp = 1/2*(1-np.cos(np.pi*(r-1)/alpha))
+        tmp = 1/2*(1-np.cos(np.pi*(r-rmax)/alpha))
         out[mask] = tmp[mask]
-    mask = (r>= 1.)
+    mask = (r>= rmax)
     out[mask] = 0.
     return out  
 

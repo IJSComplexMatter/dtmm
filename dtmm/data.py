@@ -19,7 +19,7 @@ from dtmm.conf import  NF32DTYPE, F32DTYPE, FDTYPE,NF64DTYPE, F64DTYPE, NUMBA_CA
 
 
 def read_director(file, shape, dtype = "float32",  sep = "", endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
-    """Reads raw director data from a binary file. 
+    """Reads raw director data from a binary or text file. 
     
     A convinient way to read director data from file. 
     
@@ -47,7 +47,8 @@ def read_director(file, shape, dtype = "float32",  sep = "", endian = sys.byteor
     data = read_raw(file, shape, dtype, sep = sep, endian = endian)
     return raw2director(data, order, nvec)
 
-def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None, thickness = None):
+def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
+                  thickness = None):
     """Builds optical data from director data"""
     material = np.empty(shape = director.shape, dtype = F32DTYPE)
     if mask is None:
@@ -423,7 +424,7 @@ def add_isotropic_border(data, shape, xoff = None, yoff = None, zoff = None):
     if zoff is None:
         zoff = (shape[0] - data.shape[0])//2
 
-    out[:,xoff:data.shape[1]+xoff,yoff:data.shape[2]+yoff,:] = data
+    out[zoff:data.shape[0]+zoff,yoff:data.shape[1]+yoff,xoff:data.shape[2]+xoff,:] = data
     return out 
 
 _REFIND_DECL = ["(float32[:],float32[:])","(float64[:],float64[:])","(complex64[:],complex64[:])","(complex128[:],complex128[:])"]

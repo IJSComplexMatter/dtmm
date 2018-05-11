@@ -1,17 +1,22 @@
 Introduction
 ============
 
-The ``dtmm`` package is a simple-to-use light (electro-magnetic field) transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as liquid-crystal cells with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method. Details of the method are given in *TBD*.
+``dtmm`` is a simple-to-use light (electro-magnetic field) transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as liquid-crystal with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method. Details of the method are given in *... some future paper*.
 
 .. note::
 
-   This package is still in its early stage of development, so it should be considered experimental. 
+   This package is still in its early stage of development, so it should be considered experimental. No official release exists yet!
+
+License
+-------
+
+``dtmm`` will be released under MIT license so you will be able to use it freely, however, I will ask you to cite the *... some future paper*. In the mean time you can play with the current development version freely, but i kindly ask you not to redistribute the code, or use or publish data based on the results of the package. **Please wait until the package is officially released!**
 
 Highlights
 ----------
 
 * Easy to use interface.
-* Computes transmission and reflection from the material (Includes interference effects and diffraction).
+* Computes transmission and reflection from the material (Includes interference and diffraction).
 * Exact calculation for homogeneous layers.
 * EMF visualizer (polarizing microscope simulator) - can be used with external computed data:
 
@@ -23,28 +28,31 @@ Highlights
 Status and limitations
 ----------------------
 
-``dtmm`` is a young (experimental) project. The package was developed mainly for light propagation through liquid crystals, and as such, other use cases have not yet been tested or implemented. Also, in the current version, some limitations apply, which will be resolved in future versions:
+``dtmm`` is a young (experimental) project. The package was developed mainly for light propagation through liquid crystals, and as such, other use cases have not yet been fully tested or implemented. Also, in the current version some limitations apply, which will hopefully be resolved in future versions:
 
 * Uniaxial material only - biaxial material is not yet supported.
-* Inhomogeneous layers with low birefringence material only - no double refractions. 
+* Inhomogeneous layers with low birefringence only - double refractions are neglected. 
 * Limited color rendering functions and settings - D65 illumination only.
 * No absorption yet - real dielectric tensors only.
 * Non-dispersive material only. 
+* Interference/reflections cannot be disabled.
+* Limited data IO functions.
 
 .. note::
 
-   The package comes with a fast EMF field propagation calculation which is exact for homogeneous layers, and only approximate for inhomogeneous. It works reasonably well for slowly varying refractive index material (e.g. confined liquid crystals with slowly varying director field). A more accurate (and much slower) propagation is planned in future releases.
+   EMF field propagation calculation is exact for homogeneous layers, but it is only approximate for inhomogeneous layers. It works reasonably well for slowly varying refractive index material (e.g. confined liquid crystals with slowly varying director field). A more accurate (and much slower) propagation is planned in future releases.
 
+Other than that, the package is fully operational. Try the example below to get an impression on how it works.
 
 Example
 -------
 
-
 .. doctest::
 
    >>> import dtmm
+   >>> import numpy as np
    >>> NLAYERS, HEIGHT, WIDTH = (60, 96, 96)
-   >>> WAVELENGTHS = range(380,780,40)
+   >>> WAVELENGTHS = np.linspace(380,780,10)
 
 Build sample optical data:
 
@@ -70,17 +78,17 @@ Visualize the transmitted field with matplotlib plot:
 
 .. doctest::
 
-   >>> viewer = dtmm.field_viewer(field_data_out, sample = 0, polarizer = 0,
+   >>> viewer = dtmm.field_viewer(field_data_out)
+   >>> viewer.set_parameters(sample = 0, polarizer = 0,
    ...      focus = -20, analizer = 90)
    >>> fig, ax = viewer.plot() #creates matplotlib figure and axes
    >>> fig.show()
 
 .. plot:: examples/hello_world.py
 
-   Simulated optical polarizing microscope image of a nematic droplet with a radial nematic director profile. You can use sliders to change the focal plane, polarizer,  sample rotation, analizer, and light intensity.
+   Simulated optical polarizing microscope image of a nematic droplet with a radial nematic director profile (a point defect in the middle of the sphere). You can use sliders to change the focal plane, polarizer, sample rotation, analizer, and light intensity.
 
 Curious enough? Read the :ref:`quickstart`.
-
 
 
 

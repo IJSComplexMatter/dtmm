@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from matplotlib.image import imsave
 import scipy.ndimage as nd
-import numexpr
 
 from dtmm.color import load_tcmf, specter2color
 from dtmm.diffract import diffract, diffraction_matrix
@@ -238,6 +237,9 @@ class FieldViewer(object):
         recalc : bool, optional
             If specified, it forces recalculation. Otherwise, result is calculated
             only if calculation parameters have changed.
+        params: keyword argument, optional
+            Any additional keyword arguments that are passed dirrectly to 
+            set_parameters method.
         """
         self.set_parameters(**params)
         if recalc or "focus" in self._updated_parameters:
@@ -263,9 +265,9 @@ class FieldViewer(object):
             
             for i,data in enumerate(tmp):
                 if self.polarizer is not None:
-                    x = data[0]
-                    y = data[1]
-                    ffield = numexpr.evaluate("x*c+y*s", out = out)
+                    x = data[0]*c
+                    y = np.multiply(data[1], s, out = out)
+                    ffield = np.add(x,y, out = out)#numexpr.evaluate("x*c+y*s", out = out)
                 else: 
                     ffield = data
                     
@@ -291,9 +293,18 @@ class FieldViewer(object):
         
         Parameters
         ----------
+        gamma : bool or float, optional
+            Whether to apply standard sRGB gamma curve or not. If float, applies
+            gamma curve with the provided gamma value.
+        gray : bool
+            Whether to convert RGB image to gray (intensity)
         recalc : bool, optional
             If specified, it forces recalculation. Otherwise, result is calculated
             only if calculation parameters have changed.
+        params: keyword argument, optional
+            Any additional keyword arguments that are passed dirrectly to 
+            set_parameters method.
+            
         """
         
         specter = self.calculate_specter(recalc,**params)
@@ -314,18 +325,21 @@ class FieldViewer(object):
         self._updated_parameters.clear()
         return self.image
     
-    def save_image(self, fname, **kwargs):
+    def save_image(self, fname, origin = "lower", **kwargs):
         """Calculates and saves image to file using matplotlib.image.imsave.
         
         Parameters
         ----------
         fname : str
             Output filename or file object.
+        origin : [ ‘upper’ | ‘lower’ ]
+            Indicates whether the (0, 0) index of the array is in the upper left 
+            or lower left corner of the axes. Defaults to 'lower' 
         kwargs : optional
             Any extra keyword argument that is supported by matplotlib.image.imsave
         """
         im = self.calculate_image()
-        imsave(fname, im, **kwargs)
+        imsave(fname, im, origin = origin, **kwargs)
 
     def update_plot(self):
         """Triggers plot redraw"""

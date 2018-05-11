@@ -8,7 +8,7 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, NUDTYPE,  NUMBA_TARGET, NUMBA_PARALLEL, NUMBA_CACHE
+from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, NUDTYPE,  NUMBA_TARGET, NUMBA_PARALLEL, NUMBA_CACHE, BETAMAX
 from dtmm.wave import planewave
 from dtmm.window import aperture
 from dtmm.diffract import transmitted_field
@@ -20,8 +20,10 @@ from dtmm.diffract import transmitted_field
 import numba as nb
 from numba import prange
 
+
 if NUMBA_PARALLEL == False:
     prange = range
+    
 
 sqrt = np.sqrt
 
@@ -68,7 +70,7 @@ def illumination_waves(shape, k0, beta = 0., phi = 0., window = None, out = None
     else:
         return np.multiply(out, window, out = out)
     
-def waves2field(waves, k0, beta = 0., phi = 0., n = 1., jones = None, betamax = 0.9):
+def waves2field(waves, k0, beta = 0., phi = 0., n = 1., jones = None, betamax = BETAMAX):
     beta = np.asarray(beta)
     phi = np.asarray(phi)
     k0 = np.asarray(k0)
@@ -113,7 +115,7 @@ def waves2field(waves, k0, beta = 0., phi = 0., n = 1., jones = None, betamax = 
             fieldv[...,2,:,:] = waves*s
             fieldv[...,3,:,:] = -waves*s    
             
-    return transmitted_field(fieldv,k0, n = n)
+    return transmitted_field(fieldv,k0, n = n, betamax = betamax)
 
 
 def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., 
@@ -171,6 +173,18 @@ def jonesvec(pol):
     norm = (pol[...,0] * pol[...,0].conj() + pol[...,1] * pol[...,1].conj())**0.5
     return pol/norm[...,np.newaxis]
 
+@nb.njit([(NCDTYPE[:,:,:],NFDTYPE[:,:])], parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE)
+def _field2intensity(field, out):
+    for j in range(field.shape[1]):
+        for k in range(field.shape[2]):
+            tmp1 = (field[0,j,k].real * field[1,j,k].real + field[0,j,k].imag * field[1,j,k].imag)
+            tmp2 = (field[2,j,k].real * field[3,j,k].real + field[2,j,k].imag * field[3,j,k].imag)
+            out[j,k] = tmp1-tmp2 
+
+@nb.guvectorize([(NCDTYPE[:,:,:],NFDTYPE[:,:])],"(k,n,m)->(n,m)", target = "parallel", cache = NUMBA_CACHE)
+def field2intensity(field, out):
+    _field2intensity(field, out)
+
 @nb.njit([(NCDTYPE[:,:,:,:],NFDTYPE[:,:,:])], parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE)
 def _field2specter(field, out):
     
@@ -206,4 +220,4 @@ def field2spectersum(field, out):
 def validate_field_data(field_waves):
     pass
 
-__all__ = ["validate_field_data", "jonesvec","field2specter", "illumination_data","illumination_betaphi"]
+__all__ = ["validate_field_data", "jonesvec","field2specter","field2intensity", "illumination_data","illumination_betaphi"]

@@ -1,7 +1,7 @@
 Installation
 ============
 
-The code is hosted at GitHub. No official release exists yet, so you have to clone or download the latest development code from the `repository`_ and run::
+The code is hosted on GitHub. No official release exists yet, so you have to clone or download the latest development code from the `repository`_ and run::
 
     $ python setup.py install
 
@@ -15,7 +15,6 @@ Prior to installing, you should have a working python 2.7 or 3.x environment con
 * numba >=0.35.0
 * numpy
 * scipy
-* numexpr
 * matplotlib
 
 To install these it is best to go with one of the python distributions, e.g. `anaconda`_, `canopy`_ or any other python distribution that comes shipped with the above packages. 
@@ -24,7 +23,7 @@ To install these it is best to go with one of the python distributions, e.g. `an
   
     It is important that you have recent enough version of numba installed.
 
-For faster calculation, one should also install `mkl_fft`_ that is readily available in `anaconda`_. See the :ref:`optimization` for details.
+For faster FFT calculation, you should also install `mkl_fft`_ that is readily available in `anaconda`_. See the :ref:`optimization` for details.
 
 Installing in Canopy
 --------------------
@@ -42,9 +41,13 @@ After you have downloaded the package, open the terminal (command prompt) `cd` t
     $ conda install numba scipy matplotlib numba numexpr
     $ python setup.py install
 
-optionally, for faster computation, you can install `mkl_fft` through the `intel` channel::
+Optionally, for faster FFT computation, you can install `mkl_fft` through the `intel` channel::
 
     $ conda install -c intel mkl_fft
+
+
+
+   
 
 
 .. _repository: https://github.com/IJSComplexMatter/dtmm

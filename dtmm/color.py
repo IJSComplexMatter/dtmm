@@ -5,14 +5,13 @@ Color conversion functions and utilities...
 
 from __future__ import absolute_import, print_function, division
 
-from dtmm.conf import FDTYPE, NUMBA_TARGET, NFDTYPE, NCDTYPE, NUMBA_CACHE
+from dtmm.conf import FDTYPE, NUMBA_TARGET, NFDTYPE, NCDTYPE, NUMBA_CACHE, DATAPATH
 
 import numpy as np
 import numba
 import os
 
 #DATAPATH = os.path.join(os.path.dirname(__file__), "data")
-DATAPATH = os.path.dirname(__file__)
 
 # 2-deg XYZ 5nm CMFs 
 CMFPATH = os.path.join(DATAPATH, "CIE1931XYZ.dat" )

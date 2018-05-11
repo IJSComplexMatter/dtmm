@@ -19,5 +19,5 @@ setup(name = 'dtmm',
       #include_package_data=True
     package_data={
         # If any package contains *.dat, include them:
-        '': ['*.dat']}
+        '': ['*.dat',"*.ini"]}
       )

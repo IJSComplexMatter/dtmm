@@ -10,9 +10,9 @@ ifft2 functions.
 Also, for mkl_fft, the computation can be performed in parallel using ThreadPool.
 
 """
+from __future__ import absolute_import, print_function, division
 
-from dtmm.conf import DTMMConfig, CDTYPE
-from dtmm.conf import MKL_FFT_INSTALLED
+from dtmm.conf import DTMMConfig, CDTYPE, MKL_FFT_INSTALLED
 import numpy as np
 import scipy.fftpack as spfft
 import numpy.fft as npfft
@@ -112,7 +112,7 @@ def fft2(a, out = None):
     a : array_like
         Input array (must be complex).
     out : array or None, optional
-       Output array. Can be same as input for fast inplace transform.
+        Output array. Can be same as input for fast inplace transform.
        
     Returns
     -------
@@ -143,7 +143,7 @@ def ifft2(a, out = None):
     a : array_like
         Input array (must be complex).
     out : array or None, optional
-       Output array. Can be same as input for fast inplace transform.
+        Output array. Can be same as input for fast inplace transform.
        
     Returns
     -------
