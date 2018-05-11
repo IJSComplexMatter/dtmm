@@ -113,7 +113,7 @@ which constructs direction parameters (beta, phi) of input rays of numerical ape
 we have 13 rays evenly distributed in a cone of numerical aperture of 0.1. To calculate the transmitted field we now have to pass these ray parameters to the transmit_field function::
 
    >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, beta = beta, phi = phi)
-   >>> field_data_out = dtmm.transmit_field(field_data_in, optical_data, beta = beta, phi = phi)
+   >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi)
 
 .. warning::
 
