@@ -39,5 +39,5 @@ field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta,
 
 viewer = dtmm.field_viewer(field_data_out, sample = 0, intensity = 2,
                 polarizer = 0, focus = -20, analizer = 90)
-viewer.plot()
-viewer.show()
+fig, ax = viewer.plot()
+fig.show()
