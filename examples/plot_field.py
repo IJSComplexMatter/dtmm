@@ -19,20 +19,17 @@ field = field_data[0]
 
 Ex = field[:,0,0] #Ex of the x-polarized light
 
-subplots = (231,232,233)
+subplots1 = [plt.subplot(i) for i in (231,232,233)]
+subplots2 = [plt.subplot(i) for i in (234,235,236)]
 
-for i,subplot in enumerate(subplots):
-    plt.subplot(subplot)
-    plt.imshow(Ex[i].real, origin = "lower")
+for i,ax in enumerate(subplots1):
+    ax.imshow(Ex[i].real, origin = "lower")
 
 #600nm
 
 Ex = field[:,1,0] 
 
-subplots = (234,235,236)
-
-for i,subplot in enumerate(subplots):
-    plt.subplot(subplot)
-    plt.imshow(Ex[i].real, origin = "lower")
+for i,ax in enumerate(subplots2):
+    ax.imshow(Ex[i].real, origin = "lower")
     
 plt.show()
