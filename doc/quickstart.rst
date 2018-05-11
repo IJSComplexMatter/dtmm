@@ -183,9 +183,10 @@ The viewer also allows you to play with the microscope settings dynamically.
    >>> fig, ax = viewer.plot()
    >>> fig.show()
 
-.. .. plot:: examples/hello_world.py
+.. plot:: examples/hello_world.py
 
    Microscope image formed by an ideal 1:1 objective.
+
 
 .. note:: 
 
