@@ -1,6 +1,9 @@
 dtmm: Diffractive Transfer Matrix Method
 ========================================
 
+.. image:: https://zenodo.org/badge/125330690.svg
+   :target: https://zenodo.org/badge/latestdoi/125330690
+
 ``dtmm`` is a simple-to-use light (electro-magnetic field) transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as liquid-crystal with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method. Details of the method are given in *... some future paper*.
 
 Requisites
