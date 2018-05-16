@@ -479,6 +479,71 @@ def uniaxial_order(order, eps, out):
     assert eps.shape[0] == 3
     _uniaxial_order(order[0], eps, out)
     
+MAGIC = b"dtms" #legth 4 magic number for file ID
+VERSION = b"\x00"
+
+def save_stack(file, optical_data):
+    """Saves optical data to a binary file in ``.dtms`` format.
+    
+    Parameters
+    ----------
+    file : file, str
+        File or filename to which the data is saved.  If file is a file-object,
+        then the filename is unchanged.  If file is a string, a ``.dtms``
+        extension will be appended to the file name if it does not already
+        have one.
+    optical_data: optical data tuple
+        A valid optical data
+    """    
+    own_fid = False
+    d,epsv,epsa = validate_optical_data(optical_data)
+    try:
+        if isinstance(file, str):
+            if not file.endswith('.dtms'):
+                file = file + '.dtms'
+            f = open(file, "wb")
+            own_fid = True
+        else:
+            f = file
+        f.write(MAGIC)
+        f.write(VERSION)
+        np.save(f,d)
+        np.save(f,epsv)
+        np.save(f,epsa)
+    finally:
+        if own_fid == True:
+            f.close()
+
+
+def load_stack(file):
+    """Load optical data from file.
+    
+    Parameters
+    ----------
+    file : file, str
+        The file to read.
+    """
+    own_fid = False
+    try:
+        if isinstance(file, str):
+            f = open(file, "rb")
+            own_fid = True
+        else:
+            f = file
+        magic = f.read(len(MAGIC))
+        if magic == MAGIC:
+            if f.read(1) != VERSION:
+                raise OSError("This file was created with a more recent version of dtmm. Please upgrade your dtmm package!")
+            d = np.load(f)
+            epsv = np.load(f)
+            epsa = np.load(f)
+            return d, epsv, epsa
+        else:
+            raise OSError("Failed to interpret file {}".format(file))
+    finally:
+        if own_fid == True:
+            f.close()
+
 #@numba.guvectorize(["(complex64[:],float32[:],complex64[:])","(complex128[:],float64[:],complex128[:])"],"(n),()->(n)")
 #def eps2ueps(eps, order, out):
 #    """

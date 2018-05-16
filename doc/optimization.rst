@@ -1,9 +1,10 @@
 .. _optimization:
 
-Optimization Tips
-=================
+Configuration & Tips
+====================
 
-In the :mod:`dtmm.conf` there are a few configuration options that you can use for optimization and tuning. Since numerics was developed with numba you can tune numba compilation options with the environment variables (See numba_ compilation options). There are also a few numba related environment variables that you can set in addition to numba_ compilation options. These are explained below.
+In the :mod:`dtmm.conf` there are a few configuration options that you can use for custom configuration, optimization and tuning. The package relies heavily on numba-optimized code. Default numba compilation options are used. For fine-tuning you can of course use custom compilation options that numba provides (See numba_ compilation options). There are also a few numba related environment variables that you can set in addition to numba_ compilation options. These are explained below.
+
 
 Verbosity
 ---------
@@ -33,9 +34,9 @@ To disable verbosity, set verbose level to zero:
 Numba multithreading
 --------------------
 
-Most computationally expensive numerical algorithms were implemented using @vectorize or @guvecgorize and can be performed with target="parallel" option. By default, parallel execution is disabled for two reasons. In parallel mode, the functions have to be compiled at runtime. This adds significant compilation time overhead when importing the package. Secondly, automatic parallelization of vectorized functions is a new feature in numba and is still experimental according to numba documentation.
+Most computationally expensive numerical algorithms were implemented using @vectorize or @guvecgorize and can be compiled with target="parallel" option. By default, parallel execution is disabled for two reasons. In parallel mode, the functions have to be compiled at runtime. This adds significant compilation time overhead when importing the package. Secondly, automatic parallelization of vectorized functions is a new feature in numba and is still experimental and not supported on all platforms according to numba documentation.
 
-You can enable parallel target for numba functions by setting the *DTMM_TARGET_PARALLEL* environment variable. This has to be set prior to importing the package
+You can enable parallel target for numba functions by setting the *DTMM_TARGET_PARALLEL* environment variable. This has to be set prior to importing the package.
 
 .. doctest::
 
@@ -43,7 +44,7 @@ You can enable parallel target for numba functions by setting the *DTMM_TARGET_P
    >>> os.environ["DTMM_TARGET_PARALLEL"] = "1"
    >>> import dtmm #parallel enabled dtmm
 
-Depending on the number of cores in your system, you should be able to notice an increase  in the computation speed.
+Another option is to modify the configuration file (see below). Depending on the number of cores in your system, you should be able to notice an increase  in the computation speed.
 
 .. note:
 
@@ -59,7 +60,7 @@ Numba allows caching of compiled functions. If *DTMM_TARGET_PARALLEL* environmen
 
    >>> os.environ["DTMM_NUMBA_CACHE"]  = "0"
 
-Cached files are stored in *.dtmm/numba_cache*  in user's home directory. You can remove this folder to force recompilation.
+Cached files are stored in *.dtmm/numba_cache*  in user's home directory. You can remove this folder to force recompilation. To enable/disable caching you can modify the configuration file (see below).
 
 FFT optimization
 ----------------
@@ -94,7 +95,7 @@ You must experiment with settings a little. Depending on the size of the field_d
    
 .. note::
 
-   Creating a ThreadPool in python adds some overhead (a few miliseconds). It makes sense to perform multithreading if computational complexity is high enough. MKL's threading works well for large arrays, but for multiple computations of small arrays, ThreadPool  should be faster. As a rule of a thumb, layer computation time has to be greater than 10ms to make it feasible to use ThreadPools, otherwise, stick with defaults. 
+   Creating a ThreadPool in python adds some overhead (a few miliseconds). It makes sense to perform multithreading if computational complexity is high enough. MKL's threading works well for large arrays, but for large number of computations of small arrays, ThreadPool  should be faster. As a rule of a thumb, layer computation time has to be greater than 10ms to make it feasible to use ThreadPools, otherwise, stick with defaults. 
 
 
 DTMM cache
@@ -106,6 +107,12 @@ DTMM package uses results cache internally. You can disable caching of results b
     
    >>> dtmm.conf.set_cache(0)
    1
+
+If you are running out of memory you should probably disable cashing. To clear cached data you can call:
+
+.. doctest::
+    
+   >>> dtmm.conf.clear_cache()
 
 DTMM configuration file
 -----------------------

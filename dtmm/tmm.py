@@ -16,7 +16,7 @@ from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, NUDTYPE,  NUMBA_TARGET, NUMBA_PAR
 #from dtmm.wave import mean_betaphi, betaphi
 from dtmm.rotation import  _calc_rotations_uniaxial
 from dtmm.linalg import _inv4x4, _dotmr2, _dotr2m
-from dtmm.dirdata import _uniaxial_order
+from dtmm.data import _uniaxial_order
 from dtmm.rotation import rotation_vector2
 
 

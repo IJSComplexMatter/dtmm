@@ -8,23 +8,16 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, NUDTYPE,  NUMBA_TARGET, NUMBA_PARALLEL, NUMBA_CACHE, BETAMAX
+from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_CACHE, BETAMAX
 from dtmm.wave import planewave
-from dtmm.window import aperture
 from dtmm.diffract import transmitted_field
-#from dtmm.rotation import  _calc_rotations_uniaxial
-#from dtmm.linalg import _inv4x4, _dotmr2
-#from dtmm.dirdata import _uniaxial_order
-#from dtmm.rotation import rotation_vector2
 
 import numba as nb
 from numba import prange
 
-
 if NUMBA_PARALLEL == False:
     prange = range
     
-
 sqrt = np.sqrt
 
 def illumination_betaphi(NA, nrays = 13):
@@ -59,6 +52,8 @@ def illumination_betaphi(NA, nrays = 13):
     return beta[mask], phi[mask]
 
 def illumination_waves(shape, k0, beta = 0., phi = 0., window = None, out = None):
+    """Builds scalar illumination wave. 
+    """
     k0 = np.asarray(k0)
     beta = np.asarray(beta)[...,np.newaxis]
     phi = np.asarray(phi)[...,np.newaxis]
@@ -71,6 +66,7 @@ def illumination_waves(shape, k0, beta = 0., phi = 0., window = None, out = None
         return np.multiply(out, window, out = out)
     
 def waves2field(waves, k0, beta = 0., phi = 0., n = 1., jones = None, betamax = BETAMAX):
+    """Converts scalar waves to vector field data."""
     beta = np.asarray(beta)
     phi = np.asarray(phi)
     k0 = np.asarray(k0)
@@ -183,11 +179,27 @@ def _field2intensity(field, out):
 
 @nb.guvectorize([(NCDTYPE[:,:,:],NFDTYPE[:,:])],"(k,n,m)->(n,m)", target = "parallel", cache = NUMBA_CACHE)
 def field2intensity(field, out):
+    """field2intensity(field)
+    
+Converts field array of shape [...,4,height,width] to specter array
+of shape [...,height,width]. For each pixel element, a normal
+component of Poynting vector is computed.
+    
+Parameters
+----------
+field : array_like
+    Input field array
+cmf : array_like
+    Color matching function
+    
+Returns
+-------
+spec : ndarray
+    Computed intensity array"""  
     _field2intensity(field, out)
 
 @nb.njit([(NCDTYPE[:,:,:,:],NFDTYPE[:,:,:])], parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE)
-def _field2specter(field, out):
-    
+def _field2specter(field, out):     
     for j in prange(field.shape[2]):
         for i in range(field.shape[0]):
             for k in range(field.shape[3]):
@@ -210,14 +222,122 @@ def _field2spectersum(field, out):
 
 @nb.guvectorize([(NCDTYPE[:,:,:,:],NFDTYPE[:,:,:])],"(w,k,n,m)->(n,m,w)", target = "cpu", cache = NUMBA_CACHE)
 def field2specter(field, out):
+    """field2specter(field)
+    
+Converts field array of shape [...,nwavelengths,4,height,width] to specter array
+of shape [...,height,width,nwavelengths]. For each pixel element, a normal
+componentof Poynting vector is computed
+    
+Parameters
+----------
+field : array_like
+    Input field array
+cmf : array_like
+    Color matching function
+    
+Returns
+-------
+spec : ndarray
+    Computed specter array""" 
     _field2specter(field, out)
 
 @nb.guvectorize([(NCDTYPE[:,:,:,:,:],NFDTYPE[:,:,:])],"(l,w,k,n,m)->(n,m,w)", target = "cpu", cache = NUMBA_CACHE)
 def field2spectersum(field, out):
     _field2spectersum(field, out)    
 
+def validate_field_data(data):
+    """Validates field data.
     
-def validate_field_data(field_waves):
-    pass
+    This function inspects validity of the field data, and makes proper data
+    conversions to match the field data format. In case data is not valid and 
+    it cannot be converted to a valid data it raises an exception (ValueError). 
+    
+    Parameters
+    ----------
+    data : tuple of field data
+        A valid field data tuple.
+    
+    Returns
+    -------
+    data : tuple
+        Validated field data tuple. 
+    """
+    field, wavelengths, pixelsize = data
+    field = np.asarray(field, dtype = CDTYPE)
+    wavelengths = np.asarray(wavelengths, dtype = FDTYPE)
+    pixelsize = float(pixelsize)
+    if field.ndim < 4:
+        raise ValueError("Invald field dimensions")
+    if field.shape[-4] != len(wavelengths) or wavelengths.ndim != 1:
+        raise ValueError("Incompatible wavelengths shape.")
 
-__all__ = ["validate_field_data", "jonesvec","field2specter","field2intensity", "illumination_data","illumination_betaphi"]
+    return field, wavelengths, pixelsize
+
+
+MAGIC = b"dtmf" #legth 4 magic number for file ID
+VERSION = b"\x00"
+
+def save_field(file, field_data):
+    """Saves field data to a binary file in ``.dtmf`` format.
+    
+    Parameters
+    ----------
+    file : file, str, or pathlib.Path
+        File or filename to which the data is saved.  If file is a file-object,
+        then the filename is unchanged.  If file is a string, a ``.dtmf``
+        extension will be appended to the file name if it does not already
+        have one.
+    field_data: (field,wavelengths,pixelsize)
+        A valid field data tuple
+    
+    """    
+    own_fid = False
+    field, wavelengths,pixelsize = validate_field_data(field_data)
+    try:
+        if isinstance(file, str):
+            if not file.endswith('.dtmf'):
+                file = file + '.dtmf'
+            f = open(file, "wb")
+            own_fid = True
+        else:
+            f = file
+        f.write(MAGIC)
+        f.write(VERSION)
+        np.save(f,field)
+        np.save(f,wavelengths)
+        np.save(f,pixelsize)
+    finally:
+        if own_fid == True:
+            f.close()
+
+
+def load_field(file):
+    """Load field data from file
+    
+    Parameters
+    ----------
+    file : file, str
+        The file or filenam to read.
+    """
+    own_fid = False
+    try:
+        if isinstance(file, str):
+            f = open(file, "rb")
+            own_fid = True
+        else:
+            f = file
+        magic = f.read(len(MAGIC))
+        if magic == MAGIC:
+            if f.read(1) != VERSION:
+                raise OSError("This file was created with a more recent version of dtmm. Please upgrade your dtmm package!".format(file))
+            field = np.load(f)
+            wavelengths = np.load(f)
+            pixelsize = float(np.load(f))
+            return field, wavelengths, pixelsize
+        else:
+            raise OSError("Failed to interpret file {}".format(file))
+    finally:
+        if own_fid == True:
+            f.close()
+    
+__all__ = ["load_field", "save_field", "validate_field_data", "jonesvec","field2specter","field2intensity", "illumination_data","illumination_betaphi"]

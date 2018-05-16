@@ -1,10 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue Mar  6 14:07:16 2018
-
-@author: andrej
-
 Window functions.
 """
 
@@ -22,7 +18,13 @@ def _r(shape, scale = 1.):
     return r
 
 def blackman(shape):
-    """Returns a blacman window of a given shape"""
+    """Returns a blacman window of a given shape
+    
+    Parameters
+    ----------
+    shape : (int,int)
+        A shape of the 2D window.
+    """
     r = _r(shape)   
     out = np.ones(shape, FDTYPE)
     out[...] = 0.42 + 0.5*np.cos(1*np.pi*r)+0.08*np.cos(2*np.pi*r)
@@ -31,7 +33,19 @@ def blackman(shape):
     return out
 
 def aperture(shape, diameter = 1., alpha = 0.1):
-    """Returns aperture window function. It is basically a tukey filter with a given diameter"""
+    """Returns aperture window function. 
+    
+    Aperture is basically a tukey filter with a given diameter
+    
+    Parameters
+    ----------
+    shape : (int,int)
+        A shape of the 2D window
+    diameter : float
+        Width of the aperture
+    alpha : float
+        Smoothnes parameter (should be between 0. and 1.)
+    """
     r = _r(shape, scale = diameter)
     return tukey(r,alpha)
 
@@ -46,7 +60,7 @@ def tukey(r,alpha = 0.1, rmax = 1.):
     out[mask] = 0.
     return out  
 
-__all__ = ["aperture", "blackman"]
+__all__ = ["aperture"]
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Color conversion functions and utilities...
+Color conversion functions and utilities.
 """
 
 from __future__ import absolute_import, print_function, division
@@ -13,7 +13,7 @@ import os
 
 #DATAPATH = os.path.join(os.path.dirname(__file__), "data")
 
-# 2-deg XYZ 5nm CMFs 
+#: path to 2-deg XYZ 5nm CMFs 
 CMFPATH = os.path.join(DATAPATH, "CIE1931XYZ.dat" )
 # D65 standard light 5nm specter
 D65PATH = os.path.join(DATAPATH, "D65.dat" )
@@ -138,8 +138,7 @@ def specter2color(spec, cmf, norm = False, gamma = True, gray = False, out = Non
     """Converts specter data to RGB data (color or gray).
     
     Specter shape must be [...,k], where wavelengths are in the last axis. cmf 
-    must be a valid color matchin function array of size [n,3] If n != k, 
-    specter data is interpolated to match the data in cmf function.
+    must be a valid color matchin function array of size [k,3].
     
     Parameters
     ----------

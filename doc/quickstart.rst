@@ -79,9 +79,9 @@ Typically, you will want input light to be non-polarized. A non-polarized light 
 
 .. doctest::
 
-   >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200) 
+   >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, n = 1.5) 
 
-With the input light specified, you can now transfer this field through the stack
+In the field data above we have also used *n = 1.5* argument, which defines a forward propagating wave in a medium with refractive index of 1.5. This way we can match the effective refractive index of the optical stack to with the input light specified, you can now transfer this field through the stack
 
 .. doctest::
 
@@ -123,8 +123,6 @@ Field Viewer
 ------------
 
 Once the transmitted field has been calculated, we can simulate optical polarizing microscope image formation with the FieldViewer object. The output field is a calculated EM field at the exit surface of the optical stack. As such it can be further propagated and optical polarizing microscope image formation can be performed. Instead of doing full optical image formation calculation one can take the computed field and propagate it in space a little (forward or backward) from the initial position. This way one can calculate light intensities that would have been measured by a camera equipped microscope, had the field been propagated through an ideal microscope objective with a 1:1 magnifications and by not introducing any aberrations. Simply do:
-
-Simply do:
 
 .. doctest::
 
@@ -189,6 +187,17 @@ The viewer also allows you to play with the microscope settings dynamically.
 
 For more advanced image calculation, using windowing, reflection calculations, custom color matching functions please refer to the :ref:`Tutorial`
   
+Data IO
+-------
+
+To save/load field data or optical data to a file for later use there are load and save functions::
+
+   >>> dtmm.save_field("field.dtmf", field_data_out)
+   >>> dtmm.save_stack("stack.dtmf", optical_data)
+   >>> field_data = dtmm.load_field("field.dtmf")
+   >>> optical_data = dtmm.load_stack("stack.dtms")
+
+
 
 
 

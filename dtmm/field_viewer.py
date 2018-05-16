@@ -1,4 +1,4 @@
-"""plotting functions and classes"""
+"""Field visualizer (polarizing miscroscope simulator)"""
 
 from __future__ import division, print_function, absolute_import
 
@@ -14,17 +14,19 @@ from dtmm.field import field2specter
 from dtmm.jones import polarizer_matrix, apply_polarizer_matrix
 from dtmm.wave import k0
 from dtmm.data import refind2eps
+from dtmm.conf import BETAMAX
 
+#: settable viewer parameters
 VIEWER_PARAMETERS = ("analyzer", "polarizer", "sample", "intensity", "focus")
 
-def redim(a, ndim=1):
+def _redim(a, ndim=1):
     """Reshapes dimensions of input array by flattenig over first few dimensions. If
     ndim is larger than input array ndim, it adds new axes to input array.
     
     >>> a = np.zeros((4,5,6,7))
-    >>> redim(a,ndim = 3).shape
+    >>> _redim(a,ndim = 3).shape
     (20,6,7)
-    >>> redim(a,ndim = 5).shape
+    >>> _redim(a,ndim = 5).shape
     (1,4,5,6,7)
     
     """
@@ -36,15 +38,37 @@ def redim(a, ndim=1):
         new_shape = (np.multiply.reduce(old_shape[0:n+1]),) + old_shape[n+1:]
     return a.reshape(new_shape)
 
-def field_viewer(field_waves, cmf = None, n = 1., mode = None,
-                 window = None, **parameters):
+def field_viewer(field_data, cmf = None, n = 1., mode = None,
+                 window = None, betamax = BETAMAX, **parameters):
     """Returns a FieldViewer object for optical microsope simulation
     
     Parameters
     ----------
+    field_data : field data tuple
+        Input field data
+    cmf : ndarray or None, optional
+        Color matching function (table). If provided, it must match input field
+        wavelengths.
+    n : float, optional
+        Refractive index of the output material.
+    mode : [ ‘t’ | ‘r’ | None], optional
+        Viewer mode ‘t’ for transmission mode, ‘r’ for reflection mode None for
+        as is data (no projection calculation - default).
+    window : ndarray, optional
+        Window function by which the calculated field is multiplied. This can 
+        be used for removing artefact from the boundaries.
+    betamax : float
+        Betamaz parameter used in the diffraction calculation function.
+    parameters : kwargs, optional
+        Extra parameters passed directly to the :meth:`FieldViewer.set_parameters`
+        
+    Returns
+    -------
+    out : viewer
+        A :class:`FieldViewer` viewer object 
     
     """
-    field, wavelengths, pixelsize = field_waves
+    field, wavelengths, pixelsize = field_data
     wavenumbers = k0(wavelengths, pixelsize)
     if field.ndim < 4:
         raise ValueError("Incompatible field shape")
@@ -52,17 +76,20 @@ def field_viewer(field_waves, cmf = None, n = 1., mode = None,
     if cmf is None:
         cmf = load_tcmf(wavelengths)
     viewer = FieldViewer(field, wavenumbers, mode = mode, n = n,
-                       cmf = cmf, window = window)
+                       cmf = cmf, window = window, betamax = betamax)
     viewer.set_parameters(**parameters)
     return viewer
 
-
+def _float_or_none(value):
+    return float(value) if value is not None else None
             
-class FieldViewer(object):       
+class FieldViewer(object): 
+    """Field viewer for optical polarizing microscope simulation."""      
     def __init__(self,field,ks, mode = "t",n = 1.,
-                 cmf = None, window = None):
+                 cmf = None, window = None, betamax = BETAMAX):
         if field.ndim < 4:
             raise ValueError("Incompatible field shape")
+        self.betamax = betamax
         self.mode = mode  
         self.epsv = refind2eps([n,n,n])
         self.epsa = np.array([0.,0.,0.])
@@ -87,7 +114,7 @@ class FieldViewer(object):
             self.cmf = cmf
 
         
-    def plot(self, **kwargs):
+    def plot(self, ax = None, **kwargs):
         """Plots field intensity profile.
         
         Parameters
@@ -113,8 +140,8 @@ class FieldViewer(object):
         amax : float, optional
             Maximum value for analyzer angle.  
         """
-        
-        self.fig, self.ax = plt.subplots()
+
+        self.ax = ax if ax is not None else plt.subplot(111)
         
         plt.subplots_adjust(bottom=0.25)  
         self.calculate_image()
@@ -167,7 +194,7 @@ class FieldViewer(object):
             self._sfocus = Slider(self.axfocus, "focus",kwargs.get("fmin",self.focus-100),kwargs.get("fmax",self.focus + 100),valinit = self.focus, valfmt='%.1f')
             self._ids1 = self._sfocus.on_changed(update_focus)
 
-        return self.fig, self.ax
+        return self.ax.figure, self.ax
     
     
     @property
@@ -177,7 +204,7 @@ class FieldViewer(object):
     
     @sample.setter    
     def sample(self, angle):
-        self._sample = angle
+        self._sample = _float_or_none(angle)
         self._updated_parameters.add("sample")   
 
     @property
@@ -189,7 +216,7 @@ class FieldViewer(object):
     def polarizer(self, angle):
         if angle is not None and self.ifield.ndim >= 5 and self.ifield.shape[-5] != 2:
             raise ValueError("Cannot set polarizer. Incompatible field shape.")
-        self._polarizer = angle
+        self._polarizer = _float_or_none(angle)
         self._updated_parameters.add("polarizer")
 
     @property
@@ -199,7 +226,7 @@ class FieldViewer(object):
 
     @focus.setter     
     def focus(self, z):
-        self._focus = z
+        self._focus = _float_or_none(z)
         self._updated_parameters.add("focus")
         
     @property
@@ -209,7 +236,7 @@ class FieldViewer(object):
         
     @analyzer.setter   
     def analyzer(self, angle):
-        self._analyzer = angle
+        self._analyzer = _float_or_none(angle)
         self._updated_parameters.add("analyzer")
         
     @property
@@ -219,11 +246,12 @@ class FieldViewer(object):
     
     @intensity.setter   
     def intensity(self, intensity):
-        self._intensity = intensity
+        self._intensity = _float_or_none(intensity)
         self._updated_parameters.add("intensity")
         
     def set_parameters(self, **kwargs):
-        """Sets viewer parameters."""
+        """Sets viewer parameters. Any of the :attr:`.VIEWER_PARAMETERS`
+        """
         for key, value in kwargs.items():
             if key in VIEWER_PARAMETERS:
                 setattr(self, key, value) 
@@ -241,14 +269,16 @@ class FieldViewer(object):
         recalc : bool, optional
             If specified, it forces recalculation. Otherwise, result is calculated
             only if calculation parameters have changed.
-        params: keyword argument, optional
+        params: kwargs, optional
             Any additional keyword arguments that are passed dirrectly to 
             set_parameters method.
         """
         self.set_parameters(**params)
         if recalc or "focus" in self._updated_parameters:
             d = 0 if self.focus is None else self.focus
-            dmat = diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = d, epsv = self.epsv, epsa = self.epsa, mode = self.mode)
+            dmat = diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = d, 
+                                      epsv = self.epsv, epsa = self.epsa, 
+                                      mode = self.mode, betamax = self.betamax)
             diffract(self.ifield,dmat,window = self.window,out = self.ofield)
             recalc = True
         if recalc or "polarizer" in self._updated_parameters or "analyzer" in self._updated_parameters or "sample" in self._updated_parameters:
@@ -256,12 +286,12 @@ class FieldViewer(object):
             if sample is None:
                 sample = 0.
             if self.polarizer is None:
-                tmp = redim(self.ofield, ndim = 5)
+                tmp = _redim(self.ofield, ndim = 5)
                 out = np.empty_like(tmp[0])
             else:
                 angle = -np.pi/180*(self.polarizer - sample)
                 c,s = np.cos(angle),np.sin(angle)  
-                tmp = redim(self.ofield, ndim = 6)
+                tmp = _redim(self.ofield, ndim = 6)
                 out = np.empty_like(tmp[0,0])
             if self.analyzer is not None:
                 angle = -np.pi/180*(self.analyzer - sample)
@@ -354,7 +384,6 @@ class FieldViewer(object):
     def show(self):
         """Shows plot"""
         plt.show()
-
 
 
 

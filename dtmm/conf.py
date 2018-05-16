@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Sat Dec  9 20:16:25 2017
-
-@author: andrej
+Configuration and constants
 """
 
 from __future__ import absolute_import, print_function, division
@@ -63,7 +61,7 @@ if not os.path.exists(DTMM_CONFIG_DIR):
     try:
         os.makedirs(DTMM_CONFIG_DIR)
     except:
-        warnings.warn("Could not create folder in user's home directory!")
+        warnings.warn("Could not create folder in user's home directory! Is it writeable?")
         NUMBA_CACHE_DIR = ""
         
 
@@ -76,7 +74,7 @@ if not os.path.exists(CONF):
     try:
         shutil.copy(CONF_TEMPLATE, CONF)
     except:
-        warnings.warn("Could not copy config file in user's home directory!")
+        warnings.warn("Could not copy config file in user's home directory! Is it writeable?")
         CONF = CONF_TEMPLATE
 config.read(CONF)
     
@@ -85,7 +83,6 @@ def _readconfig(func, section, name, default):
         return func(section, name)
     except:
         return default
-
 
 BETAMAX = _readconfig(config.getfloat, "core", "betamax", 0.8)
     
@@ -106,7 +103,6 @@ if read_environ_variable("DTMM_NUMBA_CACHE","1") or \
     if NUMBA_PARALLEL == False:
         NUMBA_CACHE = True    
 
-
 def is_module_installed(name):
     """Checks whether module with name 'name' is istalled or not"""
     try:
@@ -118,8 +114,8 @@ def is_module_installed(name):
 NUMBA_INSTALLED = is_module_installed("numba")
 MKL_FFT_INSTALLED = is_module_installed("mkl_fft")
 
-#cache dict for compute functions
-_cache = dict()
+#reference to all cashed functions - for automatic cache clearing with clear_cache.
+_cache = set()
 
 def clear_cache(func = None):
     """Clears compute cache.
@@ -127,27 +123,40 @@ def clear_cache(func = None):
     Parameters
     ----------
     func : function
-        A function of which cache results are to be cleared (removed from cache).
-        If not provided (default) all cache data is cleared."""
+        A cached function of which cache results are to be cleared (removed
+        from cache). If not provided (default) all cache data is cleared from 
+        all registred cached function - functions returned by the 
+        :func:`cached_function` decorator"""
     
     if func is not None:
-        _cache[func].clear()
+        func.cache.clear()
     else:
-        for value in _cache.values():
-            value.clear()
+        for func in _cache:
+            func.cache.clear()
+        
             
 def cached_function(f):
-    """A decorator that converts a function into a cached funcion. 
+    """A decorator that converts a function into a cached function. 
     
     The function needs to be a function that returns a numpy array as a result.
     This result is then cached and future function calls with same arguments
     return result from the cache. Function arguments must all be hashable, or
     are small numpy arrays. The function can also take "out" keyword argument for
-    an output array in which the resulting array is copied (if not same as cashed 
-    version). 
+    an output array in which the resulting array is copied to.
+    
+    Notes
+    -----
+    When caching is enabled, cached numpy arrayes have a read-only attribute. 
+    You need to copy first, or provide an output array if you need to write to 
+    the result.
     """
-    
-    
+    def add_result_to_cache(result, key, cache):
+        try:
+            cache.pop(next(iter(cache.keys())))
+        except StopIteration:
+            pass     
+        cache[key] = result
+
     def to_key(arg):
         if isinstance(arg, np.ndarray):
             return (arg.shape, arg.dtype, tuple(arg.flat))
@@ -157,41 +166,39 @@ def cached_function(f):
     def copy(result,out):
         if out is not None:
             if isinstance(result, tuple):
-                for i,a in enumerate(result):
-                    out[i][...] = a
+                for o,a in zip(out,result):
+                    o[...] = a
             else:
                 out[...] = result
             return out
         else:
             return result   
         
-    def readonly(result):
+    def set_readonly(result):
         if isinstance(result, tuple):
             for a in result:
                 a.setflags(write = False)
         else:
             result.setflags(write = False)        
- 
-    _cache[f] = {}
-    
+     
     @wraps(f)
     def _f(*args,**kwargs):
-        if DTMMConfig.cache != 0 or kwargs.pop("cache",True) == True:
-            #if cache enabbled...
-            func_cache = _cache[f]
+        try_read_from_cache = (kwargs.pop("cache",True) == True) and (DTMMConfig.cache != 0) 
+        if try_read_from_cache:
             key = tuple((to_key(arg) for arg in args)) + tuple((to_key(arg) for arg in kwargs.values()))
             out = kwargs.pop("out",None)    
             try:
-                result = func_cache[key]
+                result = _f.cache[key]
                 return copy(result,out)
             except KeyError:
                 result = f(*args,**kwargs)
-                readonly(result)
-                func_cache.clear()
-                func_cache[key] = result
+                set_readonly(result)
+                add_result_to_cache(result,key, _f.cache)
                 return copy(result,out)
         else:
             return f(*args,**kwargs)
+    _f.cache = {}
+    _cache.add(_f)
     return _f    
     
 

@@ -6,6 +6,18 @@ Tutorial
 Reflections and Interference
 ----------------------------
 
+Let us build once more the nematic droplet example 
+
+.. doctest::
+
+   >>> import dtmm
+   >>> import numpy as np
+   >>> NLAYERS, HEIGHT, WIDTH = (60, 96, 96)
+   >>> WAVELENGTHS = np.linspace(380,780,10)
+   >>> optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
+   ...     radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
+
+
 Color Conversion
 ----------------
 

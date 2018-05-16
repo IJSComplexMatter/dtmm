@@ -1,17 +1,26 @@
 Library Reference
 =================
 
-Color Management (``dtmm.color``)
----------------------------------
-
-.. currentmodule:: dtmm.color
-
 .. testsetup:: *
 
    from dtmm.color import *
    import numpy as np
    from dtmm.linalg import *
 
+.. currentmodule:: dtmm.conf
+
+Configuration (``dtmm.conf``)
+-----------------------------
+
+.. automodule:: dtmm.conf
+   :members:
+
+.. currentmodule:: dtmm.color
+
+Color Management (``dtmm.color``)
+---------------------------------
+
+.. automodule:: dtmm.color
 
 Load functions
 ++++++++++++++
@@ -26,7 +35,6 @@ Conversion functions
 ++++++++++++++++++++
 
 
-
 .. autofunction:: dtmm.color.specter2color
 
 .. autofunction:: dtmm.color.apply_srgb_gamma
@@ -39,17 +47,92 @@ Conversion functions
 
 .. autofunction:: dtmm.color.xyz2gray
 
+.. currentmodule:: dtmm.data
+
+Optical data (``dtmm.data``)
+----------------------------
+
+.. automodule:: dtmm.data
+   :members:
+
+.. currentmodule:: dtmm.fft
+
+FFT (``dtmm.fft``)
+------------------
+
+
+.. automodule:: dtmm.fft
+   :members:
+
+
+.. currentmodule:: dtmm.field
+
+
+Field data (``dtmm.field``)
+---------------------------
+
+Creation functions
+++++++++++++++++++
+
+.. autofunction:: dtmm.field.illumination_betaphi
+
+.. autofunction:: dtmm.field.illumination_data
+
+.. autofunction:: dtmm.field.illumination_waves
+
+.. autofunction:: dtmm.field.validate_field_data
+
+Conversion functions
+++++++++++++++++++++
+
+.. autofunction:: dtmm.field.waves2field
+
+.. autofunction:: dtmm.field.field2intensity
+
+.. autofunction:: dtmm.field.field2specter
+
+IO functions
+++++++++++++
+
+.. autofunction:: dtmm.field.load_field
+
+.. autofunction:: dtmm.field.save_field
+
+Misc
+++++
+
+.. autofunction:: dtmm.field.jonesvec
+
 .. currentmodule:: dtmm.linalg
+
+.. currentmodule:: dtmm.field_viewer
+
+Field viewer (``dtmm.field_viewer``)
+------------------------------------
+
+.. automodule:: dtmm.field_viewer
+   :members: field_viewer, FieldViewer, VIEWER_PARAMETERS
 
 4x4 linear algebra (``dtmm.linalg``)
 ------------------------------------
 
 .. autofunction:: dtmm.linalg.inv4x4
 
+.. currentmodule:: dtmm.transfer
 
-.. currentmodule:: dtmm.conf
+Field transfer (``dtmm.transfer``)
+----------------------------------
 
-Configuration (``dtmm.conf``)
------------------------------
+.. automodule:: dtmm.transfer
+   :members: 
 
-.. automodule:: dtmm.conf
+
+.. currentmodule:: dtmm.window
+
+Windowing (``dtmm.window``)
+---------------------------
+
+.. automodule:: dtmm.window
+   :members: aperture, blackman
+
+

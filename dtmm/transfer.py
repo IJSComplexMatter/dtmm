@@ -1,6 +1,5 @@
 """
-Main calculation functions for light propagation through optical data.
-
+Main top level calculation functions for light propagation through optical data.
 """
 from __future__ import absolute_import, print_function, division
 
@@ -59,6 +58,81 @@ def corrected_diffraction_matrix(shape, ks, beta,phi, d=1.,
         return dotmm(dmat,cmat, out = None)
     else:
         return dotmm(cmat, dmat, out = None)
+    
+def _normalize_field(field, intensity_in, intensity_out, out = None):
+    m = intensity_out == 0.
+    intensity_out[m] = 1.
+    intensity_in[m] = 1.
+    fact = (intensity_in/intensity_out)[...,None,:,:]
+    fact[fact<0.] = 0.
+    fact[fact>1] = 1.
+    fact = np.abs(fact)
+    return np.multiply(field,fact, out = out)   
+
+def _projected_field(field, wavenumbers, mode, n = 1, betamax = BETAMAX, normalize = False, out = None):
+    eps = refind2eps([n]*3)
+    pmat = projection_matrix(field.shape[-2:], wavenumbers, epsv = eps, epsa = (0.,0.,0.), mode = mode, betamax = betamax)
+
+    if normalize == False:
+        return  diffract(field, pmat, out = out) 
+    else:
+        intensity_in = field2intensity(field)
+        field = diffract(field, pmat, out = out)
+        intensity_out = field2intensity(field)
+        return _normalize_field(field, intensity_in, intensity_out, out = out)    
+    
+def transmitted_field(field, wavenumbers, n = 1, betamax = BETAMAX, normalize = False, out = None):
+    """Computes transmitted (forward propagating )part of the field.
+    
+    Parameters
+    ----------
+    field : ndarray
+        Input field array
+    wavenumbers : array_like
+        Wavenumbers of the field
+    n : float, optional
+        Refractive index of the media (1 by default)
+    betamax : float
+        Betamax perameter used.
+    normalize : bool, optional
+        Whether to normalize field (keep the size of the Poynting vector) 
+        after it is being projected.
+    out : ndarray, optinal
+        Output array
+        
+    Returns
+    -------
+    out : ndarray
+       Transmitted field.
+    """
+    return _projected_field(np.asarray(field), wavenumbers, "t", n = n, betamax = betamax, normalize = normalize, out = out) 
+    
+def reflected_field(field, wavenumbers, n = 1, betamax = BETAMAX, normalize = False, out = None):
+    """Computes reflected (backward propagating) part of the field.
+    
+    Parameters
+    ----------
+    field : ndarray
+        Input field array
+    wavenumbers : array_like
+        Wavenumbers of the field
+    n : float, optional
+        Refractive index of the media (1 by default)
+    betamax : float
+        Betamax perameter used.
+    normalize : bool, optional
+        Whether to normalize field (keep the size of the Poynting vector) 
+        after it is being projected.
+    out : ndarray, optinal
+        Output array
+        
+    Returns
+    -------
+    out : ndarray
+       Reflected field.
+    """
+    return _projected_field(np.asarray(field), wavenumbers, "r", n = n, betamax = betamax, normalize = normalize, out = out) 
+    
 
 def transfer_field(field_data, optical_data, beta = 0., 
                    phi = 0., eff_data = None, nin = 1., nout = 1., npass = 1,nstep=1,
@@ -129,11 +203,6 @@ def transfer_field(field_data, optical_data, beta = 0.,
     #define output field
     field_out = np.zeros_like(field_in)
     
-    shape = field_in.shape[-2:]
-    
-    dmat_in = projection_matrix(shape, ks,refind2eps([nin]*3), mode = "r", betamax = betamax)
-    dmat_out = projection_matrix(shape, ks,refind2eps([nout]*3), mode = "t", betamax = betamax)
-        
     if npass > 1:
         field0 = field_in.copy()
         
@@ -143,86 +212,43 @@ def transfer_field(field_data, optical_data, beta = 0.,
     verbose_level = DTMMConfig.verbose
     
     for i in range(npass):
-        intensity_in = field2intensity(field)
-
         msg = "{}/{}".format(i+1,npass)
         for j in range(n):
             print_progress(j,n,level = verbose_level, suffix = msg) 
             thickness = d[j]*(-1)**i
             thickness_eff = d_eff[j]*(-1)**i
             if thickness < 0:
-                p = phi 
+                p = phi  
             else:
-                p = phi + np.pi #not sure why I need to do this... but this makes it work correclty for interference calculations
+                p = phi + np.pi#not sure why I need to do this... but this makes it work correclty for interference calculations
             field = propagate_field(field, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
                             beta = beta, phi = p, nsteps = substeps[j], diffraction = diffraction,
                             betamax = betamax, out = out)
-        #intensity_out = field2specter(field).sum(axis = tuple(range(field.ndim-2)))
-        intensity_out = field2intensity(field)
       
         print_progress(n,n,level = verbose_level, suffix = msg) 
         if npass > 1:
             if i%2 == 0:
                 if i != npass -1:
-                    field = diffract(field,dmat_out, window = window, out = field_out)
-                    #intensity_refl = field2specter(field).sum(axis = tuple(range(field.ndim-2)))
-                    intensity_refl = field2intensity(field)
-                    m = intensity_refl == 0.
-                    intensity_refl[m] = 1.
-                    intensity_out[m] = 1.
-
-
-                    fact = (intensity_out/intensity_refl)[...,None,:,:]
-                    fact[fact<0.] = 0.
-                    fact[fact>1] = 1.
-                    fact = np.abs(fact)
-                    #fact = fact + 0.1*np.random.randn(*fact.shape) + 0.1*np.random.randn(*fact.shape) *1j
-
-                    #fact[...] = 0.4
-    
-     
-                    field = np.multiply(field,fact, out = field_in)
-                    
-                    out = field_in
-                    
+                    field = transmitted_field(field, ks, n = nout, betamax = betamax, normalize = True, out = field_out)
+                    out = field_in                    
             else:
                 if i != npass -1:
                     field = np.subtract(field,field0,out = field)
-                    intensity_in = field2intensity(field)
-                    
-                    field = diffract(field,dmat_in, window = window, out = field_in)
-                    intensity_refl = field2intensity(field)
-
-                    m = intensity_refl == 0.
-                    intensity_refl[m] = 1.
-                    intensity_in[m] = 1.
-                    
-                    out = field_in
-                    fact = (intensity_in/intensity_refl)[...,None,:,:]
-                    
-                    fact[fact<0] = 0
-                    fact[fact>1] = 1.
-                    fact = np.abs(fact)
-                    #fact = fact + np.random.randn(*fact.shape) + np.random.randn(*fact.shape) *1j
-
-                    #fact[...] = 0.4
-
-                    field = np.multiply(field,fact, out = field)
-                    
+                    field = reflected_field(field, ks, n = nin, betamax = betamax, normalize = True, out = field_in)
                     field = np.add(field0, field, out = field_in)
-                    field0 = field_in.copy()  
-                    out = field_out  
+                    field0 = field_in.copy()
+                    out = field_out
 
     return field_out, wavelengths, pixelsize
 
 
-def propagate_field(field, wavenumbers, layer_data, effective_data, beta = 0, phi=0,
+def propagate_field(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,
                     nsteps = 1, diffraction = True, 
                     betamax = BETAMAX, out = None):
     
     shape = field.shape[-2:]
-    d, epsv, epsa = layer_data
-    d_eff, epsv_eff, epsa_eff = effective_data
+    d, epsv, epsa = layer
+    d_eff, epsv_eff, epsa_eff = effective_layer
     kd = wavenumbers*d/nsteps
     d_eff = d_eff/nsteps
     
@@ -246,4 +272,4 @@ def propagate_field(field, wavenumbers, layer_data, effective_data, beta = 0, ph
     return out
 
     
-__all__ = ["transfer_field"]
+__all__ = ["transfer_field", "transmitted_field", "reflected_field"]
