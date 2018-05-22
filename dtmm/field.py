@@ -10,7 +10,7 @@ import numpy as np
 
 from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_CACHE, BETAMAX
 from dtmm.wave import planewave
-from dtmm.diffract import transmitted_field
+from dtmm.diffract import diffracted_field
 
 import numba as nb
 from numba import prange
@@ -65,7 +65,7 @@ def illumination_waves(shape, k0, beta = 0., phi = 0., window = None, out = None
     else:
         return np.multiply(out, window, out = out)
     
-def waves2field(waves, k0, beta = 0., phi = 0., n = 1., jones = None, betamax = BETAMAX):
+def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., jones = None, mode = "t", betamax = BETAMAX):
     """Converts scalar waves to vector field data."""
     beta = np.asarray(beta)
     phi = np.asarray(phi)
@@ -111,12 +111,13 @@ def waves2field(waves, k0, beta = 0., phi = 0., n = 1., jones = None, betamax = 
             fieldv[...,2,:,:] = waves*s
             fieldv[...,3,:,:] = -waves*s    
             
-    return transmitted_field(fieldv,k0, n = n, betamax = betamax)
+    return diffracted_field(fieldv,k0, d = -focus, n = n, mode = mode, betamax = betamax)
 
 
 def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., 
-                      n = 1.,  window = None, jones = None, betamax = 0.9):
-    """Constructs forward propagating input illumination field data.
+                      n = 1., focus = 0., window = None, backdir = False, 
+                      jones = None, betamax = 0.9):
+    """Constructs forward (or backward) propagating input illumination field data.
     
     Parameters
     ----------
@@ -133,22 +134,30 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0.,
     n : float, optional
         Refractive index of the media that this illumination field is assumed to
         be propagating in (default 1.)
+    focus : float, optional
+        Focal plane of the field. By default it is set at z=0. 
     window : array or None, optional
         If None, no window function is applied. This window function
         is multiplied with the constructed plane waves to define field diafragm
         of the input light. See :func:`.window.aperture`.
+    backdir : bool, optional
+        Whether field is bacward propagating, instead of being forward
+        propagating (default)
     jones : jones vector or None, optional
         If specified it has to be a valid jones vector that defines polarization
         of the light. If not given (default), the resulting field will have two
         polarization components. See documentation for details and examples.
-    
+    betamax : float, optional
+        The betamax parameter of the propagating field.
     """
     wavelengths = np.asarray(wavelengths)
     wavenumbers = 2*np.pi/wavelengths * pixelsize
     if wavenumbers.ndim not in (1,):
         raise ValueError("Wavelengths should be 1D array")
     waves = illumination_waves(shape, wavenumbers, beta = beta, phi = phi, window = window)
-    field = waves2field(waves, wavenumbers, beta = beta, phi = phi, n = n, jones = jones, betamax = betamax)
+    mode = "r" if backdir else "t"
+    field = waves2field(waves, wavenumbers, beta = beta, phi = phi, n = n,
+                        focus = focus, jones = jones, mode = mode, betamax = betamax)
     
     return (field, wavelengths, pixelsize)
 

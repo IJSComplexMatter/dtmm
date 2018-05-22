@@ -117,6 +117,11 @@ def diffract(fieldv, dmat, window = None, out = None):
         out = np.multiply(out,window,out = out)
     return out
 
+def diffracted_field(field, wavenumbers, d = 0.,n = 1, mode = "t", betamax = BETAMAX, out = None):
+    eps = refind2eps([n]*3)
+    pmat = diffraction_matrix(field.shape[-2:], wavenumbers, d = d, epsv = eps, epsa = (0.,0.,0.), mode = mode, betamax = betamax)
+    return diffract(field, pmat, out = out) 
+
 def transmitted_field(field, wavenumbers, n = 1, betamax = BETAMAX, out = None):
     eps = refind2eps([n]*3)
     pmat = projection_matrix(field.shape[-2:], wavenumbers, epsv = eps, epsa = (0.,0.,0.), mode = "t", betamax = betamax)

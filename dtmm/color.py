@@ -240,8 +240,8 @@ def load_tcmf(wavelengths = None, illuminant = "D65", norm = True, retx = False,
     illuminant : str, optional
         Name of the standard illuminant or illuminant data filename
     norm : bool, optional
-        By default cmf is normalized, so that unity transmission value is converted
-        to XYZ color with Y=1.
+        By default cmf is normalized so that unity transmission value over the
+        full spectral range of the illuminant is converted to XYZ color with Y=1.
     retx : bool, optional
         Should the selected wavelengths be returned as well.
     single_wavelength : bool, optional
@@ -263,6 +263,8 @@ def load_tcmf(wavelengths = None, illuminant = "D65", norm = True, retx = False,
     >>> specter2color([1]*81, cmf) #should be close to 1,1,1
     array([ 0.99994901,  1.        ,  0.99998533])
     """
+    if wavelengths is not None and len(wavelengths) == 1:
+        single_wavelength = True
 
     if single_wavelength == True:
         x, cmf = load_cmf(wavelengths, single_wavelength = True,retx = True)

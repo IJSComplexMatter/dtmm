@@ -101,14 +101,26 @@ def unique_eps(material, nmax = 5):
         
 
 def plot_material(data, eps = None, center = False, xlim = None, 
-            ylim = None, zlim = None, fig = None, ax = None,):
+            ylim = None, zlim = None, ax = None):
     """Plots material (in color) of the optical data.
     
     Parameters
     ----------
     
-    deta : optical_data or material (eps)
-        A valid optical data tuple, or material array
+    data : optical_data or material (eps)
+        A valid optical data tuple, eps array
+    eps : array or None, optional
+        Specifies which eps values to plot. If not given, all data is plotted.
+    center : bool, optional
+        Whether to view coordinates from the center of the box.
+    xlim : (low, high) or None, optional
+        A tuple describing the coordinate limits in the x direction (width).
+    ylim : (low, high) or None, optional
+        A tuple describing the coordinate limits in the y direction (height).
+    zlim : (low, high) or None, optional
+        A tuple describing the coordinate limits in the z direction (layer index).
+    ax : matplotlib.axes or None, optional
+        If specified, plot to ax.
     """
     if isinstance(data, tuple):
         d, material, angles = validate_optical_data(data)
@@ -127,10 +139,8 @@ def plot_material(data, eps = None, center = False, xlim = None,
         if eps.ndim == 1:
             eps = eps[None,:]
     
-    
-    if fig is None:
-        fig = plt.figure()
     if ax is  None:
+        fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.set_aspect('equal')
     xx, yy, zz = _r3(material.shape[0:-1], center)
@@ -158,18 +168,37 @@ def plot_material(data, eps = None, center = False, xlim = None,
     ax.set_zlabel('Z')
     plt.legend()
 
-    return fig, ax
+    return ax.figure, ax
 
-def plot_director(director, fig = None, ax = None, center = False, xlim = None, 
-                  ylim = None, zlim = None):
+def plot_director(director, fig = None, center = False, xlim = None, 
+                  ylim = None, zlim = None, ax = None):
+    """Plots director data.
+    
+    Parameters
+    ----------
+    
+    director : optical_data or material (eps)
+        A valid optical data tuple, eps array
+    eps : array or None, optional
+        Specifies which eps values to plot. If not given, all data is plotted.
+    center : bool, optional
+        Whether to view coordinates from the center of the box.
+    xlim : (low, high) or None, optional
+        A tuple describing the coordinate limits in the x direction (width).
+    ylim : (low, high) or None, optional
+        A tuple describing the coordinate limits in the y direction (height).
+    zlim : (low, high) or None, optional
+        A tuple describing the coordinate limits in the z direction (layer index).
+    ax : matplotlib.axes or None, optional
+        If specified, plot to ax.
+    """
     director = np.asarray(director)
     if director.ndim == 3:
         director = director[None,...]
     assert director.ndim == 4
     
-    if fig is None:
-        fig = plt.figure()
     if ax is  None:
+        fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.set_aspect('equal')
     # Make the grid
@@ -185,9 +214,29 @@ def plot_director(director, fig = None, ax = None, center = False, xlim = None,
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')    
-    return fig, ax
+    return ax.figure, ax
 
 def plot_angles(data, **kwargs):
+    """Plots eps angles for optical data or angles data.
+    
+    Parameters
+    ----------
+    
+    data : optical_data or material (eps)
+        A valid optical data tuple, eps array
+    eps : array or None, optional
+        Specifies which eps values to plot. If not given, all data is plotted.
+    center : bool, optional
+        Whether to view coordinates from the center of the box.
+    xlim : (low, high) or None, optional
+        A tuple describing the coordinate limits in the x direction (width).
+    ylim : (low, high) or None, optional
+        A tuple describing the coordinate limits in the y direction (height).
+    zlim : (low, high) or None, optional
+        A tuple describing the coordinate limits in the z direction (layer index).
+    ax : matplotlib.axes or None, optional
+        If specified, plot to ax.
+    """
     if isinstance(data, tuple):
         d,eps, angles = validate_optical_data(data)
     else:

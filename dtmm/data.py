@@ -1,21 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Oct 10 09:44:09 2017
-
-@author: andrej
+Director and optical data creation and IO functions.
 """
 
 from __future__ import absolute_import, print_function, division
 
 import numpy as np
-#from mayavi import mlab
-
-#from dir_to_stack import dirtostack
-
 import numba
 import sys
 
-from dtmm.conf import  NF32DTYPE, F32DTYPE, FDTYPE,NF64DTYPE, F64DTYPE, NUMBA_CACHE
+from dtmm.conf import  NF32DTYPE, F32DTYPE,NF64DTYPE, NUMBA_CACHE
 
 
 def read_director(file, shape, dtype = "float32",  sep = "", endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
@@ -32,10 +26,19 @@ def read_director(file, shape, dtype = "float32",  sep = "", endian = sys.byteor
     dtype : data-type
         Data type of the raw data. It is used to determine the size of the items 
         in the file.
+    sep : str
+        Separator between items if file is a text file.
+        Empty ("") separator means the file should be treated as binary.
+        Spaces (" ") in the separator match zero or more whitespace characters.
+        A separator consisting only of spaces must match at least one
+        whitespace.
     endian : str, optional
         Endianess of the data in file, e.g. 'little' or 'big'. If endian is 
         specified and it is different than sys.endian, data is byteswapped. 
         By default no byteswapping is done. 
+    order : str, optional
+        Data order. It can be any permutation of 'xyzn'. Defaults to 'zyxn'. It
+        describes what are the meaning of axes in data.
     nvec : str, optional
         Order of the director data coordinates. Any permutation of 'x', 'y' and 
         'z', e.g. 'yxz', 'zxy' ... 
@@ -288,13 +291,6 @@ def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
     else: 
         return out
 
-#def nematic_droplet_data_old(shape, radius, profile = "r", 
-#                         no = 1.5, ne = 1.6, nhost = 1.5):
-#
-#    mask, director = nematic_droplet_director(shape, radius, profile = profile, retmask = True)
-#    material = refind2eps([refind(nhost), refind(no,ne)])
-#    return np.ones(shape = (shape[0],)), mask, material, director2stack(director)
-
 def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5):
     """Returns nematic droplet optical_data.
     
@@ -327,39 +323,6 @@ def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost
     mask, director = nematic_droplet_director(shape, radius, profile = profile, retmask = True)
     return director2data(director, mask = mask, no = no, ne = ne, nhost = nhost)
     
-#    material = np.empty(shape = shape + (3,), dtype = F32DTYPE)
-#    material[mask0,:] =  refind2eps([no,no,ne])[None,...] 
-#    material[np.logical_not(mask0),:] = refind2eps([nhost,nhost,nhost])[None,...] 
-#    return np.ones(shape = (shape[0],)), material, director2stack(director)
-#
-
-#    
-#@numba.njit([NF32DTYPE[:,:,:,:](NF32DTYPE[:,:,:,:])])
-#def director2stack(data):
-#    """Converts director data (nx,ny,nz) to stack data (order,theta phi).
-#    Director data should be a vector with size 0 <= order <= 1."""
-#    nz,nx,ny,c = data.shape
-#    out = np.empty(shape = (nz,nx,ny,3),dtype = F32DTYPE)
-#
-#    if c != 3:
-#        raise TypeError("invalid shape")
-#    for i in range(nz):
-#        for j in range(ny):
-#            for k in range(nx):
-#                vec = data[i,j,k]
-#                x = vec[0]
-#                y = vec[1]
-#                z = vec[2]
-#                phi = np.arctan2(y,x)
-#                theta = np.arctan2(np.sqrt(x**2+y**2),z)
-#                tmp = out[i,j,k]
-#                #id = tmp.view(UDTYPE)
-#                
-#                #id[0] = 0
-#                tmp[0] = np.sqrt(x**2+y**2+z**2)
-#                tmp[1] = theta
-#                tmp[2] = phi
-#    return out
 
 @numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NF64DTYPE[:])], "(n)->()", cache = NUMBA_CACHE)
 def director2order(data, out):
@@ -375,7 +338,7 @@ def director2order(data, out):
 
 
 @numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NF64DTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
-def director2stack(data, out):
+def director2angles(data, out):
     """Converts director data to angles (yaw, theta phi)"""
     c = data.shape[0]
     if c != 3:
@@ -391,8 +354,6 @@ def director2stack(data, out):
     out[1] = theta
     out[2] = phi
 
-
-director2angles = director2stack
 
 @numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NF64DTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
 def angles2director(data, out):
@@ -414,7 +375,7 @@ def angles2director(data, out):
     out[2] = s*ct
 
 def add_isotropic_border(data, shape, xoff = None, yoff = None, zoff = None):
-    """Adds isotropic border area to director or stack data"""
+    """Adds isotropic border area to director data"""
     nz,nx,ny = shape
     out = np.zeros(shape = shape + data.shape[3:], dtype = data.dtype)
     if xoff is None:
@@ -481,6 +442,11 @@ def uniaxial_order(order, eps, out):
     
 MAGIC = b"dtms" #legth 4 magic number for file ID
 VERSION = b"\x00"
+
+"""
+IOs fucntions
+-------------
+"""
 
 def save_stack(file, optical_data):
     """Saves optical data to a binary file in ``.dtms`` format.

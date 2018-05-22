@@ -53,9 +53,52 @@ Optical data (``dtmm.data``)
 ----------------------------
 
 .. automodule:: dtmm.data
-   :members:
+
+Creation functions
+++++++++++++++++++
+
+.. autofunction:: dtmm.data.add_isotropic_border
+
+.. autofunction:: dtmm.data.nematic_droplet_data
+
+.. autofunction:: dtmm.data.nematic_droplet_director
+
+.. autofunction:: dtmm.data.sphere_mask
+
+.. autofunction:: dtmm.data.validate_optical_data
+
+
+Conversion functions
+++++++++++++++++++++
+
+.. autofunction:: dtmm.data.angles2director
+
+.. autofunction:: dtmm.data.director2angles
+
+.. autofunction:: dtmm.data.director2data
+
+.. autofunction:: dtmm.data.director2order
+
+.. autofunction:: dtmm.data.raw2director
+
+.. autofunction:: dtmm.data.refind2eps
+
+.. autofunction:: dtmm.data.uniaxial_order
+
+IO functions
+++++++++++++
+
+.. autofunction:: dtmm.data.load_stack
+
+.. autofunction:: dtmm.data.read_director
+
+.. autofunction:: dtmm.data.read_raw
+
+.. autofunction:: dtmm.data.save_stack
+
 
 .. currentmodule:: dtmm.fft
+
 
 FFT (``dtmm.fft``)
 ------------------

@@ -8,10 +8,11 @@ from dtmm.wave import k0
 
 from dtmm.data import uniaxial_order, refind2eps, validate_optical_data
 from dtmm.tmm import alphaffi_xy
-from dtmm.linalg import dotmdm, dotmm, transmit
+from dtmm.linalg import dotmdm, dotmm, transmit, dotmf
 from dtmm.print_tools import print_progress
 from dtmm.diffract import projection_matrix, diffract, phase_matrix, diffraction_matrix
 from dtmm.field import field2intensity
+from dtmm.fft import fft2, ifft2
 import numpy as np
 
 
@@ -44,7 +45,7 @@ def _validate_betaphi(beta,phi, extendeddim = 0):
 
 @cached_function
 def correction_matrix(beta,phi,ks, d=1., epsv = (1,1,1), epsa = (0,0,0.), out = None):
-    alpha, f, fi = alphaffi_xy(beta,phi + np.pi,epsa,epsv)  
+    alpha, f, fi = alphaffi_xy(beta,phi + 0*np.pi,epsa,epsv)  
     kd = -np.asarray(ks)*d
     pmat = phase_matrix(alpha, kd)  
     return dotmdm(f,pmat,fi, out = out)
@@ -59,30 +60,38 @@ def corrected_diffraction_matrix(shape, ks, beta,phi, d=1.,
     else:
         return dotmm(cmat, dmat, out = None)
     
-def _normalize_field(field, intensity_in, intensity_out, out = None):
+def _normalize_fft_field(field, intensity_in, intensity_out, out = None):
     m = intensity_out == 0.
     intensity_out[m] = 1.
-    intensity_in[m] = 1.
+    intensity_in[m] = 0.
     fact = (intensity_in/intensity_out)[...,None,:,:]
-    fact[fact<0.] = 0.
-    fact[fact>1] = 1.
+    fact[fact<=-1] = -1
+    fact[fact>=1] = 1
     fact = np.abs(fact)
-    return np.multiply(field,fact, out = out)   
+    return np.multiply(field,fact, out = out) 
 
-def _projected_field(field, wavenumbers, mode, n = 1, betamax = BETAMAX, normalize = False, out = None):
+def diffract_normalized(field, dmat, window = None, out = None):
+    f1 = fft2(field, out = out)
+    intensity1 = field2intensity(f1)
+    f2 = dotmf(dmat, f1 ,out = f1)
+    intensity2 = field2intensity(f2)
+    f3 = _normalize_fft_field(f2, intensity1, intensity2, out = f2)
+    out = ifft2(f3, out = out)
+    if window is not None:
+        out = np.multiply(out,window,out = out)
+    return out   
+    
+def _projected_field(field, wavenumbers, mode, n = 1, betamax = BETAMAX, norm = False, out = None):
     eps = refind2eps([n]*3)
     pmat = projection_matrix(field.shape[-2:], wavenumbers, epsv = eps, epsa = (0.,0.,0.), mode = mode, betamax = betamax)
 
-    if normalize == False:
-        return  diffract(field, pmat, out = out) 
+    if norm == False:
+        return diffract(field, pmat, out = out) 
     else:
-        intensity_in = field2intensity(field)
-        field = diffract(field, pmat, out = out)
-        intensity_out = field2intensity(field)
-        return _normalize_field(field, intensity_in, intensity_out, out = out)    
-    
-def transmitted_field(field, wavenumbers, n = 1, betamax = BETAMAX, normalize = False, out = None):
-    """Computes transmitted (forward propagating )part of the field.
+        return diffract_normalized(field, pmat, out = out)
+
+def transmitted_field(field, wavenumbers, n = 1, betamax = BETAMAX, norm = False, out = None):
+    """Computes transmitted (forward propagating) part of the field.
     
     Parameters
     ----------
@@ -94,9 +103,9 @@ def transmitted_field(field, wavenumbers, n = 1, betamax = BETAMAX, normalize = 
         Refractive index of the media (1 by default)
     betamax : float
         Betamax perameter used.
-    normalize : bool, optional
-        Whether to normalize field (keep the size of the Poynting vector) 
-        after it is being projected.
+    norm : bool, optional
+        Whether to normalize field so that power spectrum of the output field
+        remains the same as that of the input field.
     out : ndarray, optinal
         Output array
         
@@ -105,9 +114,9 @@ def transmitted_field(field, wavenumbers, n = 1, betamax = BETAMAX, normalize = 
     out : ndarray
        Transmitted field.
     """
-    return _projected_field(np.asarray(field), wavenumbers, "t", n = n, betamax = betamax, normalize = normalize, out = out) 
+    return _projected_field(np.asarray(field), wavenumbers, "t", n = n, betamax = betamax, norm = norm, out = out) 
     
-def reflected_field(field, wavenumbers, n = 1, betamax = BETAMAX, normalize = False, out = None):
+def reflected_field(field, wavenumbers, n = 1, betamax = BETAMAX, norm = False, out = None):
     """Computes reflected (backward propagating) part of the field.
     
     Parameters
@@ -120,9 +129,9 @@ def reflected_field(field, wavenumbers, n = 1, betamax = BETAMAX, normalize = Fa
         Refractive index of the media (1 by default)
     betamax : float
         Betamax perameter used.
-    normalize : bool, optional
-        Whether to normalize field (keep the size of the Poynting vector) 
-        after it is being projected.
+    norm : bool, optional
+        Whether to normalize field so that power spectrum of the output field
+        remains the same as that of the input field.
     out : ndarray, optinal
         Output array
         
@@ -131,7 +140,7 @@ def reflected_field(field, wavenumbers, n = 1, betamax = BETAMAX, normalize = Fa
     out : ndarray
        Reflected field.
     """
-    return _projected_field(np.asarray(field), wavenumbers, "r", n = n, betamax = betamax, normalize = normalize, out = out) 
+    return _projected_field(np.asarray(field), wavenumbers, "r", n = n, betamax = betamax, norm = norm, out = out) 
     
 
 def transfer_field(field_data, optical_data, beta = 0., 
@@ -150,14 +159,14 @@ def transfer_field(field_data, optical_data, beta = 0.,
     optical_data : Optical data tuple
         Optical data tuple through which input field is transmitted.
     beta : float or 1D array_like of floats
-        Beta parameter of the input field. If it is a 1D array, then input field
-        data first axis is taken to be field data at beta value.
+        Beta parameter of the input field. If it is a 1D array, beta[i] is the
+        beta parameter of the field_data[0][i] field array.
     phi : float or 1D array_like of floats
-        Phi angle of the input light field. If it is a 1D array, then input field
-        data first axis is taken to be field data at beta value.
+        Phi angle of the input light field. If it is a 1D array, phi[i] is the
+        phi parameter of the field_data[0][i] field array.
     eff_data : Optical data tuple or None
         Optical data tuple of homogeneous layers through which light is diffracted
-        in the diffraction calculation. If not provided an effective data is
+        in the diffraction calculation. If not provided, an effective data is
         build from optical_data by taking an average isotropic refractive index
         of the material.
     nin : float, optional
@@ -171,7 +180,8 @@ def transfer_field(field_data, optical_data, beta = 0.,
         this should be set to a higher value. If npass > 1, then input field data is
         overwritten and adds reflected light from the sample. (defaults to 1)
     nstep: int or 1D array_like of ints
-        Specifies layer propagation computation steps (defaults to 1).
+        Specifies layer propagation computation steps (defaults to 1). For thick layers
+        you may want to increase this number.
     diffraction : bool, optional
         Whether to perform difraction caclulation or not. Setting this to False 
         will dissable diffraction calculation (standard 4x4 method).
@@ -210,31 +220,30 @@ def transfer_field(field_data, optical_data, beta = 0.,
     out = field_out
     
     verbose_level = DTMMConfig.verbose
-    
+    indices = list(range(n))
     for i in range(npass):
         msg = "{}/{}".format(i+1,npass)
-        for j in range(n):
-            print_progress(j,n,level = verbose_level, suffix = msg) 
+        for pindex, j in enumerate(indices):
+            print_progress(pindex,n,level = verbose_level, suffix = msg) 
             thickness = d[j]*(-1)**i
             thickness_eff = d_eff[j]*(-1)**i
-            if thickness < 0:
-                p = phi  
-            else:
-                p = phi + np.pi#not sure why I need to do this... but this makes it work correclty for interference calculations
+            p = phi + np.pi #not sure why I need to do this... but this makes it work for off axis propagation
             field = propagate_field(field, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
                             beta = beta, phi = p, nsteps = substeps[j], diffraction = diffraction,
                             betamax = betamax, out = out)
       
         print_progress(n,n,level = verbose_level, suffix = msg) 
+        
+        indices.reverse()
         if npass > 1:
             if i%2 == 0:
                 if i != npass -1:
-                    field = transmitted_field(field, ks, n = nout, betamax = betamax, normalize = True, out = field_out)
+                    field = transmitted_field(field, ks, n = nout, betamax = betamax, norm = True, out = field_out)
                     out = field_in                    
             else:
                 if i != npass -1:
                     field = np.subtract(field,field0,out = field)
-                    field = reflected_field(field, ks, n = nin, betamax = betamax, normalize = True, out = field_in)
+                    field = reflected_field(field, ks, n = nin, betamax = betamax, norm = True, out = field_in)
                     field = np.add(field0, field, out = field_in)
                     field0 = field_in.copy()
                     out = field_out
@@ -271,5 +280,4 @@ def propagate_field(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,
         out = field
     return out
 
-    
 __all__ = ["transfer_field", "transmitted_field", "reflected_field"]

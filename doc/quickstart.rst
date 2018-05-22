@@ -81,11 +81,15 @@ Typically, you will want input light to be non-polarized. A non-polarized light 
 
    >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, n = 1.5) 
 
-In the field data above we have also used *n = 1.5* argument, which defines a forward propagating wave in a medium with refractive index of 1.5. This way we can match the effective refractive index of the optical stack to with the input light specified, you can now transfer this field through the stack
+In the field data above we have also used *n = 1.5* argument, which defines a forward propagating wave in a medium with refractive index of 1.5. This way we can match the effective refractive index of the optical stack to eliminate reflection from the first surface. With the input light specified, you can now transfer this field through the stack
 
 .. doctest::
 
-   >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data)
+   >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, nin = 1.5, nout = 1.5)
+
+.. note :: 
+
+   If you do not care about the reflections from the input and output surfaces you are advised to set the index matching medium by specifying *nin* and *nout* arguments to the effective refractive index of the medium. By default input and output fields are assumed to be propagating in *nin = nout = 1.*. See :ref:`Tutorial` for details on reflections and interference.
 
 
 Multiple rays
@@ -112,8 +116,8 @@ which constructs direction parameters (beta, phi) of input rays of numerical ape
  
 we have 21 rays evenly distributed in a cone of numerical aperture of 0.1. To calculate the transmitted field we now have to pass these ray parameters to the transmit_field function::
 
-   >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, beta = beta, phi = phi)
-   >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi)
+   >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, beta = beta, phi = phi, n = 1.5)
+   >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi, nin = 1.5, nout = 1.5)
 
 .. warning::
 
@@ -156,7 +160,7 @@ If input field was defined to be non polarized, you can set the polarizer
 
    >>> viewer.polarizer = 0. # horizontal
 
-You can set all these parameters with a single call to:
+You can set all these parameters with a single function call:
 
 .. doctest::
 
@@ -174,7 +178,7 @@ or, if you want to obtain RGB image:
 
    >>> image = viewer.calculate_image()
 
-The viewer also allows you to play with the microscope settings dynamically. 
+The viewer also allows you to tune microscope settings dynamically. 
 
 .. doctest::
 
@@ -190,12 +194,16 @@ For more advanced image calculation, using windowing, reflection calculations, c
 Data IO
 -------
 
-To save/load field data or optical data to a file for later use there are load and save functions::
+To save/load field data or optical (stack) data to a file for later use there are load and save functions::
 
    >>> dtmm.save_field("field.dtmf", field_data_out)
-   >>> dtmm.save_stack("stack.dtmf", optical_data)
+   >>> dtmm.save_stack("stack.dtms", optical_data)
    >>> field_data = dtmm.load_field("field.dtmf")
    >>> optical_data = dtmm.load_stack("stack.dtms")
+
+.. note::
+   
+   The save functions append *.dtmf* or *.dtms* extensions to the filename if extensions are not provided by user.
 
 
 
