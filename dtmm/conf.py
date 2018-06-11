@@ -10,6 +10,7 @@ import numpy as np
 from functools import wraps
 import os, warnings, shutil
 
+
 try:
     from configparser import ConfigParser
 except:
@@ -103,6 +104,12 @@ if read_environ_variable("DTMM_NUMBA_CACHE","1") or \
     if NUMBA_PARALLEL == False:
         NUMBA_CACHE = True    
 
+if read_environ_variable("DTMM_FASTMATH","0") or \
+   _readconfig(config.getboolean, "numba", "fastmath", False):        
+    NUMBA_FASTMATH = True
+else:
+    NUMBA_FASTMATH = False
+
 def is_module_installed(name):
     """Checks whether module with name 'name' is istalled or not"""
     try:
@@ -150,6 +157,8 @@ def cached_function(f):
     You need to copy first, or provide an output array if you need to write to 
     the result.
     """
+    
+    
     def add_result_to_cache(result, key, cache):
         try:
             cache.pop(next(iter(cache.keys())))
@@ -158,8 +167,10 @@ def cached_function(f):
         cache[key] = result
 
     def to_key(arg):
+        from dtmm.hashing import hash_buffer
         if isinstance(arg, np.ndarray):
-            return (arg.shape, arg.dtype, tuple(arg.flat))
+            return (arg.shape, arg.dtype, arg.strides, hash_buffer(arg))
+            #return (arg.shape, arg.dtype, tuple(arg.flat))
         else:
             return arg
         
@@ -179,11 +190,17 @@ def cached_function(f):
             for a in result:
                 a.setflags(write = False)
         else:
-            result.setflags(write = False)        
+            result.setflags(write = False)     
+            
+    def delete(f):
+        f.cache.clear()
+        _cache.remove(f)
+        f.cache = None
+   
      
     @wraps(f)
     def _f(*args,**kwargs):
-        try_read_from_cache = (kwargs.pop("cache",True) == True) and (DTMMConfig.cache != 0) 
+        try_read_from_cache = (kwargs.pop("cache",True) == True) and (DTMMConfig.cache != 0) and _f.cache is not None
         if try_read_from_cache:
             key = tuple((to_key(arg) for arg in args)) + tuple((to_key(arg) for arg in kwargs.values()))
             out = kwargs.pop("out",None)    
@@ -198,7 +215,9 @@ def cached_function(f):
         else:
             return f(*args,**kwargs)
     _f.cache = {}
+    
     _cache.add(_f)
+    _f.delete = delete
     return _f    
     
 
@@ -245,6 +264,10 @@ else:
     FDTYPE = F32DTYPE
     CDTYPE = C64DTYPE
     UDTYPE = U32DTYPE
+    
+#FDTYPE = F32DTYPE
+#CDTYPE = C64DTYPE
+#UDTYPE = U32DTYPE
 
 class DTMMConfig(object):
     """DTMM settings are here. You should use the set_* functions in the
@@ -352,6 +375,7 @@ NC128DTYPE = numba.complex128
 NU32DTYPE = numba.uint32
 
 if read_environ_variable("DTMM_DOUBLE_PRECISSION"):
+
     NFDTYPE = NF64DTYPE
     NCDTYPE = NC128DTYPE
     NUDTYPE = NU32DTYPE
@@ -359,6 +383,8 @@ else:
     NFDTYPE = NF32DTYPE
     NCDTYPE = NC64DTYPE
     NUDTYPE = NU32DTYPE
-    
-    
+#    
+#NFDTYPE = NF32DTYPE
+#NCDTYPE = NC64DTYPE
+#NUDTYPE = NU32DTYPE    
     

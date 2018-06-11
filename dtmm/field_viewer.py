@@ -141,7 +141,8 @@ class FieldViewer(object):
             Maximum value for analyzer angle.  
         """
 
-        self.ax = ax if ax is not None else plt.subplot(111)
+        self.fig = plt.figure() if ax is None else ax.figure
+        self.ax = self.fig.add_subplot(111) if ax is None else ax
         
         plt.subplots_adjust(bottom=0.25)  
         self.calculate_image()

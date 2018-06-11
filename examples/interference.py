@@ -29,7 +29,7 @@ window = dtmm.aperture((HEIGHT,WIDTH),alpha = 0.2)
 field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,window = window,
                                             pixelsize = PIXELSIZE, beta = 0.4,betamax = 0.9) 
 
-field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = 0.4,npass = 3,diffraction = True, betamax = 0.9,nstep = 4)
+field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = 0.4,npass = 5,diffraction = True, betamax = 0.9,nstep = 4)
 
 #fig,axes = plt.subplots(1,1)
 

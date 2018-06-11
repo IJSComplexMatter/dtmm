@@ -12,7 +12,7 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE,  NUMBA_CACHE
+from dtmm.conf import FDTYPE, CDTYPE, NCDTYPE,NFDTYPE, CDTYPE,  NUMBA_CACHE
 from dtmm.window import blackman
 
 #from dtmm.diffract import transmitted_field
@@ -45,7 +45,7 @@ def betaphi(shape, k0):
     #phi[0] = 1#phi[0]+0.001
     #phi[:,0] = 1#phi[:,0]+0.001
     #beta[0,0] = 1#0.001
-    return beta, phi
+    return np.asarray(beta, dtype = FDTYPE), np.asarray(phi, dtype = FDTYPE)
 
 
 def betaxy(shape, k0):
@@ -57,11 +57,12 @@ def betaxy(shape, k0):
     xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
     betax = 2 * np.pi * xx/k0
     betay = 2 * np.pi * yy/k0
-    return betax, betay
+    return np.asarray(betax, dtype = FDTYPE), np.asarray(betay, dtype = FDTYPE)
 
 def k0(wavelength,d = 1.):
     """Calculate wave number in vacuum from a given wavelength"""
-    return 2*np.pi/np.asarray(wavelength) * d
+    out = 2*np.pi/np.asarray(wavelength) * d
+    return np.asarray(out, dtype = FDTYPE)
 
 def eigenwave(shape, i, j, amplitude = None, out = None):
     """Returns a planewave with a given fourier coefficients i and j"""
@@ -82,59 +83,60 @@ def planewave(shape, k0, beta , phi, out = None):
     phi = np.asarray(phi)[...,np.newaxis,np.newaxis]
     ay, ax = [np.arange(-l // 2 + 1., l // 2 + 1.) for l in shape]
     xx, yy = np.meshgrid(ax, ay, indexing = "xy", copy = False)
-    kx = k0*beta*np.cos(phi)
-    ky = k0*beta*np.sin(phi)
+    xx = np.asarray(xx, dtype = FDTYPE)
+    yy = np.asarray(yy, dtype = FDTYPE)
+    kx = np.asarray(k0*beta*np.cos(phi), dtype = FDTYPE)
+    ky = np.asarray(k0*beta*np.sin(phi), dtype = FDTYPE)
     #return _exp_ikr(kx,ky,xx,yy)
-    return np.exp((1j*(kx*xx+ky*yy)),out)
+    return np.exp((1j*(kx*xx+ky*yy)), out = out)
 
-    
 
-def _wave2field(wave,k0,beta,phi, refind = 1, out = None):
-    k0 = np.asarray(k0)[...,np.newaxis,np.newaxis] #make it broadcastable
-    beta = np.asarray(beta)[...,np.newaxis,np.newaxis]
-    phi = np.asarray(phi)[...,np.newaxis,np.newaxis]
-    if out is None:
-        out = np.empty(wave.shape[0:-2] + (4,) + wave.shape[-2:], dtype = CDTYPE)
-    c = np.cos(phi)
-    s = np.sin(phi)
-    alpha = (n**2-(beta)**2)**0.5
+#def _wave2field(wave,k0,beta,phi, refind = 1, out = None):
+#    k0 = np.asarray(k0)[...,np.newaxis,np.newaxis] #make it broadcastable
+#    beta = np.asarray(beta)[...,np.newaxis,np.newaxis]
+#    phi = np.asarray(phi)[...,np.newaxis,np.newaxis]
+#    if out is None:
+#        out = np.empty(wave.shape[0:-2] + (4,) + wave.shape[-2:], dtype = CDTYPE)
+#    c = np.cos(phi)
+#    s = np.sin(phi)
+#    alpha = (n**2-(beta)**2)**0.5
+#
+#    out[...,0,:,:] = wave*alpha * c 
+#    out[...,1,:,:] = wave * c 
+#    out[...,2,:,:] = wave * s 
+#    out[...,3,:,:] = -wave*alpha * s   
+#    return out
+#
+#def wave2field(wave,k0, n = 1, out = None):
+#    wave = fft.fft2(wave)
+#    k0 = np.asarray(k0)
+#    beta, phi = betaphi(wave.shape, k0)
+#    if out is None:
+#        out = np.empty(wave.shape[0:-2] + (4,) + wave.shape[-2:], dtype = CDTYPE)
+#    c = np.cos(phi)
+#    s = np.sin(phi)
+#    alpha = (n**2-(beta)**2)**0.5
+#    alpha[beta>1] = 0.
+#    wave[beta>1] = 0.
+#    out[...,0,:,:] = wave*alpha * c 
+#    out[...,1,:,:] = wave * c 
+#    out[...,2,:,:] = wave * s 
+#    out[...,3,:,:] = -wave*alpha * s 
+#    
+#    fft.ifft2(out,out = out)
+#    
+#    return out
 
-    out[...,0,:,:] = wave*alpha * c 
-    out[...,1,:,:] = wave * c 
-    out[...,2,:,:] = wave * s 
-    out[...,3,:,:] = -wave*alpha * s   
-    return out
-
-def wave2field(wave,k0, n = 1, out = None):
-    wave = fft.fft2(wave)
-    k0 = np.asarray(k0)
-    beta, phi = betaphi(wave.shape, k0)
-    if out is None:
-        out = np.empty(wave.shape[0:-2] + (4,) + wave.shape[-2:], dtype = CDTYPE)
-    c = np.cos(phi)
-    s = np.sin(phi)
-    alpha = (n**2-(beta)**2)**0.5
-    alpha[beta>1] = 0.
-    wave[beta>1] = 0.
-    out[...,0,:,:] = wave*alpha * c 
-    out[...,1,:,:] = wave * c 
-    out[...,2,:,:] = wave * s 
-    out[...,3,:,:] = -wave*alpha * s 
-    
-    fft.ifft2(out,out = out)
-    
-    return out
-
-def planewave_field(shape, k0, beta , phi, pol = (1,0),n = 1, out = None):
-    """Returns a planewave array with a given beta, phi, wave number k0."""
-    wave = planewave(shape, k0, beta , phi)
-    return _wave2field(wave,k0,beta,phi, n = n, out = out)
-
-def eigenwave_field(shape, k0, i,j, pol = (1,0),n = 1, out = None):
-    """Returns a planewave array with a given beta, phi, wave number k0."""
-    wave = eigenwave(shape, i,j)
-    beta, phi = mean_betaphi(wave, k0)
-    return _wave2field(wave,k0,beta,phi, n = n, out = out)
+#def planewave_field(shape, k0, beta , phi, pol = (1,0),n = 1, out = None):
+#    """Returns a planewave array with a given beta, phi, wave number k0."""
+#    wave = planewave(shape, k0, beta , phi)
+#    return _wave2field(wave,k0,beta,phi, n = n, out = out)
+#
+#def eigenwave_field(shape, k0, i,j, pol = (1,0),n = 1, out = None):
+#    """Returns a planewave array with a given beta, phi, wave number k0."""
+#    wave = eigenwave(shape, i,j)
+#    beta, phi = mean_betaphi(wave, k0)
+#    return _wave2field(wave,k0,beta,phi, n = n, out = out)
     
 @nb.guvectorize([(NCDTYPE[:,:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:])], "(n,m),()->(),()", cache = NUMBA_CACHE)
 def mean_betaphi(wave, k0, beta, phi):

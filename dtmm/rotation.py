@@ -10,7 +10,7 @@ from numba import jit
 import numba as nb
 
 
-from dtmm.conf import NCDTYPE, NFDTYPE, CDTYPE, FDTYPE, UDTYPE,NUMBA_TARGET, NUMBA_CACHE
+from dtmm.conf import NCDTYPE, NFDTYPE, CDTYPE, FDTYPE, UDTYPE,NUMBA_TARGET, NUMBA_CACHE, NUMBA_FASTMATH
 
 
 def _check_matrix(mat, shape, dtype):
@@ -53,14 +53,14 @@ def rotation_matrix(yaw,theta,phi, output = None):
     _rotation_matrix(yaw,theta,phi,output)
     return output
 
-@nb.njit([(NFDTYPE,NFDTYPE[:])], cache = NUMBA_CACHE)
+@nb.njit([(NFDTYPE,NFDTYPE[:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _rotation_vector2(angle, out):
     c = np.cos(angle)
     s = np.sin(angle)
     out[0] = c
     out[1] = s
 
-@nb.njit([(NFDTYPE,NFDTYPE[:,:])], cache = NUMBA_CACHE)
+@nb.njit([(NFDTYPE,NFDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _rotation_matrix2(angle, out):
     c = np.cos(angle)
     s = np.sin(angle)
@@ -69,11 +69,13 @@ def _rotation_matrix2(angle, out):
     out[0,1] = -s
     out[1,1] = c 
     
-@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:,:])], "(),(n)->(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE)
+@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:,:])], "(),(n)->(n,n)", 
+                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _rotation_matrix2_vec(angle,dummy, out):
     _rotation_matrix2(angle[0], out)
     
-@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:])], "(),(n)->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE)
+@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:])], "(),(n)->(n)", 
+                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _rotation_vector2_vec(angle,dummy, out):
     _rotation_vector2(angle[0], out)
 
@@ -90,8 +92,9 @@ def rotation_matrix_z(angle):
 
 def rotation_matrix_y(angle):
     return np.array([[cos(angle),0,-sin(angle)],[0,1.,0.],[sin(angle),0,cos(angle)]])       
-            
-@jit('i8(f8,f8,f8,f8[:,:])',nopython = True, cache = NUMBA_CACHE) 
+ 
+           
+@jit([NFDTYPE[:,:](NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH) 
 def _rotation_matrix(yaw,theta,phi, R):
     """Fills rotation matrix values R = Rphi.Rtheta.Ryaw, where rphi and Ryaw are 
     rotations around y and Rtheta around z axis. 
@@ -119,7 +122,7 @@ def _rotation_matrix(yaw,theta,phi, R):
     R[2,1] = -sintheta*sinyaw
     R[2,2] = costheta
     
-    return 0  
+    return R  
 
 def rotation_matrix_uniaxial(theta,phi, output = None):
     """
@@ -141,7 +144,7 @@ def rotation_matrix_uniaxial(theta,phi, output = None):
     _rotation_matrix_uniaxial(theta,phi,output)
     return output
 
-@jit('f8[:,:](f8,f8,f8[:,:])',nopython = True, cache = NUMBA_CACHE) 
+@jit([NFDTYPE[:,:](NFDTYPE,NFDTYPE,NFDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH) 
 def _rotation_matrix_uniaxial(theta,phi, R):
     """Fills rotation matrix values R = Rphi.Rtheta, where rphiis
     rotations around y and Rtheta around z axis. 
@@ -190,7 +193,7 @@ def rotate_diagonal_tensor(R,diagonal,output = None):
     _rotate_diagonal_tensor(R,diagonal,output)
     return output 
         
-@jit('i8(f8[:,:],c16[:],c16[:])',nopython = True, cache = NUMBA_CACHE)
+@jit([NCDTYPE[:,:](NFDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _rotate_diagonal_tensor(R,diagonal,out):
     """Calculates out = R.diagonal.RT of a diagonal tensor"""
     for i in range(3):
@@ -198,7 +201,7 @@ def _rotate_diagonal_tensor(R,diagonal,out):
     out[3] = diagonal[0]*R[0,0]*R[1,0] + diagonal[1]*R[0,1]*R[1,1] + diagonal[2]*R[0,2]*R[1,2]
     out[4] = diagonal[0]*R[0,0]*R[2,0] + diagonal[1]*R[0,1]*R[2,1] + diagonal[2]*R[0,2]*R[2,2]          
     out[5] = diagonal[0]*R[1,0]*R[2,0] + diagonal[1]*R[1,1]*R[2,1] + diagonal[2]*R[1,2]*R[2,2]
-    return 0
+    return out
     
 def tensor_to_matrix(tensor, output = None):
     """Converts tensor of shape (6,) to matrix of shape (3,3)
@@ -216,7 +219,7 @@ def diagional_tensor_to_matrix(tensor, output = None):
     _diagonal_tensor_to_matrix(tensor, output)
     return output
 
-@jit('i8(c16[:],c16[:,:])',nopython = True, cache = NUMBA_CACHE)
+@jit([NCDTYPE[:,:](NCDTYPE[:],NCDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _tensor_to_matrix(tensor, matrix):
     matrix[0,0] = tensor[0]
     matrix[1,1] = tensor[1]
@@ -227,9 +230,9 @@ def _tensor_to_matrix(tensor, matrix):
     matrix[2,0] = tensor[4]
     matrix[1,2] = tensor[5]
     matrix[2,1] = tensor[5]
-    return 0
+    return matrix
 
-@jit('i8(c16[:],c16[:,:])',nopython = True, cache = NUMBA_CACHE)
+@jit([NCDTYPE[:,:](NCDTYPE[:],NCDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _diagonal_tensor_to_matrix(tensor, matrix):
     matrix[0,0] = tensor[0]
     matrix[1,1] = tensor[1]
@@ -240,27 +243,27 @@ def _diagonal_tensor_to_matrix(tensor, matrix):
     matrix[2,0] = 0.
     matrix[1,2] = 0.
     matrix[2,1] = 0.
-    return 0
-    
-@jit('i8(f8,f8[:],f8[:,:])',nopython = True, cache = NUMBA_CACHE)
+    return matrix
+
+@jit([NFDTYPE[:,:](NFDTYPE,NFDTYPE[:],NFDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH) 
 def _calc_rotations_uniaxial(phi0,element,R):
     theta = element[1]
     phi = element[2] -phi0
     _rotation_matrix_uniaxial(theta,phi, R)
-    return 0    
+    return R    
 
-@jit('i8(f8,f8[:,:])',nopython = True, cache = NUMBA_CACHE)
+@jit([NFDTYPE[:,:](NFDTYPE,NFDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH) 
 def _calc_rotations_isotropic(phi0,R):
     theta = np.pi/2
     #theta = 0.
     phi = -phi0
     _rotation_matrix_uniaxial(theta,phi, R)
-    return 0   
+    return R  
 
-@jit('i8(f8,f8[:],f8[:,:])',nopython = True, cache = NUMBA_CACHE)
+@jit([NFDTYPE[:,:](NFDTYPE,NFDTYPE[:],NFDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH) 
 def _calc_rotations(phi0,element,R):
     yaw = 0
     theta = element[1]
     phi = element[2] -phi0
     _rotation_matrix(yaw,theta,phi, R)
-    return 0      
+    return R      

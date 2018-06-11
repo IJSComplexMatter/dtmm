@@ -9,7 +9,7 @@ import numpy as np
 import numba
 import sys
 
-from dtmm.conf import  NF32DTYPE, F32DTYPE,NF64DTYPE, NUMBA_CACHE
+from dtmm.conf import NFDTYPE, NCDTYPE, NF32DTYPE, NC64DTYPE, NC128DTYPE, F32DTYPE,NF64DTYPE, NUMBA_CACHE
 
 
 def read_director(file, shape, dtype = "float32",  sep = "", endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
@@ -115,7 +115,7 @@ def validate_optical_data(data, homogeneous = False):
     if material.shape != angles.shape:
         raise ValueError("Incompatible shapes for angles and material")
  
-    return thickness, material, angles
+    return thickness.copy(), material.copy(), angles.copy()
 
     
 def raw2director(data, order = "zyxn", nvec = "xyz"):
@@ -324,7 +324,7 @@ def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost
     return director2data(director, mask = mask, no = no, ne = ne, nhost = nhost)
     
 
-@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NF64DTYPE[:])], "(n)->()", cache = NUMBA_CACHE)
+@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->()", cache = NUMBA_CACHE)
 def director2order(data, out):
     """Converts director data to order parameter (length of the director)"""
     c = data.shape[0]
@@ -337,7 +337,7 @@ def director2order(data, out):
     out[0] = s
 
 
-@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NF64DTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
+@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
 def director2angles(data, out):
     """Converts director data to angles (yaw, theta phi)"""
     c = data.shape[0]
@@ -355,7 +355,8 @@ def director2angles(data, out):
     out[2] = phi
 
 
-@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NF64DTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
+
+@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
 def angles2director(data, out):
     """Converts angles data (yaw,theta,phi) to director (nx,ny,nz)"""
     c = data.shape[0]
@@ -388,7 +389,7 @@ def add_isotropic_border(data, shape, xoff = None, yoff = None, zoff = None):
     out[zoff:data.shape[0]+zoff,yoff:data.shape[1]+yoff,xoff:data.shape[2]+xoff,:] = data
     return out 
 
-_REFIND_DECL = ["(float32[:],float32[:])","(float64[:],float64[:])","(complex64[:],complex64[:])","(complex128[:],complex128[:])"]
+_REFIND_DECL = [(NF32DTYPE[:],NF32DTYPE[:]), (NF64DTYPE[:],NFDTYPE[:]),(NC64DTYPE[:],NC64DTYPE[:]), (NC128DTYPE[:],NCDTYPE[:])]
 
 @numba.njit(_REFIND_DECL, cache = NUMBA_CACHE)  
 def _refind2eps(refind, out):

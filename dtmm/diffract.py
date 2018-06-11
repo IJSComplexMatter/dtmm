@@ -8,7 +8,7 @@ Created on Tue Feb 13 11:28:25 2018
 """
 from __future__ import absolute_import, print_function, division
 
-from dtmm.conf import cached_function, BETAMAX
+from dtmm.conf import cached_function, BETAMAX, FDTYPE, CDTYPE
 from dtmm.wave import betaphi
 from dtmm.window import tukey
 from dtmm.data import refind2eps
@@ -78,7 +78,7 @@ def layer_matrices(shape, ks, eps = (1,1,1), layer = (0.,0.,0.), betamax = BETAM
 
   
 def phase_matrix(alpha, kd, mode = None, mask = None, out = None):
-    kd = np.asarray(kd)
+    kd = np.asarray(kd, dtype = FDTYPE)
     if mode == "t":
         out = phasem_t(alpha ,kd[...,None,None], out = out)
     elif mode == "r":
@@ -92,9 +92,11 @@ def phase_matrix(alpha, kd, mode = None, mask = None, out = None):
 
 @cached_function
 def diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.), mode = "b", betamax = BETAMAX, out = None):
-    ks = np.asarray(ks)
+    ks = np.asarray(ks, dtype = FDTYPE)
+    epsv = np.asarray(epsv, dtype = CDTYPE)
+    epsa = np.asarray(epsa, dtype = FDTYPE)
     alpha, f, fi = diffraction_alphaffi_xy(shape, ks, epsv = epsv, epsa = epsa, betamax = betamax)
-    kd = np.asarray(ks) * d
+    kd =ks * d
     pmat = phase_matrix(alpha, kd , mode = mode)
     return dotmdm(f,pmat,fi,out = out) 
 
@@ -102,7 +104,9 @@ def diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.), mode
 def projection_matrix(shape, ks, epsv = (1,1,1),epsa = (0,0,0.), mode = "t", betamax = BETAMAX, out = None):
     """Computes a reciprocial field projection matrix.
     """
-    
+    ks = np.asarray(ks, dtype = FDTYPE)
+    epsv = np.asarray(epsv, dtype = CDTYPE)
+    epsa = np.asarray(epsa, dtype = FDTYPE)    
     alpha, f, fi = diffraction_alphaffi_xy(shape, ks, epsv = epsv, epsa = epsa, betamax = betamax)
     mask = None
     kd = np.zeros_like(ks)

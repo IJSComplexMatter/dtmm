@@ -5,9 +5,6 @@
 import dtmm
 import numpy as np
 dtmm.conf.set_verbose(1)
-import mkl
-mkl.set_num_threads(4)
-dtmm.conf.set_nthreads(1)
 
 #: pixel size in nm
 PIXELSIZE = 200
@@ -20,8 +17,8 @@ WAVELENGTHS = np.linspace(380,780,11)
 optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
            profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
-
-beta, phi = dtmm.illumination_betaphi(0.25,37)
+#NA 0.15, 37 rays
+beta, phi = dtmm.illumination_betaphi(0.15,37)
 
 window = dtmm.aperture((HEIGHT,WIDTH), 1,0.2)
 

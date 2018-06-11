@@ -335,10 +335,10 @@ def load_specter(wavelengths = None, illuminant = "D65", retx = False):
         
     if wavelengths is not None:
         data = interpolate_data(wavelengths, data[:,0], data[:,1:])
-        data = np.ascontiguousarray(data[:,0])
+        data = np.ascontiguousarray(data[:,0], dtype = FDTYPE)
     else:
-        wavelengths = np.ascontiguousarray(data[:,0])
-        data = np.ascontiguousarray(data[:,1])
+        wavelengths = np.ascontiguousarray(data[:,0], dtype = FDTYPE)
+        data = np.ascontiguousarray(data[:,1], dtype = FDTYPE)
         
     if retx == True:
         return wavelengths, data
@@ -374,9 +374,9 @@ def load_cmf(wavelengths = None,  retx = False, single_wavelength = False):
         if retx is specified.
     """
     data = np.loadtxt(CMFPATH)
-    x, data = np.ascontiguousarray(data[:,0]),  np.ascontiguousarray(data[:,1:])
+    x, data = np.ascontiguousarray(data[:,0], dtype = FDTYPE),  np.ascontiguousarray(data[:,1:], dtype = FDTYPE)
     if wavelengths is not None:
-        wavelengths = np.asarray(wavelengths)
+        wavelengths = np.asarray(wavelengths, dtype = FDTYPE)
         if wavelengths.ndim != 1:
             raise ValueError("Wavelengths has to be 1D array")
         if len(wavelengths) == 1:
@@ -395,7 +395,7 @@ def load_cmf(wavelengths = None,  retx = False, single_wavelength = False):
 import scipy.interpolate as interpolate
 
 def interpolate_data(x, x0, data):
-    data = np.asarray(data)
+    data = np.asarray(data, dtype = FDTYPE)
     x0 = np.asarray(x0)
     x = np.asarray(x)
     out = np.zeros(shape = x.shape + (data.shape[1],), dtype = data.dtype)   

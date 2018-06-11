@@ -12,7 +12,7 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, NUDTYPE,  NUMBA_TARGET, NUMBA_PARALLEL, NUMBA_CACHE
+from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, NUDTYPE,  NUMBA_TARGET, NUMBA_PARALLEL, NUMBA_CACHE, NUMBA_FASTMATH
 #from dtmm.wave import mean_betaphi, betaphi
 from dtmm.rotation import  _calc_rotations_uniaxial
 from dtmm.linalg import _inv4x4, _dotmr2, _dotr2m
@@ -29,7 +29,7 @@ if NUMBA_PARALLEL == False:
 
 sqrt = np.sqrt
 
-@nb.njit([(NFDTYPE,NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE)
+@nb.njit([(NFDTYPE,NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _alphaffi_iso(beta,eps0,alpha,F,Fi):
     n = eps0[0]**0.5
     aout = sqrt(n**2-beta**2)
@@ -76,7 +76,7 @@ def _alphaffi_iso(beta,eps0,alpha,F,Fi):
     Fi[3,3] = -1 / gsout  
      
 
-@nb.njit([(NFDTYPE,NCDTYPE[:],NFDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE)
+@nb.njit([(NFDTYPE,NCDTYPE[:],NFDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _alpha_F(beta,eps0,R,alpha,F): 
 #    if eps0[0] == eps0[1] and eps0[2] == eps0[1]:
 #        n = eps0[0]**0.5
@@ -319,7 +319,7 @@ def _alphaffi_vec(beta,phi,element,eps0,dummy,alpha,F,Fi):
     _inv4x4(F,Fi)
 
 @nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NCDTYPE[:],NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:,:])],
-                 "(),(),(m),(l),(k),(n)->(n),(n,n),(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE)
+                 "(),(),(m),(l),(k),(n)->(n),(n,n),(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _alphaffi_xy_vec(beta,phi,rv, element,eps0,dummy,alpha,F,Fi):
     #Fi is a 4x4 matrix... we can use 3x3 part for Rotation matrix and Fi[3] for eps  temporary data
     R = Fi.real 
@@ -411,12 +411,9 @@ def alphaffi(beta,phi,element,eps0,*args,**kw):
 def alphaffi_xy_2(beta,phi,element,eps0,*args,**kw):
     return _alphaffi_xy_vec_iso(beta,phi,eps0,_dummy_array,*args,**kw)
 
+#@cached_function
 def alphaffi_xy(beta,phi,element,eps0,*args,**kw):
-    rv = rotation_vector2(phi) #+ np.random.randn(2)
-    #print (rv)
-    #x,y = rv[...,0], rv[...,1]
-    #rv[...,0] = y
-    #rv[...,1] = x
+    rv = rotation_vector2(phi) 
     return _alphaffi_xy_vec(beta,phi,rv,element,eps0,_dummy_array,*args,**kw)
 
 
@@ -478,7 +475,7 @@ def ifield_matrix(beta,phi,n = 1):
     
     
 @nb.guvectorize([(NCDTYPE[:],NFDTYPE[:], NCDTYPE[:])],
-                "(n),()->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE)    
+                "(n),()->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)    
 def phasem_t(alpha,kd,out):
     out[0] = np.exp(1j*kd[0]*(alpha[0].real))
     out[1] = 0.
@@ -486,7 +483,7 @@ def phasem_t(alpha,kd,out):
     out[3] = 0.
     
 @nb.guvectorize([(NCDTYPE[:],NFDTYPE[:], NCDTYPE[:])],
-                "(n),()->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE)    
+                "(n),()->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)    
 def phasem_r(alpha,kd,out):
     out[0] = 0.
     out[1] = np.exp(1j*kd[0]*(alpha[1].real))  
@@ -494,7 +491,7 @@ def phasem_r(alpha,kd,out):
     out[3] = np.exp(1j*kd[0]*(alpha[3].real))  
     
 @nb.guvectorize([(NCDTYPE[:],NFDTYPE[:], NCDTYPE[:])],
-                "(n),()->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE)    
+                "(n),()->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)    
 def phasem(alpha,kd,out):
     for i in range(4):
         f = 1j*kd[0]*(alpha[i])
@@ -650,6 +647,8 @@ def jonesvec(pol):
 #def field_vector(beam,k0,pol=(1,0),n = 1,*args,**kw):
 #    return _field_vector(beam,k0,pol,n,_dummy_array,*args,**kw)
 # 
+
+
     
 
 __all__ = ["alphaffi_xy","alphaffi_xy2","alphaffi","phasem_t", "phasem_r","phasem","alphaffi_xy_iso"]

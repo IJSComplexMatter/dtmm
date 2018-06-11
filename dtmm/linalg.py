@@ -9,7 +9,7 @@ Some numba optimized linear algebra functions for 4x4 matrices
 """
 
 from __future__ import absolute_import, print_function, division
-from dtmm.conf import NCDTYPE, NFDTYPE, NUMBA_TARGET,NUMBA_PARALLEL, NUMBA_CACHE
+from dtmm.conf import NC128DTYPE, NC64DTYPE, NCDTYPE, NFDTYPE, NUMBA_TARGET,NUMBA_PARALLEL, NUMBA_CACHE, NUMBA_FASTMATH
 
 import numpy as np
 
@@ -19,11 +19,10 @@ from numba import njit, prange, guvectorize
 if NUMBA_PARALLEL == False:
     prange = range
 
-
 #numba.config.DUMP_ASSEMBLY = 1
 
 
-@njit([NCDTYPE[:,:](NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE)
+@njit([NCDTYPE[:,:](NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _inv4x4(src,dst):
     
     #calculate pairs for first 8 elements (cofactors) */
@@ -94,7 +93,7 @@ def _inv4x4(src,dst):
     return dst
 
 
-@guvectorize([(NCDTYPE[:,:], NCDTYPE[:,:])], '(n,n)->(n,n)', target = NUMBA_TARGET, cache = NUMBA_CACHE)
+@guvectorize([(NCDTYPE[:,:], NCDTYPE[:,:])], '(n,n)->(n,n)', target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def inv4x4(mat, output):
     """inv4x4(mat)
     
@@ -398,7 +397,7 @@ def _dotmf(a, b, out):
 #            out[3,i,j]= out3*r[i,j,0,0] + out1*r[i,j,1,0]
             
             
-@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NFDTYPE, NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE)
+@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NFDTYPE, NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _transmit(a, d, b, f,kd,out):
     for i in prange(f.shape[1]):
         for j in range(f.shape[2]):
