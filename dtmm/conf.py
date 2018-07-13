@@ -90,8 +90,8 @@ BETAMAX = _readconfig(config.getfloat, "core", "betamax", 0.8)
 if NUMBA_CACHE_DIR != "":
     os.environ["NUMBA_CACHE_DIR"] = NUMBA_CACHE_DIR #set it to os.environ.. so that numba can use it
 
-if read_environ_variable("DTMM_TARGET_PARALLEL","0") or \
-   _readconfig(config.getboolean, "numba", "parallel", False):
+if read_environ_variable("DTMM_TARGET_PARALLEL",
+   default = _readconfig(config.getboolean, "numba", "parallel", False)):
     NUMBA_TARGET = "parallel"
     NUMBA_PARALLEL = True
 else:
@@ -99,13 +99,13 @@ else:
     NUMBA_PARALLEL = False
 
 NUMBA_CACHE = False   
-if read_environ_variable("DTMM_NUMBA_CACHE","1") or \
-   _readconfig(config.getboolean, "numba", "cache", True):
+if read_environ_variable("DTMM_NUMBA_CACHE",
+   default = _readconfig(config.getboolean, "numba", "cache", True)):
     if NUMBA_PARALLEL == False:
         NUMBA_CACHE = True    
 
-if read_environ_variable("DTMM_FASTMATH","0") or \
-   _readconfig(config.getboolean, "numba", "fastmath", False):        
+if read_environ_variable("DTMM_FASTMATH",
+    default = _readconfig(config.getboolean, "numba", "fastmath", False)):        
     NUMBA_FASTMATH = True
 else:
     NUMBA_FASTMATH = False
@@ -158,7 +158,12 @@ def cached_function(f):
     the result.
     """
     
-    
+    def pop_fifo_result_from_cache(cache):
+        try:
+            return cache.pop(next(iter(cache.keys())))
+        except StopIteration:
+            return None          
+        
     def add_result_to_cache(result, key, cache):
         try:
             cache.pop(next(iter(cache.keys())))
@@ -167,7 +172,7 @@ def cached_function(f):
         cache[key] = result
 
     def to_key(arg):
-        from dtmm.hashing import hash_buffer
+        from dtmm.hashing import hash_buffer 
         if isinstance(arg, np.ndarray):
             return (arg.shape, arg.dtype, arg.strides, hash_buffer(arg))
             #return (arg.shape, arg.dtype, tuple(arg.flat))
@@ -208,6 +213,7 @@ def cached_function(f):
                 result = _f.cache[key]
                 return copy(result,out)
             except KeyError:
+                
                 result = f(*args,**kwargs)
                 set_readonly(result)
                 add_result_to_cache(result,key, _f.cache)
@@ -256,7 +262,10 @@ C64DTYPE = np.dtype("complex64")
 C128DTYPE = np.dtype("complex128")
 U32DTYPE = np.dtype("uint32")
 
-if read_environ_variable("DTMM_DOUBLE_PRECISSION"):
+
+
+if read_environ_variable("DTMM_DOUBLE_PRECISION",
+  default =  _readconfig(config.getboolean, "core", "double_precision", True)):
     FDTYPE = F64DTYPE
     CDTYPE = C128DTYPE
     UDTYPE = U32DTYPE
@@ -374,8 +383,8 @@ NC64DTYPE = numba.complex64
 NC128DTYPE = numba.complex128
 NU32DTYPE = numba.uint32
 
-if read_environ_variable("DTMM_DOUBLE_PRECISSION"):
-
+if read_environ_variable("DTMM_DOUBLE_PRECISION",
+  default =  _readconfig(config.getboolean, "core", "double_precision", True)):
     NFDTYPE = NF64DTYPE
     NCDTYPE = NC128DTYPE
     NUDTYPE = NU32DTYPE

@@ -14,7 +14,7 @@ from dtmm.conf import NC128DTYPE, NC64DTYPE, NCDTYPE, NFDTYPE, NUMBA_TARGET,NUMB
 import numpy as np
 
 
-from numba import njit, prange, guvectorize
+from numba import njit, prange, guvectorize, vectorize
 
 if NUMBA_PARALLEL == False:
     prange = range
@@ -395,7 +395,7 @@ def _dotmf(a, b, out):
 #            out[1,i,j]= out3*r[i,j,0,1] + out1*r[i,j,1,1]
 #            out[2,i,j]= out0*r[i,j,0,1] + out2*r[i,j,1,1]
 #            out[3,i,j]= out3*r[i,j,0,0] + out1*r[i,j,1,0]
-            
+
             
 @njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NFDTYPE, NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _transmit(a, d, b, f,kd,out):
@@ -421,7 +421,7 @@ def _transmit(a, d, b, f,kd,out):
             out[2,i,j]= a[i,j,2,0] * b0 + a[i,j,2,1] * b1 + a[i,j,2,2] * b2 +a[i,j,2,3] * b3
             out[3,i,j]= a[i,j,3,0] * b0 + a[i,j,3,1] * b1 + a[i,j,3,2] * b2 +a[i,j,3,3] * b3  
 
-@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NFDTYPE, NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE)
+@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NFDTYPE, NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _ftransmit(a, d, b, f,kd,out):
     for i in prange(f.shape[1]):
         for j in range(f.shape[2]):

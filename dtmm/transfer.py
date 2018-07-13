@@ -45,7 +45,7 @@ def _validate_betaphi(beta,phi, extendeddim = 0):
 
 @cached_function
 def correction_matrix(beta,phi,ks, d=1., epsv = (1,1,1), epsa = (0,0,0.), out = None):
-    alpha, f, fi = alphaffi_xy(beta,phi ,epsa,epsv)  
+    alpha, f, fi = alphaffi_xy(beta,phi,epsa,epsv)  
     kd = -np.asarray(ks)*d
     pmat = phase_matrix(alpha, kd)  
     return dotmdm(f,pmat,fi, out = out)
@@ -375,6 +375,7 @@ def transfer_field(field_data, optical_data, beta = 0., phi = 0.,
         
     field = field_in
     out = field_out
+    out_affi = None
     
     interference = True if npass > 1 else interference
     mode = "t" if interference == False else None
@@ -387,10 +388,10 @@ def transfer_field(field_data, optical_data, beta = 0., phi = 0.,
             print_progress(pindex,n,level = verbose_level, suffix = msg) 
             thickness = d[j]*(-1)**i
             thickness_eff = d_eff[j]*(-1)**i
-            p = phi + np.pi #not sure why I need to do this... but this makes it work for off axis propagation
-            field = propagate_field(field, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
+            p = phi #+ np.pi#not sure why I need to do this... but this makes it work for off axis propagation
+            out_affi, field = propagate_field(field, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
                             beta = beta, phi = p, nsteps = substeps[j], diffraction = diffraction, mode = mode,
-                            betamax = betamax, out = out)
+                            betamax = betamax, ret_affi = True, out_affi = out_affi, out = out)
       
         print_progress(n,n,level = verbose_level, suffix = msg) 
         
@@ -562,7 +563,7 @@ def transfer_field2(field_data, optical_data, beta = 0.,
 
 def propagate_field(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,
                     nsteps = 1, diffraction = True, mode = None,
-                    betamax = BETAMAX, out = None):
+                    betamax = BETAMAX, ret_affi = False, out_affi = None, out = None):
     
     shape = field.shape[-2:]
     d, epsv, epsa = layer
@@ -570,7 +571,7 @@ def propagate_field(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,
     kd = wavenumbers*d/nsteps
     d_eff = d_eff/nsteps
     
-    alpha, f, fi = alphaffi_xy(beta,phi,epsa,epsv)
+    alpha, f, fi = alphaffi_xy(beta,phi,epsa,epsv, out = out_affi)
     
     if diffraction == True:
         dmat = corrected_diffraction_matrix(shape, wavenumbers, beta,phi, d=d_eff,
@@ -588,9 +589,13 @@ def propagate_field(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,
                 field = transmit(f,alpha,fi, field, kd, out = out)  
                 field = diffract(field, dmat, out = field)
         else:
+            pass
             field = transmit(f,alpha,fi, field, kd, out = out) 
         out = field
-    return out
+    if ret_affi == True:
+        return (alpha, f, fi), out
+    else:
+        return out
 
 
 

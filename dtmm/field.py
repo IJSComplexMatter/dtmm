@@ -49,7 +49,7 @@ def illumination_betaphi(NA, nrays = 13):
     phi = np.arctan2(yy,xx)
     beta = np.sqrt(xx**2 + yy**2)/radius*NA
     mask = (beta <= NA)
-    return beta[mask], phi[mask]
+    return np.asarray(beta[mask],FDTYPE), np.asarray(phi[mask],FDTYPE)
 
 def illumination_waves(shape, k0, beta = 0., phi = 0., window = None, out = None):
     """Builds scalar illumination wave. 
