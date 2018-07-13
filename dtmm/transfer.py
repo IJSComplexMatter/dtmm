@@ -388,7 +388,7 @@ def transfer_field(field_data, optical_data, beta = 0., phi = 0.,
             print_progress(pindex,n,level = verbose_level, suffix = msg) 
             thickness = d[j]*(-1)**i
             thickness_eff = d_eff[j]*(-1)**i
-            p = phi #+ np.pi#not sure why I need to do this... but this makes it work for off axis propagation
+            p = phi + np.pi#not sure why I need to do this... but this makes it work for off axis propagation
             out_affi, field = propagate_field(field, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
                             beta = beta, phi = p, nsteps = substeps[j], diffraction = diffraction, mode = mode,
                             betamax = betamax, ret_affi = True, out_affi = out_affi, out = out)

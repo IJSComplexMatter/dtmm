@@ -367,7 +367,7 @@ class FieldViewer(object):
         ----------
         fname : str
             Output filename or file object.
-        origin : [ ‘upper’ | ‘lower’ ]
+        origin : [ 'upper' | 'lower' ]
             Indicates whether the (0, 0) index of the array is in the upper left 
             or lower left corner of the axes. Defaults to 'lower' 
         kwargs : optional
