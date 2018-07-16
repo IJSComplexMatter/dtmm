@@ -32,14 +32,14 @@ eff_data = dtmm.validate_optical_data(([THICKNESS]*NLAYERS, eps, angles), homoge
 
 
 
-beta =0.5#.5#[0.,0.5]
-phi = 0#[0.,0.]
+beta =0.#.5#[0.,0.5]
+phi = 0.2#[0.,0.]
 
 
 window = dtmm.aperture((HEIGHT, WIDTH),1,0.4)
 #window = None
 jones = dtmm.jonesvec((1,-1j))
-#jones = dtmm.jonesvec((1,1))
+jones = dtmm.jonesvec((1,-1j))
 
 field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, jones = jones, focus = 0*0.3,
                       beta = beta,phi = phi, pixelsize = PIXELSIZE, n = 1.5, window = window) 
@@ -51,10 +51,10 @@ f0 = field_data_in[0].copy()
 window = None#dtmm.aperture((HEIGHT, WIDTH),1,0.3)
 
 field_data_out = dtmm.transfer.transfer_field(field_data_in, optical_data,diffraction = True,interference = True,
-                                     beta = beta, phi = phi, nstep = 1,npass =2, nin = 1.5, nout = 1.5)
+                                     beta = beta, phi = phi, nstep = 1,npass =5, nin = 1.5, nout = 1.5)
 
 
-viewer = dtmm.field_viewer(field_data_out, mode = "t",intensity = 1, n = 1.5)
+viewer = dtmm.field_viewer(field_data_out, mode = "r",intensity = 1, n = 1.5)
 fig,ax = viewer.plot(imax = 100, fmax =100,fmin = -100)
 
 #plt.figure()

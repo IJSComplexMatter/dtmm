@@ -337,7 +337,7 @@ def transfer_field(field_data, optical_data, beta = 0., phi = 0.,
         Whether to perform difraction caclulation or not. Setting this to False 
         will dissable diffraction calculation (standard 4x4 method).
     interference : bool, optional
-        Whether to enable interference (enabled by default, 
+        Whether to enable interference (disabled by default, 
         enabled also when npass > 1)
     window: array or None
         Additional window function that is multiplied after each layer propagation step.

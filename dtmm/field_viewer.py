@@ -51,8 +51,8 @@ def field_viewer(field_data, cmf = None, n = 1., mode = None,
         wavelengths.
     n : float, optional
         Refractive index of the output material.
-    mode : [ ‘t’ | ‘r’ | None], optional
-        Viewer mode ‘t’ for transmission mode, ‘r’ for reflection mode None for
+    mode : [ 't' | 'r' | None], optional
+        Viewer mode 't' for transmission mode, 'r' for reflection mode None for
         as is data (no projection calculation - default).
     window : ndarray, optional
         Window function by which the calculated field is multiplied. This can 
