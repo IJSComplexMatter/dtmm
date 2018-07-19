@@ -130,9 +130,16 @@ Once the transmitted field has been calculated, we can simulate optical polarizi
 
 .. doctest::
 
-   >>> viewer = dtmm.field_viewer(field_data_out)
+   >>> viewer = dtmm.field_viewer(field_data_out, n = 1.5)
 
-which returns a FieldViewer object. Now you can calculate transmission specter or obtain RGB image. Depending on how the illumination data was created (polarized/nonpolarized light, single/multiple ray) you can set different parameters. For instance, you can refocus the field
+which returns a FieldViewer object. Here 
+
+.. warning::
+
+    You should always view the field in a medium that it was calculated for. In the example above we defined that the field should be viewed in a medium of refractive index of 1.5 because we used this as the `nout` argument in the `transfer_field` calculation above. Without the specified argument, we would have introduced unwanted reflections in the visualization of the computed field. See  :ref:`Tutorial` for details on reflections.
+
+
+Now you can calculate transmission specter or obtain RGB image. Depending on how the illumination data was created (polarized/nonpolarized light, single/multiple ray) you can set different parameters. For instance, you can refocus the field
 
 .. doctest::
 
@@ -189,7 +196,7 @@ The viewer also allows you to tune microscope settings dynamically.
 
     For this to work you should not use the matplotlib figure inline option in your python development environment (e.g. Spyder, jupyterlab, notebook). Matpoltlib should be able to draw to a new figure widget for sliders to work. 
 
-For more advanced image calculation, using windowing, reflection calculations, custom color matching functions please refer to the :ref:`Tutorial`
+For more advanced image calculation, using windowing, reflection calculations, custom color matching functions please refer to the :ref:`Tutorial`.
   
 Data IO
 -------

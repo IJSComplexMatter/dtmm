@@ -257,7 +257,8 @@ def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
     profile : str, optional
         Director profile type. It can be a radial profile "r", or homeotropic 
         profile with director orientation specified with the parameter "x", "y",
-        or "z".
+        or "z", or as a director tuple e.g. (np.sin(0.2),0,np.cos(0.2)). Note that
+        director length  defines order parameter (S=1 for this example).
     retmask : bool, optional
         Whether to output mask data as well
         
@@ -279,17 +280,59 @@ def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
         out[...,0][m] = xx[m]/rm
         out[...,1][m] = yy[m]/rm
         out[...,2][m] = zz[m]/rm
-    else:
+    elif isinstance(profile, str):
         index = {"x": 0,"y": 1,"z": 2}
         try:
             i = index[profile]
             out[...,i][m] = 1.
         except KeyError:
             raise ValueError("Unsupported profile type!")
+    else:
+        try:
+            x,y,z = profile
+            out[...,0][m] = x
+            out[...,1][m] = y
+            out[...,2][m] = z
+        except:
+            raise ValueError("Unsupported profile type!")
+            
     if retmask == True:
         return mask, out
     else: 
         return out
+    
+def cholesteric_director(shape, pitch, hand = "left"):
+    """Returns nematic director data of a nematic droplet with a given radius.
+    
+    Parameters
+    ----------
+    shape : tuple
+        (nz,nx,ny) shape of the output data box. First dimension is the 
+        number of layers, second and third are the x and y dimensions of the box.
+    pitch : float
+        Cholesteric pitch in pixel units.
+    hand : str, optional
+        Handedness of the pitch; either 'left' (default) or 'right'
+
+    Returns
+    -------
+    out : ndarray
+        A director data array
+    """
+    nz, ny, nx = shape
+    
+    if hand == 'left':
+        phi =  2*np.pi/pitch*np.arange(nz)
+    elif hand == "right":
+        phi = -2*np.pi/pitch*np.arange(nz)
+    else:
+        raise ValueError("Unknown handedness '{}'".format(hand))
+    out = np.zeros(shape = (nz,ny,nx,3), dtype = F32DTYPE)
+
+    for i in range(nz):
+        out[i,...,0] = np.cos(phi[i])
+        out[i,...,1] = np.sin(phi[i])
+    return out    
 
 def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5):
     """Returns nematic droplet optical_data.
@@ -322,7 +365,40 @@ def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost
     """
     mask, director = nematic_droplet_director(shape, radius, profile = profile, retmask = True)
     return director2data(director, mask = mask, no = no, ne = ne, nhost = nhost)
+
+
+def cholesteric_droplet_data(shape, radius, pitch, hand = "left", no = 1.5, ne = 1.6, nhost = 1.5):
+    """Returns cholesteric droplet optical_data.
     
+    This function returns a thickness,  material_eps, angles, info tuple 
+    of a cholesteric droplet, suitable for light propagation calculation tests.
+    
+    Parameters
+    ----------
+    shape : tuple
+        (nz,nx,ny) shape of the stack. First dimension is the number of layers, 
+        second and third are the x and y dimensions of the compute box.
+    radius : float
+        radius of the droplet.
+    pitch : float
+        Cholesteric pitch in pixel units.
+    hand : str, optional
+        Handedness of the pitch; either 'left' (default) or 'right'
+    no : float, optional
+        Ordinary refractive index of the material (1.5 by default)
+    ne : float, optional
+        Extraordinary refractive index (1.6 by default)
+    nhost : float, optional
+        Host material refractive index (1.5 by default)
+        
+    Returns
+    -------
+    out : tuple of length 3
+        A (thickness, material_eps, angles) tuple of three arrays
+    """
+    director = cholesteric_director(shape, pitch, hand = hand)
+    mask = sphere_mask(shape, radius)
+    return director2data(director, mask = mask, no = no, ne = ne, nhost = nhost)    
 
 @numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->()", cache = NUMBA_CACHE)
 def director2order(data, out):

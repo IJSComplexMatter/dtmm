@@ -3,19 +3,63 @@
 Tutorial
 ========
 
-Reflections and Interference
+Interference and reflections
 ----------------------------
 
-Let us build once more the nematic droplet example 
+Background
+++++++++++
 
-.. doctest::
+Dealing with interference can be tricky. The ``dtmm`` method is transfer 
+matrix method which includes interference, however, one needs to perform multiple passes
+to compute the reflection off the material. With transfer matrix method one computes the output field (the forward propagating part and the backward propagating part) given the defined input field. In a typical experiment, the forward propagating part of the input field is known - this is the input illumination light. However, the backward propagating part of the input field is not know (the reflection off the surface of the material) and it must be determined. In the method we first compute the output field, assuming zero reflections, so that the input field has no back propagating part. When light is transferred through the material, we compute both the forward and the backward propagating part of the output field. The back propagating part of the output field cancels all reflected waves from the material and the input light has no back propagating component of the field. To calculate reflections off the surface one needs to do it iteratively:
 
-   >>> import dtmm
-   >>> import numpy as np
-   >>> NLAYERS, HEIGHT, WIDTH = (60, 96, 96)
-   >>> WAVELENGTHS = np.linspace(380,780,10)
-   >>> optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
-   ...     radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
+* Initially input light is defined with zero reflections and transferred through the stack to obtain the output field.
+* After the first pass (first field transfer calculation), output light is modified so that the back propagating part of the field is completely removed. Then this modified light is transferred again through the stack in backward direction to obtain the modified input light which includes reflections.
+* After the second pass. Input light is modified to so that forward propagating part of the field matches the initial field, and the field is transferred through the stack again..
+
+For low reflective material, three passes are usually enough to obtain a reasonable accurate reflection and transmission values. However, in highly reflective media (cholesterics) more passes are needed.
+
+The calculation is done by setting the `npass` and `norm` arguments::
+
+>>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, npass = 3, norm = 2)
+
+The `npass` argument defines number of passes (field transfers). You are advised to use odd number of passes when dealing with reflections. With odd passes you can inspect any residual back propagating field left in the output field, to make sure that the method has converged.
+
+In highly reflective media, the solution may not converge. You must play with the `norm` argument, which defines how the output field is modified after each even pass. 
+
+* with `norm` = 0 the back propagating part is simply removed, and the total intensity of the forward propagating part is rescaled to conserve total power flow. This method works well for weak reflections.
+* with `norm` = 1 the back propagating part is removed, and the amplitude of the fourier coefficients of the forward propagating part are modified so that power flow of each of the modes is conserved. This is how reflections should be treated in homogeneous layers (or nearly homogeneous layers). This method work well in most cases, especially when reflections come from mostly the top and bottom surfaces.
+* with `norm` = 2, during each even step, a reference non-reflecting and non-interfering wave is transferred through the stack. This reference wave is then used to normalize the forward propagating part of the output field. Because of the additional reference wave calculation this procedure is slower, but it was found to work well in any material (even cholesterics).
+
+
+Surface reflections
++++++++++++++++++++
+
+In this example we calculate reflection and transmission of a spatially narrow light beam (bandpassed white light 500-600 nm) that passes a two micron thick isotropic layer of high refractive index of n = 4 at an angle of beta = 0.4. Here `norm` = 1 works best. Already at three passes, the residual data is almost gone.
+
+One clearly sees beam walking and multiple reflections and interference from both surfaces. See the `examples/reflection_isolayer.py` for details.
+
+.. plot:: examples/reflection_isolayer.py
+
+   Reflection and transmission of an off-axis (beta = 0.4) light beam from a single layer of two micron thick high refractive index material (n=4). Intensity is increased to a value of 100, to see the multiple reflected waves,
+
+
+Cholesterics
+++++++++++++
+
+In this example, we use multiple passes to compute reflections of the cholesteric
+droplet. For cholesterics one should take the `norm` = 2 argument in the
+computation of the tranfered field.
+
+The droplet is a left-handed cholesteric with pitch of 350 nm, which results in a strong reflection of right-handed light of wavelength 520 nm (350*1.5 nm). Already with `npass` = 3, the residual field has almost vanished.
+
+In the example below, we simulated propagation of right-handed light with beta parameter `beta` = 0.2. See the `examples/cholesteric_droplet.py` for details.
+
+
+.. plot:: examples/cholesteric_droplet.py
+
+   Reflection and transmission properties of a cholesterol droplet.
+
 
 
 Color Conversion

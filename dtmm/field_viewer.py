@@ -176,7 +176,7 @@ class FieldViewer(object):
         
         if self.intensity is not None:
             self.axintensity = plt.axes(axes.pop())
-            self._sintensity = Slider(self.axintensity, "intensity",kwargs.get("imin",0),kwargs.get("imax",10),valinit = self.intensity, valfmt='%.1f')
+            self._sintensity = Slider(self.axintensity, "intensity",kwargs.get("imin",0),kwargs.get("imax",max(10,self.intensity)),valinit = self.intensity, valfmt='%.1f')
             self._ids5 = self._sintensity.on_changed(update_intensity)
         if self.polarizer is not None:
             self.axpolarizer = plt.axes(axes.pop())
