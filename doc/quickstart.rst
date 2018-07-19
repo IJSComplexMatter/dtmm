@@ -17,7 +17,7 @@ Most likely you have a director data stored in a raw or text file. Let us create
     >>> director = dtmm.nematic_droplet_director((NLAYERS, HEIGHT, WIDTH), radius = 30, profile = "r")
     >>> director.tofile("director.raw")
 
-Here we have generated a director data array and saved it to a binary file written in system endianness called "director.raw". The data stored in this file is of shape (60,96,96,3), that is (NLAYERS, HEIGHT, WIDTH, 3). To load this data from file you can use the :func:`dtmm.read_director` helper function:
+Here we have generated a director data array and saved it to a binary file written in system endianness called "director.raw". The data stored in this file is of shape (60,96,96,3), that is (NLAYERS, HEIGHT, WIDTH, 3). That is, a director as a vector defined in each voxel of the compute box. The length of the director vector is either 1, where the director is inside the sphere, and 0 elsewhere. To load this data from file you can use the :func:`dtmm.read_director` helper function:
 
 .. doctest::
 
@@ -73,9 +73,17 @@ Now that we have defined the sample data we need to construct initial (input) el
 Here we have defined an x-polarized light (we used jones vector of (1,0)). A left-handed circular polarized light light can be defined by:: 
 
    >>> jones = (1/2**0.5,1j/2**0.5)
+
+or equivalently:
+
+   >>> jones = dtmm.jones((1,1j)) #performs automatic normalization of the jones vector
    >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, jones = jones) 
 
-Typically, you will want input light to be non-polarized. A non-polarized light is taken to be a combination of *x* and *y* polarizations that are transmitted independently and the resulting intensity measured by the detector is an incoherent addition of both of the contributions from both of the two polarizations. So to simulate a non-polarized light, you have to compute both of the polarization states. The illumination_data function can be used to cunstruct such data. Just specify jones parameter to None or call the function without the jones parameter:
+.. warning::
+
+   The `illumination_data` function expects the jones vector to be normalized, as it is directly multiplied with EM field coefficients. If this vector is not normalized, intensity of the illumination data changes accordingly. 
+
+Typically, you want input light to be non-polarized. A non-polarized light is taken to be a combination of *x* and *y* polarizations that are transmitted independently and the resulting intensity measured by the detector is an incoherent addition of both of the contributions from both of the two polarizations. So to simulate a non-polarized light, you have to compute both of the polarization states. The illumination_data function can be used to cunstruct such data. Just specify jones parameter to None or call the function without the jones parameter:
 
 .. doctest::
 
@@ -89,7 +97,7 @@ In the field data above we have also used *n = 1.5* argument, which defines a fo
 
 .. note :: 
 
-   If you do not care about the reflections from the input and output surfaces you are advised to set the index matching medium by specifying *nin* and *nout* arguments to the effective refractive index of the medium. By default input and output fields are assumed to be propagating in *nin = nout = 1.*. See :ref:`Tutorial` for details on reflections and interference.
+   If you want to eliminate the reflections from the input and output surfaces you have to set the index matching medium by specifying *nin* and *nout* arguments to the effective refractive index of the medium. By default input and output fields are assumed to be propagating in *nin = nout = 1.*. See :ref:`Tutorial` for details on reflections and interference.
 
 
 Multiple rays
@@ -121,12 +129,12 @@ we have 21 rays evenly distributed in a cone of numerical aperture of 0.1. To ca
 
 .. warning::
 
-   When doing multiple ray computation, the beta and phi parameters in the transmit_field function must match the beta and phi parameters that were used to generate input field. Do not forget to pass the beta, phi values to the appropriate functions.
+   When doing multiple ray computation, the beta and phi parameters in the tranfer_field function must match the beta and phi parameters that were used to generate input field. Do not forget to pass the beta, phi values to the appropriate functions!
 
 Field Viewer
 ------------
 
-Once the transmitted field has been calculated, we can simulate optical polarizing microscope image formation with the FieldViewer object. The output field is a calculated EM field at the exit surface of the optical stack. As such it can be further propagated and optical polarizing microscope image formation can be performed. Instead of doing full optical image formation calculation one can take the computed field and propagate it in space a little (forward or backward) from the initial position. This way one can calculate light intensities that would have been measured by a camera equipped microscope, had the field been propagated through an ideal microscope objective with a 1:1 magnifications and by not introducing any aberrations. Simply do:
+After the transmitted field has been calculated, we can simulate optical polarizing microscope image formation with the FieldViewer object. The output field is a calculated EM field at the exit surface of the optical stack. As such it can be further propagated and optical polarizing microscope image formation can be performed. Instead of doing full optical image formation calculation one can take the computed field and propagate it in space a little (forward or backward) from the initial position. This way one can calculate light intensities that would have been measured by a camera equipped microscope, had the field been propagated through an ideal microscope objective with a 1:1 magnifications and by not introducing any aberrations. Simply do:
 
 .. doctest::
 

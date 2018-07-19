@@ -52,7 +52,28 @@ def read_director(file, shape, dtype = "float32",  sep = "", endian = sys.byteor
 
 def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
                   thickness = None):
-    """Builds optical data from director data"""
+    """Builds optical data from director data
+    
+    Parameters
+    ----------
+    director : ndarray
+        A 4D array describing the director
+    mask : ndarray, optional
+        If provided, this mask must be a 3D bolean mask that define voxels where
+        nematic is present. This mask is used to define the nematic part of the sample. 
+        Volume not defined by the mask is treated as a host material. If mask is 
+        not provided, all data points are treated as director, and the length of
+        the director is used as a nematic order parameter.
+    no : float
+        Ordinary refractive index
+    ne : float
+        Extraordinary refractive index 
+    nhost : float
+        Host refracitve index (if mask is provided)
+    thickness : ndarray
+        Thickness of layers (in pixels). If not provided, this defaults to ones.
+        
+    """
     material = np.empty(shape = director.shape, dtype = F32DTYPE)
     if mask is None:
         material[...] = refind2eps([no,no,ne])[None,...] 
@@ -62,7 +83,7 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
         material[np.logical_not(mask),:] = refind2eps([nhost,nhost,nhost])[None,...] 
         
     if thickness is None:
-        thickness =np.ones(shape = (material.shape[0],))
+        thickness = np.ones(shape = (material.shape[0],))
     return  thickness, material, director2angles(director)
 
         
