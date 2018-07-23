@@ -2,13 +2,13 @@
 import dtmm
 import numpy as np
 
-
+dtmm.conf.set_verbose(1)
 #: pixel size in nm
 PIXELSIZE = 200
 #: compute box dimensions
 NLAYERS, HEIGHT, WIDTH = 60,96,96
 #: illumination wavelengths in nm
-WAVELENGTHS = np.linspace(380,780,10)
+WAVELENGTHS = np.linspace(380,780,11)
 #: create some experimental data (stack)
 optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
           radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)

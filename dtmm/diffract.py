@@ -30,7 +30,7 @@ def diffraction_alphaffi_xy(shape, ks, epsv = (1,1,1),
     #shape = fieldv.shape[-2:]
     #eps = uniaxial_order(0.,eps0)
     beta, phi = betaphi(shape,ks)
-    m = tukey(beta,0.0,betamax)
+    m = tukey(beta,0.,betamax)
     #mask0 = (beta>0.9) & (beta < 1.1)
     mask0 = (beta >= betamax)#betamax)
     #mask = np.empty(mask0.shape + (4,), mask0.dtype)

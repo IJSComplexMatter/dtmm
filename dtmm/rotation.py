@@ -88,11 +88,12 @@ def rotation_vector2(angle, out = None):
     return _rotation_vector2_vec(angle,_dummy_array, out)
 
 def rotation_matrix_z(angle):
-    return np.array([[cos(angle),-sin(angle),0],[sin(angle),cos(angle),0],[0,0,1.]])  
+    return np.array([[np.cos(angle),-np.sin(angle),0],[np.sin(angle),np.cos(angle),0],[0,0,1.]])  
 
 def rotation_matrix_y(angle):
-    return np.array([[cos(angle),0,-sin(angle)],[0,1.,0.],[sin(angle),0,cos(angle)]])       
- 
+    return np.array([[np.cos(angle),0,np.sin(angle)],[0,1.,0.],[-np.sin(angle),0,np.cos(angle)]])       
+
+
            
 @jit([NFDTYPE[:,:](NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH) 
 def _rotation_matrix(yaw,theta,phi, R):
@@ -114,15 +115,66 @@ def _rotation_matrix(yaw,theta,phi, R):
     
     R[0,0] = costheta * cosphi_cosyaw - sinphi_sinyaw
     R[0,1] = - costheta * cosphi_sinyaw - sinphi_cosyaw
-    R[0,2] = - cosphi * sintheta
+    R[0,2] = cosphi * sintheta
     R[1,0] = costheta * sinphi_cosyaw + cosphi_sinyaw
     R[1,1] = cosphi_cosyaw - costheta * sinphi_sinyaw
-    R[1,2] = - sintheta * sinphi
-    R[2,0] = cosyaw * sintheta
-    R[2,1] = -sintheta*sinyaw
+    R[1,2] = sintheta * sinphi
+    R[2,0] = - cosyaw * sintheta
+    R[2,1] = sintheta*sinyaw
     R[2,2] = costheta
     
     return R  
+
+@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:,:])], "(n)->(n,n)", 
+                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def rotation_matrix_vec(epsa, out):
+    """
+    Calculates complete rotation matrix for rotations yaw, theta, phi.
+    If output is specified.. it should be 3x3 float matrix
+    
+    >>> a = rotation_matrix_vec2([0.12,0.245,0.7])
+    
+    The same can be obtained by:
+        
+    >>> Ry = rotation_matrix_z(0.12)
+    >>> Rt = rotation_matrix_y(0.245)
+    >>> Rf = rotation_matrix_z(0.78)
+      
+    >>> b = np.dot(Rf,np.dot(Rt,Ry))
+    >>> np.allclose(a,b)
+    True
+    """    
+
+    _rotation_matrix(epsa[0],epsa[1],epsa[2], out)
+    
+
+@jit([NFDTYPE[:,:](NFDTYPE,NFDTYPE,NFDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH) 
+def _rotation_matrix_uniaxial(theta,phi, R):
+    """Fills rotation matrix values R = Rphi.Rtheta, where rphiis
+    rotations around y and Rtheta around z axis. 
+    """
+    costheta = cos(theta)
+    sintheta = sin(theta)
+    cosphi = cos(phi)
+    sinphi = sin(phi)
+ 
+    R[0,0] = costheta * cosphi
+    R[0,1] =  - sinphi 
+    R[0,2] = cosphi * sintheta
+    R[1,0] = costheta * sinphi  
+    R[1,1] = cosphi
+    R[1,2] = sintheta * sinphi
+    R[2,0] = -sintheta
+    R[2,1] = 0.
+    R[2,2] = costheta
+    
+    return R  
+
+@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:,:])], "(n)->(n,n)", 
+                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def rotation_matrix_uniaxial_vec(epsa, out):
+    _rotation_matrix_uniaxial(epsa[1],epsa[2], out)
+    
 
 def rotation_matrix_uniaxial(theta,phi, output = None):
     """
@@ -144,27 +196,7 @@ def rotation_matrix_uniaxial(theta,phi, output = None):
     _rotation_matrix_uniaxial(theta,phi,output)
     return output
 
-@jit([NFDTYPE[:,:](NFDTYPE,NFDTYPE,NFDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH) 
-def _rotation_matrix_uniaxial(theta,phi, R):
-    """Fills rotation matrix values R = Rphi.Rtheta, where rphiis
-    rotations around y and Rtheta around z axis. 
-    """
-    costheta = cos(theta)
-    sintheta = sin(theta)
-    cosphi = cos(phi)
-    sinphi = sin(phi)
- 
-    R[0,0] = costheta * cosphi
-    R[0,1] =  - sinphi 
-    R[0,2] = - cosphi * sintheta
-    R[1,0] = costheta * sinphi  
-    R[1,1] = cosphi
-    R[1,2] = - sintheta * sinphi
-    R[2,0] = sintheta
-    R[2,1] = 0.
-    R[2,2] = costheta
-    
-    return R  
+
 
 def rotate_diagonal_tensor(R,diagonal,output = None):
     """Rotates a diagonal tensor, based on the rotation matrix provided
@@ -193,7 +225,7 @@ def rotate_diagonal_tensor(R,diagonal,output = None):
     _rotate_diagonal_tensor(R,diagonal,output)
     return output 
         
-@jit([NCDTYPE[:,:](NFDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+@jit([NCDTYPE[:](NFDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _rotate_diagonal_tensor(R,diagonal,out):
     """Calculates out = R.diagonal.RT of a diagonal tensor"""
     for i in range(3):
@@ -266,4 +298,8 @@ def _calc_rotations(phi0,element,R):
     theta = element[1]
     phi = element[2] -phi0
     _rotation_matrix(yaw,theta,phi, R)
-    return R      
+    return R   
+
+if __name__ == "__main__":
+    import doctest
+    doctest.testmod()

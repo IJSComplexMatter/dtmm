@@ -164,25 +164,25 @@ def _dotmm(a,b,out):
     
 @njit([(NCDTYPE[:,:],NFDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE)    
 def _dotmr2(a,b,out):
-    a0 = a[0,0]*b[0]+a[0,2]*b[1]
-    a1 = a[0,1]*b[0]-a[0,3]*b[1]
-    a2 = -a[0,0]*b[1]+a[0,2]*b[0]
-    a3 = a[0,1]*b[1]+a[0,3]*b[0] 
+    a0 = a[0,0]*b[0]-a[0,2]*b[1]
+    a1 = a[0,1]*b[0]+a[0,3]*b[1]
+    a2 = a[0,0]*b[1]+a[0,2]*b[0]
+    a3 = -a[0,1]*b[1]+a[0,3]*b[0] 
 
-    b0 = a[1,0]*b[0]+a[1,2]*b[1]
-    b1 = a[1,1]*b[0]-a[1,3]*b[1]
-    b2 = -a[1,0]*b[1]+a[1,2]*b[0]
-    b3 = a[1,1]*b[1]+a[1,3]*b[0] 
+    b0 = a[1,0]*b[0]-a[1,2]*b[1]
+    b1 = a[1,1]*b[0]+a[1,3]*b[1]
+    b2 = a[1,0]*b[1]+a[1,2]*b[0]
+    b3 = -a[1,1]*b[1]+a[1,3]*b[0] 
 
-    c0 = a[2,0]*b[0]+a[2,2]*b[1]
-    c1 = a[2,1]*b[0]-a[2,3]*b[1]
-    c2 = -a[2,0]*b[1]+a[2,2]*b[0]
-    c3 = a[2,1]*b[1]+a[2,3]*b[0] 
+    c0 = a[2,0]*b[0]-a[2,2]*b[1]
+    c1 = a[2,1]*b[0]+a[2,3]*b[1]
+    c2 = a[2,0]*b[1]+a[2,2]*b[0]
+    c3 = -a[2,1]*b[1]+a[2,3]*b[0] 
     
-    d0 = a[3,0]*b[0]+a[3,2]*b[1]
-    d1 = a[3,1]*b[0]-a[3,3]*b[1]
-    d2 = -a[3,0]*b[1]+a[3,2]*b[0]
-    d3 = a[3,1]*b[1]+a[3,3]*b[0]     
+    d0 = a[3,0]*b[0]-a[3,2]*b[1]
+    d1 = a[3,1]*b[0]+a[3,3]*b[1]
+    d2 = a[3,0]*b[1]+a[3,2]*b[0]
+    d3 = -a[3,1]*b[1]+a[3,3]*b[0]     
  
     out[0,0] = a0
     out[0,1] = a1
@@ -339,31 +339,30 @@ def _dotmf(a, b, out):
             out[2,i,j]= out2
             out[3,i,j]= out3  
             
-#@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = True)
-#def _dotmdmf(a, d, b, f,out):
-#    for i in prange(f.shape[1]):
-#        for j in range(f.shape[2]):
-#            f0 = f[0,i,j]
-#            f1 = f[1,i,j]
-#            f2 = f[2,i,j]
-#            f3 = f[3,i,j]
-#            
-#            out0 = b[i,j,0,0] * f0 + b[i,j,0,1] * f1 + b[i,j,0,2] * f2 +b[i,j,0,3] * f3
-#            out1 = b[i,j,1,0] * f0 + b[i,j,1,1] * f1 + b[i,j,1,2] * f2 +b[i,j,1,3] * f3
-#            out2 = b[i,j,2,0] * f0 + b[i,j,2,1] * f1 + b[i,j,2,2] * f2 +b[i,j,2,3] * f3
-#            out3 = b[i,j,3,0] * f0 + b[i,j,3,1] * f1 + b[i,j,3,2] * f2 +b[i,j,3,3] * f3
-#            
-#            b0 = out0*d[i,j,0]
-#            b1 = 0#out1*d[i,j,1]
-#            b2 = out2*d[i,j,2]
-#            b3 = 0#out3*d[i,j,3]
-#                            
-#            
-#            out[0,i,j]= a[i,j,0,0] * b0 + a[i,j,0,1] * b1 + a[i,j,0,2] * b2 +a[i,j,0,3] * b3
-#            out[1,i,j]= a[i,j,1,0] * b0 + a[i,j,1,1] * b1 + a[i,j,1,2] * b2 +a[i,j,1,3] * b3
-#            out[2,i,j]= a[i,j,2,0] * b0 + a[i,j,2,1] * b1 + a[i,j,2,2] * b2 +a[i,j,2,3] * b3
-#            out[3,i,j]= a[i,j,3,0] * b0 + a[i,j,3,1] * b1 + a[i,j,3,2] * b2 +a[i,j,3,3] * b3   
-#            
+@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def _dotmdmf(a, d, b, f,out):
+    for i in prange(f.shape[1]):
+        for j in range(f.shape[2]):
+            f0 = f[0,i,j]
+            f1 = f[1,i,j]
+            f2 = f[2,i,j]
+            f3 = f[3,i,j]
+            
+            out0 = b[i,j,0,0] * f0 + b[i,j,0,1] * f1 + b[i,j,0,2] * f2 +b[i,j,0,3] * f3
+            out1 = b[i,j,1,0] * f0 + b[i,j,1,1] * f1 + b[i,j,1,2] * f2 +b[i,j,1,3] * f3
+            out2 = b[i,j,2,0] * f0 + b[i,j,2,1] * f1 + b[i,j,2,2] * f2 +b[i,j,2,3] * f3
+            out3 = b[i,j,3,0] * f0 + b[i,j,3,1] * f1 + b[i,j,3,2] * f2 +b[i,j,3,3] * f3
+            
+            b0 = out0*d[i,j,0]
+            b1 = out1*d[i,j,1]
+            b2 = out2*d[i,j,2]
+            b3 = out3*d[i,j,3]
+            
+            out[0,i,j]= a[i,j,0,0] * b0 + a[i,j,0,1] * b1 + a[i,j,0,2] * b2 +a[i,j,0,3] * b3
+            out[1,i,j]= a[i,j,1,0] * b0 + a[i,j,1,1] * b1 + a[i,j,1,2] * b2 +a[i,j,1,3] * b3
+            out[2,i,j]= a[i,j,2,0] * b0 + a[i,j,2,1] * b1 + a[i,j,2,2] * b2 +a[i,j,2,3] * b3
+            out[3,i,j]= a[i,j,3,0] * b0 + a[i,j,3,1] * b1 + a[i,j,3,2] * b2 +a[i,j,3,3] * b3   
+            
 
 
 #@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NFDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = True)
@@ -555,11 +554,11 @@ def dotmf(a, b, out):
 #    assert b.shape[0] >= 4 #make sure it is not smaller than 4
 #    _dotFf(a, b, out)    
     
-#@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k)->(n,m,k)",target = "cpu")
-#def dotmdmf(a, d,b,f, out):
-#    """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
-#    assert b.shape[0] >= 4 #make sure it is not smaller than 4
-#    _dotmdmf(a,d, b, f,out)
+@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k)->(n,m,k)",target = "cpu", cache = NUMBA_CACHE)
+def dotmdmf(a, d,b,f, out):
+    """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
+    assert b.shape[0] >= 4 #make sure it is not smaller than 4
+    _dotmdmf(a,d, b, f,out)
 #
 #@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NFDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(m,k,l,l),(n,m,k)->(n,m,k)",target = "cpu")
 #def dotmdmrf(a, d,b,r,f, out):

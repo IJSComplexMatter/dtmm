@@ -11,13 +11,13 @@ from setuptools import setup, find_packages
 packages = find_packages()
 
 setup(name = 'dtmm',
-      version = "0.0.1.dev0",
+      version = "0.0.2.dev0",
       description = 'Diffractive Transfer Matrix Method',
       author = 'Andrej Petelin',
       author_email = 'andrej.petelin@gmail.com',
       packages = packages,
       #include_package_data=True
     package_data={
-        # If any package contains *.dat, include them:
+        # If any package contains *.dat, or *.ini include them:
         '': ['*.dat',"*.ini"]}
       )

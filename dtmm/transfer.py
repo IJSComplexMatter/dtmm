@@ -7,7 +7,7 @@ from dtmm.conf import DTMMConfig, cached_function, BETAMAX
 from dtmm.wave import k0
 
 from dtmm.data import uniaxial_order, refind2eps, validate_optical_data
-from dtmm.tmm import alphaffi_xy
+from dtmm.tmm import alphaffi_xy, alphaffi_xy2
 from dtmm.linalg import dotmdm, dotmm, transmit, dotmf, ftransmit
 from dtmm.print_tools import print_progress
 from dtmm.diffract import projection_matrix, diffract, phase_matrix, diffraction_matrix
@@ -332,7 +332,7 @@ def transfer_field_old(field_data, optical_data, beta = 0., phi = 0.,
             print_progress(pindex,n,level = verbose_level, suffix = msg) 
             thickness = d[j]*(-1)**i
             thickness_eff = d_eff[j]*(-1)**i
-            p = phi + np.pi#not sure why I need to do this... but this makes it work for off axis propagation
+            p = phi 
             out_affi, field = propagate_field(field, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
                             beta = beta, phi = p, nsteps = substeps[j], diffraction = diffraction, mode = mode,
                             betamax = betamax, ret_affi = True, out_affi = out_affi, out = out)
@@ -425,7 +425,10 @@ def transfer_field(field_data, optical_data, beta = 0.,
         Computed field data is multiplied with this window after each layer.
 
     """
-    
+    verbose_level = DTMMConfig.verbose
+    if verbose_level >1:
+        print("Initializing.")
+        
     calc_reference = bool(norm & DTMM_NORM_REF)
     
     if (norm & DTMM_NORM_FFT):
@@ -463,9 +466,6 @@ def transfer_field(field_data, optical_data, beta = 0.,
     #if npass > 1:
     #    field0 = field_in.copy()
  
-
-    
-       
     field0 = field_in.copy()
     dif = field_in.copy()
     if calc_reference:
@@ -478,70 +478,76 @@ def transfer_field(field_data, optical_data, beta = 0.,
     field = dif
 
 
-    verbose_level = DTMMConfig.verbose
+    
     indices = list(range(n))
     interference = True if npass > 1 else interference
     mode = "t" if interference == False else None
     
     i0 = field2intensity(transmitted_field(field0, ks, n = nin, betamax = betamax))
-    i0 = i0.sum(tuple(range(i0.ndim))[-2:])    
+    i0 = i0.sum(tuple(range(i0.ndim))[-2:]) 
+    
+    out_affi = None
 
     for i in range(npass):
+        if verbose_level > 1:
+            prefix = "Transferring"
+        else:
+            prefix = ""
+            #print("Transferring field.")
         msg = "{}/{}".format(i+1,npass)
         i0i = total_intensity(transmitted_field(field, ks, n = nin, betamax = betamax))
         for pindex, j in enumerate(indices):
-            print_progress(pindex,n,level = verbose_level, suffix = msg) 
+            print_progress(pindex,n,level = verbose_level, suffix = msg, prefix = prefix) 
             thickness = d[j]*(-1)**i
             thickness_eff = d_eff[j]*(-1)**i
-            p = phi + np.pi #not sure why I need to do this... but this makes it work for off axis propagation
-            
+            p = phi 
             if calc_reference and i%2 == 0 and interference == True:
-                ref = propagate_field(ref, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
+                out_affi,ref = propagate_field(ref, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
                             beta = beta, phi = p, nsteps = substeps[j], diffraction = diffraction, mode = "t",
-                            betamax = betamax)
+                            betamax = betamax, ret_affi = True, out = ref, out_affi = out_affi)
 
-            field = propagate_field(field, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
+            out_affi,field = propagate_field(field, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
                             beta = beta, phi = p, nsteps = substeps[j], diffraction = diffraction, mode = mode,
-                            betamax = betamax)
+                            betamax = betamax, ret_affi = True, out = field, out_affi = out_affi)
 
       
-        print_progress(n,n,level = verbose_level, suffix = msg) 
+        print_progress(n,n,level = verbose_level, suffix = msg, prefix = prefix) 
         
         indices.reverse()
         if npass > 1:
             if i%2 == 0:
                 if i != npass -1:
+                    if verbose_level > 1:
+                        print("Normalizing transmissions.")
                     if calc_reference:
                         #normalize reference field, so that total intesity equals total intensity of input light
-                        ref = transmitted_field(ref, ks, n = nin, betamax = betamax)
+                        ref = transmitted_field(ref, ks, n = nin, betamax = betamax, out = ref)
                         i0tmp = field2intensity(ref)
                         i0s = i0tmp.sum(tuple(range(i0tmp.ndim))[-2:])
                         fact = (i0i/i0s)
                         fact = fact[...,None,None,None]
                         ref = np.multiply(fact,ref, out = ref)
                     
-                    field = transmitted_field(field, ks, n = nout, betamax = betamax, norm = norm, ref = ref)
+                    field = transmitted_field(field, ks, n = nout, betamax = betamax, norm = norm, ref = ref, out = field)
 
-
-                field_out[...] = field_out[...] + field
-                field = field_out
+                np.add(field_out, field, field_out)
+                field = field_out.copy()
             else:
                 field_in[...] = field
                 if i != npass -1:
-                    fieldt = transmitted_field(field_in, ks, n = nin, betamax = betamax, norm = None, ref = None)
-                    i0f = total_intensity(fieldt)
-                                     
+                    if verbose_level > 1:
+                        print("Normalizing reflections.")
+                    field = transmitted_field(field, ks, n = nin, betamax = betamax, norm = None, ref = None, out = field)
+                    i0f = total_intensity(field)
                     fact = ((i0/i0f))
                     fact = fact[...,None,None,None]
-                    #fact[...] = 1.
-                    fieldt = np.multiply(fieldt,fact) 
+                    np.multiply(field,fact, out = field) 
                     np.multiply(field_out,fact,out = field_out) 
                     np.multiply(field_in,fact,out = field_in) 
-                    df = np.subtract(field0,fieldt)
-                    np.add(field_in,df,field_in)
-                    field = df
+                    np.subtract(field0,field, out = field)
+                    np.add(field_in,field,field_in)
                     if calc_reference:
-                        ref = df
+                        ref = field.copy()
                         
         else:
             field_out[...] = field
@@ -579,7 +585,6 @@ def propagate_field(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,
                 field = transmit(f,alpha,fi, field, kd, out = out)  
                 field = diffract(field, dmat, out = field)
         else:
-            pass
             field = transmit(f,alpha,fi, field, kd, out = out) 
         out = field
     if ret_affi == True:

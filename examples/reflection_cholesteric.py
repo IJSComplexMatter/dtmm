@@ -4,7 +4,7 @@ import dtmm
 import numpy as np
 dtmm.conf.set_verbose(1)
 import matplotlib.pyplot as plt
-import dtmm.transfer2
+
 
 THICKNESS = 0.6
 #: pixel size in nm
@@ -54,7 +54,7 @@ window = dtmm.aperture((HEIGHT, WIDTH),1,1)
 #window = dtmm.window.blackman((HEIGHT,WIDTH))
 window = None
 field_data_out = dtmm.transfer_field(field_data_in, optical_data,window = window,
-                 beta = beta, phi = phi, nstep = 1,npass =5, nin = 1.5, nout = 1.5, betamax = 0.6, norm = 2)
+                 beta = beta, phi = phi, nstep = 1,npass =7, nin = 1.5, nout = 1.5, betamax = 0.6, norm = 2)
 
 
 viewer = dtmm.field_viewer(field_data_out, mode = "r",intensity = 1, n = 1.5)

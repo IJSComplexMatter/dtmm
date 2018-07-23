@@ -42,7 +42,7 @@ def aperture(shape, diameter = 1., alpha = 0.1):
     shape : (int,int)
         A shape of the 2D window
     diameter : float
-        Width of the aperture
+        Width of the aperture (1. for max height/width)
     alpha : float
         Smoothnes parameter (should be between 0. and 1.)
     """
@@ -65,6 +65,6 @@ __all__ = ["aperture"]
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     plt.subplot(121)
-    plt.imshow(aperture((33,33),diameter = 0.8))
+    plt.imshow(aperture((128,128),diameter = 0.8))
     plt.subplot(122)
     plt.imshow(blackman((32,39)))
