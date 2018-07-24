@@ -120,6 +120,7 @@ def is_module_installed(name):
         
 NUMBA_INSTALLED = is_module_installed("numba")
 MKL_FFT_INSTALLED = is_module_installed("mkl_fft")
+SCIPY_INSTALLED = is_module_installed("scipy")
 
 #reference to all cashed functions - for automatic cache clearing with clear_cache.
 _cache = set()
@@ -367,7 +368,10 @@ def set_fftlib(name = "numpy.fft"):
         else:
             warnings.warn("MKL FFT is not installed so it can not be used! Please install mkl_fft.")            
     elif name == "scipy.fftpack" or name == "scipy":
-        DTMMConfig.fftlib = "scipy"
+        if SCIPY_INSTALLED:
+            DTMMConfig.fftlib = "scipy"
+        else:
+            warnings.warn("Scipy is not installed so it can not be used! Please install scipy.") 
     elif name == "numpy.fft" or name == "numpy":
         DTMMConfig.fftlib = "numpy"
     else:

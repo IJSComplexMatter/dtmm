@@ -507,11 +507,17 @@ def phasem_r(alpha,kd,out):
     out[3] = np.exp(1j*kd[0]*(alpha[3].real))  
     
 @nb.guvectorize([(NCDTYPE[:],NFDTYPE[:], NCDTYPE[:])],
-                "(n),()->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)    
+                "(n),()->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
 def phasem(alpha,kd,out):
-    for i in range(4):
-        f = 1j*kd[0]*(alpha[i])
-        out[i] = np.exp(f)
+    f0 = 1j*kd[0]*(alpha[0].real)
+    f1 = 1j*kd[0]*(alpha[1].real)
+    f2 = 1j*kd[0]*(alpha[2].real)
+    f3 = 1j*kd[0]*(alpha[3].real)
+    
+    out[0] = np.exp(f0)
+    out[1] = np.exp(f1)
+    out[2] = np.exp(f2)
+    out[3] = np.exp(f3)
 
 def jonesvec(pol):
     """Returns normalized jones vector from an input length 2 vector. 

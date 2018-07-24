@@ -52,7 +52,10 @@ def read_director(file, shape, dtype = "float32",  sep = "", endian = sys.byteor
 
 def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
                   thickness = None):
-    """Builds optical data from director data
+    """Builds optical data from director data. Director length is treated as
+    an order parameter. Order parameter of S=1 means that refractive indices
+    `no` and `ne` are set as the material parameters. With S!=1, a 
+    :func:`uniaxial_order` is used to calculate actual material parameters.
     
     Parameters
     ----------
@@ -62,8 +65,7 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
         If provided, this mask must be a 3D bolean mask that define voxels where
         nematic is present. This mask is used to define the nematic part of the sample. 
         Volume not defined by the mask is treated as a host material. If mask is 
-        not provided, all data points are treated as director, and the length of
-        the director is used as a nematic order parameter.
+        not provided, all data points are treated as director.
     no : float
         Ordinary refractive index
     ne : float
@@ -75,11 +77,10 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
         
     """
     material = np.empty(shape = director.shape, dtype = F32DTYPE)
-    if mask is None:
-        material[...] = refind2eps([no,no,ne])[None,...] 
-        material = uniaxial_order(director2order(director), material, out = material)
-    else:
-        material[mask,:] =  refind2eps([no,no,ne])[None,...] 
+    material[...] = refind2eps([no,no,ne])[None,...] 
+    material = uniaxial_order(director2order(director), material, out = material)
+    
+    if mask is not None:
         material[np.logical_not(mask),:] = refind2eps([nhost,nhost,nhost])[None,...] 
         
     if thickness is None:

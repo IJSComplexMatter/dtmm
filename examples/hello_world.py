@@ -1,8 +1,8 @@
 """Hello nematic droplet example."""
+
 import dtmm
 import numpy as np
 
-dtmm.conf.set_verbose(1)
 #: pixel size in nm
 PIXELSIZE = 200
 #: compute box dimensions

@@ -131,6 +131,14 @@ we have 21 rays evenly distributed in a cone of numerical aperture of 0.1. To ca
 
    When doing multiple ray computation, the beta and phi parameters in the tranfer_field function must match the beta and phi parameters that were used to generate input field. Do not forget to pass the beta, phi values to the appropriate functions!
 
+The :func:`dtmm.transfer_field` also takes several optional parameters. One worth mentioning at this stage is the `split` parameter. If you have large data sets, in multi-ray computation memory requirements for the computation and temporary files may result in out-of-memory issues. To reduce temporary memory storage you can set the `split` parameter to `True`. This way you can limit memory consumption (with large number of rays) more or less to the input field data and output field data memory requirements. So for large multi-ray computations do:
+
+   >>> dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi, nin = 1.5, nout = 1.5, split = True)
+
+.. note:: 
+
+   You can also perform calculations in single precision to further reduce memory consumption (and increase computation speed). See the :ref:`optimization` for details.
+
 Field Viewer
 ------------
 

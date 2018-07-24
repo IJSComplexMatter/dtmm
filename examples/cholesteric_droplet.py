@@ -32,8 +32,9 @@ optical_data = dtmm.cholesteric_droplet_data((NLAYERS, HEIGHT, WIDTH),
 beta = 0.2 #make it off-axis 
 window = dtmm.aperture((HEIGHT, WIDTH),0.9)
 jones = dtmm.jonesvec((1,-1j)) #right handed input light
+focus= 20 #thi will focus aperture in the middle of the stack
 field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, jones = jones, beta = beta,
-                       pixelsize = PIXELSIZE, n = 1.5, window = window) 
+                       pixelsize = PIXELSIZE, n = 1.5, window = window, focus = focus) 
 
 #: transfer input light through stack
 field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, nin = 1.5, nout = 1.5,npass = 3, norm = 2)
