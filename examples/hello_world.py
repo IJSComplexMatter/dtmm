@@ -3,6 +3,11 @@
 import dtmm
 import numpy as np
 
+dtmm.conf.set_verbose(2)
+dtmm.conf.set_nthreads(1)
+import mkl
+mkl.set_num_threads(1)
+
 #: pixel size in nm
 PIXELSIZE = 200
 #: compute box dimensions
@@ -21,7 +26,7 @@ field_data_out = dtmm.transfer_field(field_data_in, optical_data)
 #: visualize output field
 viewer = dtmm.field_viewer(field_data_out)
 viewer.set_parameters(sample = 0, intensity = 2.,
-                polarizer = 0, focus = -20, analyzer = 90)
+                polarizer = 0, focus = -16, analyzer = 90)
 
-fig,ax = viewer.plot(imax = 100)
+fig,ax = viewer.plot()
 fig.show()

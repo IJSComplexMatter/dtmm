@@ -15,7 +15,7 @@ import numpy as np
 from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, NUDTYPE,  NUMBA_TARGET, NUMBA_PARALLEL, NUMBA_CACHE, NUMBA_FASTMATH
 #from dtmm.wave import mean_betaphi, betaphi
 from dtmm.rotation import  _calc_rotations_uniaxial, _calc_rotations, _rotate_diagonal_tensor
-from dtmm.linalg import _inv4x4, _dotmr2, _dotr2m
+from dtmm.linalg import _inv4x4, _dotmr2, _dotr2m, _dotmm
 from dtmm.data import _uniaxial_order
 from dtmm.rotation import rotation_vector2
 
@@ -150,6 +150,7 @@ def _alpha_F(beta,eps0,R,alpha,F):
     cf = R[1,1]
 
     eps11 = eps0[0]
+
     
     delta = eps0[2] -  eps11
     if beta == 0.: #same as calculation for beta !=0, except faster... no multiplying with zeros
@@ -293,6 +294,8 @@ def _copy_4(ain,aout):
 @nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NCDTYPE[:],NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:,:])],
                  "(),(),(l),(k),(n)->(n),(n,n),(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def _alphaffi_vec(beta,phi,epsa,epsv,dummy,alpha,F,Fi):
+    #select the fastest algorithm
+    
     if _is_isotropic(epsv):
         eps = Fi[3] 
         _uniaxial_order(0.,epsv,eps) #store caluclated eps values in Fi[3]
@@ -315,7 +318,19 @@ def _alphaffi_vec(beta,phi,epsa,epsv,dummy,alpha,F,Fi):
         _copy_4x4(F0,F)#copy data
         _inv4x4(F,Fi)   
         
-        
+#@nb.njit([(NFDTYPE,NCDTYPE[:,:])])
+#def _rm4(phi,out):
+#    c = np.cos(phi)
+#    s = np.sin(phi)
+#    out[...] = 0.
+#    out[0,0] = c
+#    out[0,2] = -s
+#    out[1,1] = c
+#    out[1,3] = s
+#    out[2,0] = s
+#    out[2,2] = c
+#    out[3,1] = -s
+#    out[3,3] = c
 
 @nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NCDTYPE[:],NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:,:])],
                  "(),(),(m),(l),(k),(n)->(n),(n,n),(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
@@ -342,8 +357,15 @@ def _alphaffi_xy_vec(beta,phi,rv, epsa,epsv,dummy,alpha,F,Fi):
         _calc_rotations(phi[0],epsa,R) #store rotation matrix in Fi.real[0:3,0:3]
         _rotate_diagonal_tensor(R,epsv,eps)
         _auxiliary_matrix(beta[0],eps,Fi) #calculate Lm matrix and put it to Fi
+        #_rm4(-phi[0],F)
+        #_dotmm(Fi,F,Fi)
+        #_rm4(phi[0],F)
+        #_dotmm(F,Fi,Fi)
         alpha0,F0 = np.linalg.eig(Fi)
         _copy_4(alpha0,alpha)#copy data
+        #_copy_4x4(F0,F)#copy data
+        #F0 = np.linalg.inv(F)
+        #_copy_4x4(F0,Fi)#copy data
         _dotr2m(rv,F0,F)
         _inv4x4(F,Fi)      
         
@@ -429,7 +451,7 @@ def alphaffi_xy_2(beta,phi,element,eps0,*args,**kw):
 
 #@cached_function
 def alphaffi_xy(beta,phi,element,eps0,*args,**kw):
-    rv = rotation_vector2(phi+np.pi) 
+    rv = rotation_vector2(phi) 
     return _alphaffi_xy_vec(beta,phi,rv,element,eps0,_dummy_array,*args,**kw)
 
 

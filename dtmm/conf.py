@@ -287,6 +287,8 @@ class DTMMConfig(object):
         self.mkl_fft = MKL_FFT_INSTALLED
         if MKL_FFT_INSTALLED:
             self.fftlib = "mkl_fft"
+        elif SCIPY_INSTALLED:
+            self.fftlib = "scipy"
         else:
             self.fftlib = "numpy"
         self.ncores = detect_number_of_cores()

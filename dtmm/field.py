@@ -1,14 +1,12 @@
-# -*- coding: utf-8 -*-
 """
-
-
+Field creation, transformation in IO functions
 """
 
 from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_CACHE, BETAMAX
+from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_CACHE, BETAMAX , DTMMConfig
 from dtmm.wave import planewave
 from dtmm.diffract import diffracted_field
 
@@ -65,7 +63,7 @@ def illumination_waves(shape, k0, beta = 0., phi = 0., window = None, out = None
     else:
         return np.multiply(out, window, out = out)
     
-def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., jones = None, mode = "t", betamax = BETAMAX):
+def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., jones = None, intensity = None, mode = "t", betamax = BETAMAX):
     """Converts scalar waves to vector field data."""
     beta = np.asarray(beta)
     phi = np.asarray(phi)
@@ -76,7 +74,8 @@ def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., jones = None
     if beta.ndim == 1:
         nrays = len(beta)*nrays
         
-    waves = waves/(nrays**0.5)   
+    waves = waves/(nrays**0.5)  
+    
         
     if jones is None:
         fieldv = np.zeros(beta.shape + (2,) + k0.shape + (4,) + waves.shape[-2:], dtype = CDTYPE)
@@ -109,9 +108,20 @@ def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., jones = None
             fieldv[...,0,:,:] = waves*c
             fieldv[...,1,:,:] = waves*c
             fieldv[...,2,:,:] = waves*s
-            fieldv[...,3,:,:] = -waves*s    
+            fieldv[...,3,:,:] = -waves*s   
             
-    return diffracted_field(fieldv,k0, d = -focus, n = n, mode = mode, betamax = betamax)
+    diffracted_field(fieldv,k0, d = -focus, n = n, mode = mode, betamax = betamax, out = fieldv)
+    
+    #normalize field to these intensities
+    if intensity is not None:
+        intensity = intensity/nrays 
+        if jones is None:
+            #-2 element must be polarization. make it broadcastable to field intensity
+            intensity = intensity[...,None,:]
+        norm = (intensity/(field2intensity(fieldv).sum((-2,-1))))**0.5
+        np.multiply(fieldv, norm[...,None,None,None], fieldv)
+        
+    return fieldv
 
 
 def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., 
@@ -150,15 +160,20 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0.,
     betamax : float, optional
         The betamax parameter of the propagating field.
     """
+    
+    verbose_level = DTMMConfig.verbose
+    if verbose_level >0:
+        print("Building illumination data.") 
     wavelengths = np.asarray(wavelengths)
     wavenumbers = 2*np.pi/wavelengths * pixelsize
     if wavenumbers.ndim not in (1,):
         raise ValueError("Wavelengths should be 1D array")
     waves = illumination_waves(shape, wavenumbers, beta = beta, phi = phi, window = window)
+    intensity = ((np.abs(waves)**2).sum((-2,-1)))#sum over pixels
     mode = "r" if backdir else "t"
-    field = waves2field(waves, wavenumbers, beta = beta, phi = phi, n = n,
+    intensity=None
+    field = waves2field(waves, wavenumbers, intensity = intensity, beta = beta, phi = phi, n = n,
                         focus = focus, jones = jones, mode = mode, betamax = betamax)
-    
     return (field, wavelengths, pixelsize)
 
 

@@ -4,11 +4,11 @@ Main top level calculation functions for light propagation through optical data.
 from __future__ import absolute_import, print_function, division
 
 from dtmm.conf import DTMMConfig, cached_function, BETAMAX
-from dtmm.wave import k0
+from dtmm.wave import k0, eigenwave, betaphi
 
 from dtmm.data import uniaxial_order, refind2eps, validate_optical_data
-from dtmm.tmm import alphaffi_xy, alphaffi_xy2, phasem, phasem_t
-from dtmm.linalg import dotmdm, dotmm, transmit, dotmf, ftransmit, dotmdmf
+from dtmm.tmm import alphaffi_xy, phasem, phasem_t
+from dtmm.linalg import dotmdm, dotmm, dotmf, dotmdmf
 from dtmm.print_tools import print_progress
 from dtmm.diffract import projection_matrix, diffract, phase_matrix, diffraction_matrix
 from dtmm.field import field2intensity
@@ -72,7 +72,6 @@ def normalize_field(field, intensity_in, intensity_out, out = None):
     fact[fact>=1] = 1
     fact = np.abs(fact)
     return np.multiply(field,fact, out = out) 
-
 
 
 def diffract_normalized_fft(field, dmat, window = None, ref = None, out = None):
@@ -369,10 +368,9 @@ def transfer_field_old(field_data, optical_data, beta = 0., phi = 0.,
 
     return field_out, wavelengths, pixelsize
 
-def transfer_field(field_data, optical_data, beta = 0., 
-                   phi = 0., eff_data = None, nin = 1., nout = 1., npass = 1,nstep=1,
-              diffraction = True, interference = True, norm = DTMM_NORM_FFT,
-              window = None, betamax = BETAMAX, split = False):
+def transfer_field(field_data, optical_data, beta = 0., phi = 0., nin = 1., nout = 1.,  
+           npass = 1,nstep=1,diffraction = True, interference = True, norm = DTMM_NORM_FFT,
+              window = None, betamax = BETAMAX, split = False, method = "effective", eff_data = None):
     """Tranfers input field data through optical data.
     
     This function calculates transmitted field and possibly (when npass > 1) 
@@ -391,11 +389,6 @@ def transfer_field(field_data, optical_data, beta = 0.,
     phi : float or 1D array_like of floats
         Phi angle of the input light field. If it is a 1D array, phi[i] is the
         phi parameter of the field_data[0][i] field array.
-    eff_data : Optical data tuple or None
-        Optical data tuple of homogeneous layers through which light is diffracted
-        in the diffraction calculation. If not provided, an effective data is
-        build from optical_data by taking an average isotropic refractive index
-        of the material.
     nin : float, optional
         Refractive index of the input (bottom) surface (1. by default). Used
         in combination with npass > 1 to determine reflections from input layer.
@@ -420,20 +413,30 @@ def transfer_field(field_data, optical_data, beta = 0.,
         Normalization mode used when calculating multiple reflections. Possible values
         are 0, 1, 2, 3, default value is 1.
     window: array or None
-        Additional window function that is multiplied after each layer propagation step.
-        Computed field data is multiplied with this window after each layer.
+        If specified, computed field data is multiplied with this window after 
+        each pass.
     split: bool, optional
         In multi-ray computation this option specifies whether to split 
         computation over single rays to consume less temporary memory storage.
         For large multi-ray datasets this option should be set.
+    method : str, optional
+        A transfer method used. Either 'effective' or 'full'
+    eff_data : Optical data tuple or None
+        Optical data tuple of homogeneous layers through which light is diffracted
+        in the diffraction calculation when method == 'effective'. If not provided, 
+        an effective data is build from optical_data by taking an average 
+        isotropic refractive index of the material.
     """
+    verbose_level = DTMMConfig.verbose
+    if verbose_level >0:
+        print("Transferring input field")    
     if split == False:
         return _transfer_field(field_data, optical_data, beta = beta, 
                        phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
                   diffraction = diffraction, interference = interference, norm = norm,
-                  window = window, betamax = betamax)
+                  window = window, betamax = betamax, method = method)
     else:#split input data and compotu sequencially
-        verbose_level = DTMMConfig.verbose
+        
 
         field_in,wavelengths,pixelsize = field_data
         field_out = np.empty_like(field_in) 
@@ -456,12 +459,12 @@ def transfer_field(field_data, optical_data, beta = 0.,
 def _transfer_field(field_data, optical_data, beta = 0., 
                    phi = 0., eff_data = None, nin = 1., nout = 1., npass = 1,nstep=1,
               diffraction = True, interference = True, norm = DTMM_NORM_FFT,
-              window = None, betamax = BETAMAX, out = None):
+              window = None, betamax = BETAMAX, method = "effective",out = None):
     """Tranfers input field data through optical data. See transfer_field.
     """
     verbose_level = DTMMConfig.verbose
     if verbose_level >1:
-        print("Initializing.")
+        print("   Initializing...")
         
     calc_reference = bool(norm & DTMM_NORM_REF)
     
@@ -524,7 +527,7 @@ def _transfer_field(field_data, optical_data, beta = 0.,
 
     for i in range(npass):
         if verbose_level > 1:
-            prefix = "Transferring"
+            prefix = "   Transferring"
         else:
             prefix = ""
             #print("Transferring field.")
@@ -535,13 +538,19 @@ def _transfer_field(field_data, optical_data, beta = 0.,
             thickness = d[j]*(-1)**i
             thickness_eff = d_eff[j]*(-1)**i
             if calc_reference and i%2 == 0 and interference == True:
-                out_affi,out_phase,ref = propagate_field(ref, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
+                out_affi,out_phase,ref = propagate_field_effective(ref, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
                             beta = beta, phi = phi, nsteps = substeps[j], diffraction = diffraction, mode = "t",
                             betamax = betamax, ret_affi = True, out = ref, out_affi = out_affi, out_phase = out_phase)
-
-            out_affi,out_phase,field = propagate_field(field, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
+            if method == "effective":
+                out_affi,out_phase,field = propagate_field_effective(field, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
                             beta = beta, phi = phi, nsteps = substeps[j], diffraction = diffraction, mode = mode,
                             betamax = betamax, ret_affi = True, out = field, out_affi = out_affi, out_phase = out_phase)
+
+            else:
+                out_affi,out_phase,field = propagate_field_full(field, ks, (thickness, epsv[j], epsa[j]), 
+                            nsteps = substeps[j], mode = mode,
+                            betamax = betamax, ret_affi = True, out = field, out_affi = out_affi, out_phase = out_phase)
+
 
       
         print_progress(n,n,level = verbose_level, suffix = msg, prefix = prefix) 
@@ -551,7 +560,7 @@ def _transfer_field(field_data, optical_data, beta = 0.,
             if i%2 == 0:
                 if i != npass -1:
                     if verbose_level > 1:
-                        print("Normalizing transmissions.")
+                        print("   Normalizing transmissions...")
                     if calc_reference:
                         #normalize reference field, so that total intesity equals total intensity of input light
                         ref = transmitted_field(ref, ks, n = nin, betamax = betamax, out = ref)
@@ -562,14 +571,15 @@ def _transfer_field(field_data, optical_data, beta = 0.,
                         ref = np.multiply(fact,ref, out = ref)
                     
                     field = transmitted_field(field, ks, n = nout, betamax = betamax, norm = norm, ref = ref, out = field)
-
+                    if window is not None:
+                        field = np.multiply(field,window,field)
                 np.add(field_out, field, field_out)
                 field = field_out.copy()
             else:
                 field_in[...] = field
                 if i != npass -1:
                     if verbose_level > 1:
-                        print("Normalizing reflections.")
+                        print("   Normalizing reflections...")
                     field = transmitted_field(field, ks, n = nin, betamax = betamax, norm = None, ref = None, out = field)
                     i0f = total_intensity(field)
                     fact = ((i0/i0f))
@@ -590,7 +600,7 @@ def _transfer_field(field_data, optical_data, beta = 0.,
     return field_out, wavelengths, pixelsize
 
 
-def propagate_field(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,
+def propagate_field_effective(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,
                     nsteps = 1, diffraction = True, mode = None,
                     betamax = BETAMAX, ret_affi = False, out_affi = None, out_phase = None,out = None):
     
@@ -632,6 +642,50 @@ def propagate_field(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,
         return out
 
 
+def propagate_field_full(field, wavenumbers, layer, 
+                    nsteps = 1,  mode = None,
+                    betamax = BETAMAX, ret_affi = False, out_affi = None, out_phase = None,out = None):
+
+    shape = field.shape[-2:]
+    d, epsv, epsa = layer
+    kd = wavenumbers*d/nsteps
+    
+    if out is None:
+        out = np.empty_like(field)
+    
+        
+    shape = field.shape[-2:]
+    
+    ii,jj = np.meshgrid(range(shape[0]), range(shape[1]),copy = False, indexing = "ij") 
+    
+    for step in range(nsteps):
+        for i in range(len(wavenumbers)):
+            ffield = fft2(field[...,i,:,:,:])
+            ofield = np.zeros_like(out[...,i,:,:,:])
+            b,p = betaphi(shape,wavenumbers[i])
+            mask = b < betamax
+            
+            amplitude = ffield[...,mask]
+            
+            betas = b[mask]
+            phis = p[mask]
+            iind = ii[mask]
+            jind = jj[mask]
+            
+            for j, bp in enumerate(zip(betas,phis)):     
+                beta, phi = bp
+                alpha, f, fi = alphaffi_xy(beta,phi,epsa,epsv, out = out_affi)
+                p = phasem(alpha,kd[i], out = out_phase)
+                w = eigenwave(amplitude.shape[:-1]+shape, iind[j],jind[j], amplitude = amplitude[...,j])
+                w = dotmdmf(f,p,fi,w, out = w)
+                np.add(ofield,w,ofield)
+            out[...,i,:,:,:] = ofield
+        field = out
+
+    if ret_affi == True:
+        return (alpha, f, fi), out_phase, out
+    else:
+        return out
 
 
 __all__ = ["transfer_field", "transmitted_field", "reflected_field"]

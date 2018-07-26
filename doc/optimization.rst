@@ -95,14 +95,14 @@ You must experiment with settings a little. Depending on the size of the field_d
    
 .. note::
 
-   Creating a ThreadPool in python adds some overhead (a few miliseconds). It makes sense to perform multithreading if computational complexity is high enough. MKL's threading works well for large arrays, but for large number of computations of small arrays, ThreadPool  should be faster. As a rule of a thumb, layer computation time has to be greater than 10ms to make it feasible to use ThreadPools, otherwise, stick with defaults. 
+   Creating a ThreadPool in python adds some overhead (a few miliseconds). It makes sense to perform multithreading if computational complexity is high enough. MKL's threading works well for large arrays, but for large number of computations of small arrays, (as in multi-ray computations) ThreadPool should be faster. 
 
 Default threading options can also be set in the configuration file (see below).
 
 Precision
 ---------
 
-By default, computation is performed in double precision. You may disable double precision if you are low on memory, and to gain some speed in FFT computation. 
+By default, computation is performed in double precision. You may disable double precision if you are low on memory, and to gain some speed in computation. 
 
 .. doctest::
 

@@ -1,10 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Tue Feb 13 11:28:25 2018
-
-@author: andrej
-
+Diffraction functions
 """
 from __future__ import absolute_import, print_function, division
 
@@ -136,6 +131,4 @@ def reflected_field(field, wavenumbers, n = 1, betamax = BETAMAX, out = None):
     pmat = projection_matrix(field.shape[-2:], wavenumbers, epsv = eps, epsa = (0.,0.,0.), mode = "r", betamax = betamax)
     return diffract(field, pmat, out = out) 
 
-
-    
 __all__ = []

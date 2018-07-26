@@ -9,7 +9,8 @@ import numpy as np
 import numba
 import sys
 
-from dtmm.conf import NFDTYPE, NCDTYPE, NF32DTYPE, NC64DTYPE, NC128DTYPE, F32DTYPE,NF64DTYPE, NUMBA_CACHE
+from dtmm.conf import FDTYPE, CDTYPE, NFDTYPE, NCDTYPE, NUMBA_CACHE,\
+NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE
 
 
 def read_director(file, shape, dtype = "float32",  sep = "", endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
@@ -76,7 +77,7 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
         Thickness of layers (in pixels). If not provided, this defaults to ones.
         
     """
-    material = np.empty(shape = director.shape, dtype = F32DTYPE)
+    material = np.empty(shape = director.shape, dtype = FDTYPE)
     material[...] = refind2eps([no,no,ne])[None,...] 
     material = uniaxial_order(director2order(director), material, out = material)
     
@@ -108,7 +109,7 @@ def validate_optical_data(data, homogeneous = False):
         Validated optical data tuple. 
     """
     thickness, material, angles = data
-    thickness = np.asarray(thickness, dtype = "float32")
+    thickness = np.asarray(thickness, dtype = FDTYPE)
     if thickness.ndim == 0:
         thickness = thickness[None] #make it 1D
     elif thickness.ndim != 1:
@@ -116,16 +117,16 @@ def validate_optical_data(data, homogeneous = False):
     n = len(thickness)
     material = np.asarray(material)
     if np.issubdtype(material.dtype, np.complexfloating):
-        material = np.asarray(material, dtype = "complex64")
+        material = np.asarray(material, dtype = CDTYPE)
     else:
-        material = np.asarray(material, dtype = "float32")
+        material = np.asarray(material, dtype = FDTYPE)
     if (material.ndim == 1 and homogeneous) or (material.ndim==3 and not homogeneous):
         material = np.broadcast_to(material, (n,)+material.shape)# np.asarray([material for i in range(n)], dtype = material.dtype)
     if len(material) != n:
         raise ValueError("Material length should match thickness length")
     if (material.ndim != 2 and homogeneous) or (material.ndim != 4 and not homogeneous):
         raise ValueError("Invalid dimensions of the material.")
-    angles = np.asarray(angles, dtype = "float32")
+    angles = np.asarray(angles, dtype = FDTYPE)
     if (angles.ndim == 1 and homogeneous) or (angles.ndim==3 and not homogeneous):
         angles = np.broadcast_to(angles, (n,)+angles.shape)
         #angles = np.asarray([angles for i in range(n)], dtype = angles.dtype)
@@ -291,7 +292,7 @@ def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
     """
     
     nz, ny, nx = shape
-    out = np.zeros(shape = (nz,ny,nx,3), dtype = F32DTYPE)
+    out = np.zeros(shape = (nz,ny,nx,3), dtype = FDTYPE)
     xx, yy, zz = _r3(shape)
     
     r = (xx**2 + yy**2 + zz**2) ** 0.5 
@@ -349,7 +350,7 @@ def cholesteric_director(shape, pitch, hand = "left"):
         phi = -2*np.pi/pitch*np.arange(nz)
     else:
         raise ValueError("Unknown handedness '{}'".format(hand))
-    out = np.zeros(shape = (nz,ny,nx,3), dtype = F32DTYPE)
+    out = np.zeros(shape = (nz,ny,nx,3), dtype = FDTYPE)
 
     for i in range(nz):
         out[i,...,0] = np.cos(phi[i])

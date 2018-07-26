@@ -42,9 +42,6 @@ def betaphi(shape, k0):
     xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
     phi = np.arctan2(yy,xx)
     beta = (2 * np.pi / k0) * np.sqrt(xx**2 + yy**2)
-    #phi[0] = 1#phi[0]+0.001
-    #phi[:,0] = 1#phi[:,0]+0.001
-    #beta[0,0] = 1#0.001
     return np.asarray(beta, dtype = FDTYPE), np.asarray(phi, dtype = FDTYPE)
 
 
@@ -72,8 +69,8 @@ def eigenwave(shape, i, j, amplitude = None, out = None):
         f = np.asarray(out)
         f[...] = 0.
     if amplitude is None:
-        amplitude = np.multiply.reduce(shape)
-    f[i,j] = amplitude
+        amplitude = np.multiply.reduce(shape[-2:])
+    f[...,i,j] = amplitude
     return fft.ifft2(f, out = out)
 
 def planewave(shape, k0, beta , phi, out = None):
@@ -88,7 +85,8 @@ def planewave(shape, k0, beta , phi, out = None):
     kx = np.asarray(k0*beta*np.cos(phi), dtype = FDTYPE)
     ky = np.asarray(k0*beta*np.sin(phi), dtype = FDTYPE)
     #return _exp_ikr(kx,ky,xx,yy)
-    return np.exp((1j*(kx*xx+ky*yy)), out = out)
+    out = np.exp((1j*(kx*xx+ky*yy)), out = out)
+    return np.divide(out,out[...,0,0][...,None,None],out)
 
 
 #def _wave2field(wave,k0,beta,phi, refind = 1, out = None):

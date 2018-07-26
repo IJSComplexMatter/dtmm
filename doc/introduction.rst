@@ -1,7 +1,7 @@
 Introduction
 ============
 
-``dtmm`` is a simple-to-use light (electro-magnetic field) transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as confined liquid-crystals with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method. Details of the method are given in *... some future paper*.
+``dtmm`` is an electro-magnetic field transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as confined liquid-crystals with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method. Details of the method are given in *... some future paper*.
 
 .. note::
 
@@ -15,9 +15,10 @@ License
 Highlights
 ----------
 
-* Easy to use interface.
+* Easy-to-use interface.
 * Computes transmission and reflection from the material (Includes interference and diffraction).
-* Exact calculation for homogeneous layers.
+* Biaxial, uniaxial and isotropic material supported.
+* Exact calculation for homogeneous layers. Two different approximate methods for inhomogeneous layers.
 * EMF visualizer (polarizing microscope simulator) - can be used with external computed data:
 
    * Polarizer/analizer rotation.
@@ -29,18 +30,19 @@ Status and limitations
 ----------------------
 
 ``dtmm`` is a young (experimental) project. The package was developed mainly for light propagation through liquid crystals, and as such, other use cases have not yet been fully tested or implemented. Also, in the current version some limitations apply, which will hopefully be resolved in future versions:
-
-* Uniaxial material only - biaxial material is not yet supported.
-* Inhomogeneous layers with low birefringence only - double refractions are neglected. 
+ 
 * Limited color rendering functions and settings - D65 illumination only.
 * No absorption yet - real dielectric tensors only.
 * Non-dispersive material only. 
-* Interference/reflections cannot be disabled.
 * Limited data IO functions.
+* Two methods (One additional `hybrid method` is in development):
+
+   * An `effective` method : very fast, neglects double refractions (suitable for low birefringence media)
+   * A `full` method : very slow, most accurate.
 
 .. note::
 
-   EMF field propagation calculation is exact for homogeneous layers, but it is only approximate for inhomogeneous layers. It works reasonably well for slowly varying refractive index material (e.g. confined liquid crystals with slowly varying director field). A more accurate (and much slower) propagation is planned in future releases.
+   EMF field propagation calculation is exact for homogeneous layers, but it is only approximate for inhomogeneous layers. It works reasonably well for slowly varying refractive index material (e.g. confined liquid crystals with slowly varying director field). 
 
 Other than that, the package is fully operational. Try the example below to get an impression on how it works.
 
@@ -52,7 +54,7 @@ Example
    >>> import dtmm
    >>> import numpy as np
    >>> NLAYERS, HEIGHT, WIDTH = (60, 96, 96)
-   >>> WAVELENGTHS = np.linspace(380,780,10)
+   >>> WAVELENGTHS = np.linspace(380,780,11)
 
 Build sample optical data:
 

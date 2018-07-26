@@ -32,9 +32,11 @@ In highly reflective media, the solution may not converge. You must play with th
 * with `norm` = 1 the back propagating part is removed, and the amplitude of the fourier coefficients of the forward propagating part are modified so that power flow of each of the modes is conserved. This is how reflections should be treated in homogeneous layers (or nearly homogeneous layers). This method work well in most cases, especially when reflections come from mostly the top and bottom surfaces.
 * with `norm` = 2, during each even step, a reference non-reflecting and non-interfering wave is transferred through the stack. This reference wave is then used to normalize the forward propagating part of the output field. Because of the additional reference wave calculation this procedure is slower, but it was found to work well in any material (even cholesterics).
 
+Examples
+++++++++
 
 Surface reflections
-+++++++++++++++++++
+'''''''''''''''''''
 
 In this example we calculate reflection and transmission of a spatially narrow light beam (bandpassed white light 500-600 nm) that passes a two micron thick isotropic layer of high refractive index of n = 4 at an angle of beta = 0.4. Here `norm` = 1 works best. Already at three passes, the residual data is almost gone.
 
@@ -46,7 +48,7 @@ One clearly sees beam walking and multiple reflections and interference from bot
 
 
 Cholesterics
-++++++++++++
+''''''''''''
 
 In this example, we use multiple passes to compute reflections of the cholesteric
 droplet. For cholesterics one should take the `norm` = 2 argument in the
@@ -69,7 +71,6 @@ Color Conversion
 In this tutorial you will learn how to transform specter to RGB colors using `CIE 1931`_ standard observer color matching function (see `CIE 1931`_ wiki pages for details on XYZ color space).
 
 In the :mod:`dtmm.color` there is a limited set of functions for converting computed specters to RGB images. It is not a full color engine, so only a few color conversion functions are implemented. The specter is converted to color using a `CIE 1931`_ color matching function (CMF). Conversion to color is performed as follows. Specter data is first converted to XYZ color space using the `CIE 1931`_ standard observer (5 nm tabulated) color matching function data. Then the image is converted to RGB color space (using a D65 reference white point) as specified in the `sRGB`_ standard (see `sRGB`_ wiki pages for details on sRGB color space). Data values are then clipped to (0.,1.) and finally, sRGB gamma transfer function is applied.
-
 
 
 CIE 1931 standard observer

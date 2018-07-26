@@ -67,7 +67,7 @@ Now that we have defined the sample data we need to construct initial (input) el
 .. doctest::
 
    >>> import numpy as np
-   >>> WAVELENGTHS = np.linspace(380,780,10)
+   >>> WAVELENGTHS = np.linspace(380,780,11)
    >>> field_data = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, jones = (1,0)) 
 
 Here we have defined an x-polarized light (we used jones vector of (1,0)). A left-handed circular polarized light light can be defined by:: 
@@ -131,7 +131,7 @@ we have 21 rays evenly distributed in a cone of numerical aperture of 0.1. To ca
 
    When doing multiple ray computation, the beta and phi parameters in the tranfer_field function must match the beta and phi parameters that were used to generate input field. Do not forget to pass the beta, phi values to the appropriate functions!
 
-The :func:`dtmm.transfer_field` also takes several optional parameters. One worth mentioning at this stage is the `split` parameter. If you have large data sets, in multi-ray computation memory requirements for the computation and temporary files may result in out-of-memory issues. To reduce temporary memory storage you can set the `split` parameter to `True`. This way you can limit memory consumption (with large number of rays) more or less to the input field data and output field data memory requirements. So for large multi-ray computations do:
+The :func:`dtmm.transfer_field` also takes several optional parameters. One worth mentioning at this stage is the `split` parameter. If you have large data sets in multi-ray computation, memory requirements for the computation and temporary files may result in out-of-memory issues. To reduce temporary memory storage you can set the `split` parameter to `True`. This way you can limit memory consumption (with large number of rays) more or less to the input field data and output field data memory requirements. So for large multi-ray computations do:
 
    >>> dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi, nin = 1.5, nout = 1.5, split = True)
 
@@ -229,7 +229,29 @@ To save/load field data or optical (stack) data to a file for later use there ar
    The save functions append *.dtmf* or *.dtms* extensions to the filename if extensions are not provided by user.
 
 
+Increasing computation speed
+----------------------------
 
+So you want to get best performance? First make sure you have `mkl_fft` installed:: 
+
+    >>> import mkl_fft
+
+Then before loading the package set these environment variables:
+
+.. doctest::
+
+   >>> import os
+   >>> os.environ["DTMM_DOUBLE_PRECISION"] = "0" #compile for single precision
+   >>> os.environ["DTMM_FASTMATH"] = "1" #use the fast math compilation option in numba
+   >>> os.environ["DTMM_TARGET_PARALLEL"] = "1" #use target='parallel' and parallel = True options in numba
+
+Now load the package 
+
+.. doctest::
+
+   >>> import dtmm
+
+We now have the package compiled for best performance at the cost of computation accuracy. See :ref:`optimization` for details and further tunning and configuration options.
 
 
 
