@@ -3,10 +3,7 @@
 import dtmm
 import numpy as np
 
-dtmm.conf.set_verbose(2)
-dtmm.conf.set_nthreads(1)
-import mkl
-mkl.set_num_threads(1)
+dtmm.conf.set_verbose(1)
 
 #: pixel size in nm
 PIXELSIZE = 200
