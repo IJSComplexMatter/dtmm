@@ -76,7 +76,7 @@ Here we have defined an x-polarized light (we used jones vector of (1,0)). A lef
 
 or equivalently:
 
-   >>> jones = dtmm.jones((1,1j)) #performs automatic normalization of the jones vector
+   >>> jones = dtmm.jonesvec((1,1j)) #performs automatic normalization of the jones vector
    >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, jones = jones) 
 
 .. warning::
@@ -138,6 +138,49 @@ The :func:`dtmm.transfer_field` also takes several optional parameters. One wort
 .. note:: 
 
    You can also perform calculations in single precision to further reduce memory consumption (and increase computation speed). See the :ref:`optimization` for details.
+
+Viewing direction
+-----------------
+
+If a different viewing direction is required you must rotate the object. Currently, you cannot rotate the optical data, but you can rotate the regular spaced director field and the construct the optical data. There are two helper function to achieve that. If you want to rotate by 90 degrees around the *y* axis you can do:
+
+.. doctest:
+
+   >>> dir90 = dtmm.rot90_director(director, axis = "y")
+   
+This rotates the whole compute box and the shape of the director field becomes
+   
+.. doctest:
+
+   >>> dir90.shape
+   (96,96,60) 
+
+This transformation is lossless as no data points are cropped and no interpolation is performed. For a more general, lossy transformation you can use the :func:`dtmm.data.rotate_director` function. For a 90 degree rotation around the *y* axis:
+
+
+ .. doctest:
+   
+   >>> room = dtmm.rotation_matrix_y(np.pi/2)
+   >>> dir90i = dtmm.rotate_director(rmat,director) 
+
+Now the shape of the output director field is the same, and there are data points in the output that are out of domain in the original data. These data point are by default defined to be a zero vector
+
+.. doctest::
+
+   >>> dir90i[0,0,0] 
+   (0.,0.,0.)
+
+For a more general rotation, say a 0.3 rotation around the *z* axis (yaw), followed by a 0.4 rotation around the *y* axis (theta) and finally, a 0.5 rotation around the z axis (phi), there is a helper function that construct a rotation matrix by multiplying the three rotation matrices
+
+.. doctest::
+
+   >>> mat = dtmm.rotation_matrix(0.3,0.4,0.5)
+
+It is up to the user to apply a mask or to specify the optical data parameters of these out of domain data points. 
+
+.. doctest::
+
+   >>> optical_data = dtmm.director2data(director, no = 1.5, ne = 1.6, mask = mask, nhost = 1.5)
 
 Field Viewer
 ------------

@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Configuration and constants
 """
@@ -10,30 +8,20 @@ import numpy as np
 from functools import wraps
 import os, warnings, shutil
 
-
 try:
     from configparser import ConfigParser
 except:
     #python 2.7
     from ConfigParser import ConfigParser
 
-
 DATAPATH = os.path.dirname(__file__)
 
-
-#os.environ["NUMBA_INTEL_SVML"] = "1"
-#os.environ['NUMBA_ENABLE_AVX'] = '1'
-#os.environ['NUMBA_LOOP_VECTORIZE'] = '1'
-#os.environ['NUMBA_OPT'] = '3'
-
-def read_environ_variable(name, default = "1"):
+def read_environ_variable(name, default):
     try:
         return int(os.environ.get(name, default))
     except ValueError:
         return int(default)
         warnings.warn("Environment variable {0:s} was found, but its value is not valid!".format(name))
-
-
 
 def get_home_dir():
     """
@@ -91,7 +79,7 @@ if NUMBA_CACHE_DIR != "":
     os.environ["NUMBA_CACHE_DIR"] = NUMBA_CACHE_DIR #set it to os.environ.. so that numba can use it
 
 if read_environ_variable("DTMM_TARGET_PARALLEL",
-   default = _readconfig(config.getboolean, "numba", "parallel", False)):
+            default = _readconfig(config.getboolean, "numba", "parallel", False)):
     NUMBA_TARGET = "parallel"
     NUMBA_PARALLEL = True
 else:
@@ -100,12 +88,12 @@ else:
 
 NUMBA_CACHE = False   
 if read_environ_variable("DTMM_NUMBA_CACHE",
-   default = _readconfig(config.getboolean, "numba", "cache", True)):
+            default = _readconfig(config.getboolean, "numba", "cache", True)):
     if NUMBA_PARALLEL == False:
         NUMBA_CACHE = True    
 
 if read_environ_variable("DTMM_FASTMATH",
-    default = _readconfig(config.getboolean, "numba", "fastmath", False)):        
+        default = _readconfig(config.getboolean, "numba", "fastmath", False)):        
     NUMBA_FASTMATH = True
 else:
     NUMBA_FASTMATH = False
@@ -264,39 +252,54 @@ C128DTYPE = np.dtype("complex128")
 U32DTYPE = np.dtype("uint32")
 
 
-
 if read_environ_variable("DTMM_DOUBLE_PRECISION",
   default =  _readconfig(config.getboolean, "core", "double_precision", True)):
     FDTYPE = F64DTYPE
     CDTYPE = C128DTYPE
     UDTYPE = U32DTYPE
+    PRECISION = "double"
 else:
     FDTYPE = F32DTYPE
     CDTYPE = C64DTYPE
     UDTYPE = U32DTYPE
+    PRECISION = "single"
     
-#FDTYPE = F32DTYPE
-#CDTYPE = C64DTYPE
-#UDTYPE = U32DTYPE
+def disable_mkl_threading():
+    """Disables mkl threading."""
+    try:
+        import mkl
+        mkl.set_num_threads(1)
+    except ImportError:
+        warnings.warn("Cannot disable mkl threading, because 'mkl' module is not installed!")
+
+def enable_mkl_threading():
+    """Enables mkl threading."""
+    try:
+        import mkl
+        mkl.set_num_threads(detect_number_of_cores())
+    except ImportError:
+        warnings.warn("Cannot enable mkl threading, because 'mkl' module is not installed!")
 
 class DTMMConfig(object):
     """DTMM settings are here. You should use the set_* functions in the
     conf.py module to set these values"""
     def __init__(self):
-        self.numba = NUMBA_INSTALLED
-        self.mkl_fft = MKL_FFT_INSTALLED
         if MKL_FFT_INSTALLED:
             self.fftlib = "mkl_fft"
         elif SCIPY_INSTALLED:
             self.fftlib = "scipy"
         else:
             self.fftlib = "numpy"
-        self.ncores = detect_number_of_cores()
-        self.nthreads = 1
+        if _readconfig(config.getboolean, "fft", "parallel", False):
+            self.nthreads = _readconfig(config.getint, "fft", "nthreads", 
+                                        detect_number_of_cores())
+        else:
+            self.nthreads = 1
+        if _readconfig(config.getboolean, "core", "cache", True):
+            self.cache = 1
+        else:
+            self.cache = 0
         self.verbose = 0
-        self.cdtype = CDTYPE
-        self.fdtype = FDTYPE
-        self.cache = 1
         
     def __getitem__(self, item):
         return self.__dict__[item]
@@ -306,12 +309,19 @@ class DTMMConfig(object):
 
 #: a singleton holding user configuration    
 DTMMConfig = DTMMConfig()
+if DTMMConfig.nthreads > 1:
+    disable_mkl_threading()
 
 def print_config():
-    """Prints configurtion parameters and settings."""
-    print(DTMMConfig)
+    """Prints all compile-time and run-time configurtion parameters and settings."""
+    options = {"PRECISION" : PRECISION, "BETAMAX": BETAMAX, 
+               "NUMBA_FASTMATH" :NUMBA_FASTMATH, "NUMBA_PARALLEL" : NUMBA_PARALLEL,
+           "NUMBA_CACHE" : NUMBA_CACHE, "NUMBA_FASTMATH" : NUMBA_FASTMATH,
+           "NUMBA_TARGET" : NUMBA_TARGET}
+    options.update(DTMMConfig.__dict__)
+    print(options)
 
-#setter functions for DDMConfig
+#setter functions for DTMMConfig
 def set_verbose(level):
     """Sets verbose level (0-2) used by compute functions."""
     out = DTMMConfig.verbose
@@ -323,44 +333,16 @@ def set_nthreads(num):
     out = DTMMConfig.nthreads
     DTMMConfig.nthreads = max(1,int(num))
     return out
-    
-#def set_precision(precision):
-#    """Sets internal precision It can be either 'single' (default) or 'double'"""
-#    out = DDMConfig.precision
-#    values = ("single", "double")
-#    if precision in values:
-#        DDMConfig.precision = precision
-#        if precision == "single":
-#            DDMConfig.cdtype = np.dtype(np.complex64)
-#            DDMConfig.fdtype = np.dtype(np.float32)
-#        else:
-#            DDMConfig.cdtype = np.dtype(np.complex128)
-#            DDMConfig.fdtype = np.dtype(np.float64)            
-#    else:
-#        raise ValueError("Precision argument must be 'single' or 'double'")
-#    return out
-#        
-#def set_numba(ok):
-#    """Sets numba acceleration on or off. Returns previous setting."""
-#    out, ok = DDMConfig.numba, bool(ok) 
-#    if NUMBA_INSTALLED and ok:
-#        DDMConfig.numba = ok
-#        return out
-#    elif ok:
-#        import warnings
-#        warnings.warn("Numba is not installed so it can not be used! Please install numba.")
-#    DDMConfig.numba = False
-#    return out 
-#    
+   
 def set_cache(level):
+    """Sets compute cache level."""
     out = DTMMConfig.cache
     level = max(int(level),0)
     if level > 1:
         warnings.warn("Cache levels higher than 1 not supported yet!")
     DTMMConfig.cache = level
     return out
-    
-          
+
 def set_fftlib(name = "numpy.fft"):
     """Sets fft library. Returns previous setting."""
     out, name = DTMMConfig.fftlib, str(name) 
@@ -398,8 +380,5 @@ else:
     NFDTYPE = NF32DTYPE
     NCDTYPE = NC64DTYPE
     NUDTYPE = NU32DTYPE
-#    
-#NFDTYPE = NF32DTYPE
-#NCDTYPE = NC64DTYPE
-#NUDTYPE = NU32DTYPE    
+  
     

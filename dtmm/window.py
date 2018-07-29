@@ -10,8 +10,8 @@ import numpy as np
 from dtmm.conf import FDTYPE
 
 def _r(shape, scale = 1.):
-    """Returns radius array of given shape."""
-    ny,nx = [l//2 for l in shape]
+    """Returns radius array of a given shape."""
+    ny,nx = [l/2 for l in shape]
     ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
     xx, yy = np.meshgrid(ax, ay, indexing = "xy")
     r = ((xx/(nx*scale))**2 + (yy/(ny*scale))**2) ** 0.5    
@@ -32,7 +32,7 @@ def blackman(shape):
     out[mask] = 0.
     return out
 
-def aperture(shape, diameter = 1., alpha = 0.1):
+def aperture(shape, diameter = 1., alpha = 0.05):
     """Returns aperture window function. 
     
     Aperture is basically a tukey filter with a given diameter
@@ -65,6 +65,6 @@ __all__ = ["aperture"]
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     plt.subplot(121)
-    plt.imshow(aperture((128,128),diameter = 0.8))
+    plt.imshow(aperture((32,32),diameter = 0.9))
     plt.subplot(122)
     plt.imshow(blackman((32,39)))

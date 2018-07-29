@@ -88,11 +88,13 @@ def rotation_vector2(angle, out = None):
     return _rotation_vector2_vec(angle,_dummy_array, out)
 
 def rotation_matrix_z(angle):
-    return np.array([[np.cos(angle),-np.sin(angle),0],[np.sin(angle),np.cos(angle),0],[0,0,1.]])  
+    return np.array([[np.cos(angle),-np.sin(angle),0],[np.sin(angle),np.cos(angle),0],[0,0,1.]], dtype = FDTYPE)  
 
 def rotation_matrix_y(angle):
-    return np.array([[np.cos(angle),0,np.sin(angle)],[0,1.,0.],[-np.sin(angle),0,np.cos(angle)]])       
+    return np.array([[np.cos(angle),0,np.sin(angle)],[0,1.,0.],[-np.sin(angle),0,np.cos(angle)]], dtype = FDTYPE)       
 
+def rotation_matrix_x(angle):
+    return np.array([[1.,0.,0.],[0,np.cos(angle),-np.sin(angle)],[0,np.sin(angle),np.cos(angle)]], dtype = FDTYPE)       
 
            
 @jit([NFDTYPE[:,:](NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH) 
@@ -224,6 +226,7 @@ def rotate_diagonal_tensor(R,diagonal,output = None):
     R = _input_matrix(R,(3,3),FDTYPE)
     _rotate_diagonal_tensor(R,diagonal,output)
     return output 
+
         
 @jit([NCDTYPE[:](NFDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _rotate_diagonal_tensor(R,diagonal,out):
@@ -234,6 +237,22 @@ def _rotate_diagonal_tensor(R,diagonal,out):
     out[4] = diagonal[0]*R[0,0]*R[2,0] + diagonal[1]*R[0,1]*R[2,1] + diagonal[2]*R[0,2]*R[2,2]          
     out[5] = diagonal[0]*R[1,0]*R[2,0] + diagonal[1]*R[1,1]*R[2,1] + diagonal[2]*R[1,2]*R[2,2]
     return out
+
+@jit([(NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def _rotate_vector(R,vector,out):
+    """Calculates out = R.vector of a vector"""
+    
+    out0 = vector[0]*R[0,0] + vector[1]*R[0,1] + vector[2]*R[0,2]
+    out1 = vector[0]*R[1,0] + vector[1]*R[1,1] + vector[2]*R[1,2]
+    out2 = vector[0]*R[2,0] + vector[1]*R[2,1] + vector[2]*R[2,2]
+    
+    out[0] = out0
+    out[1] = out1
+    out[2] = out2
+
+@nb.guvectorize([(NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:])],"(n,n),(n)->(n)", cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH, target = NUMBA_TARGET)
+def rotate_vector(R,vector, out):
+    _rotate_vector(R,vector,out)
     
 def tensor_to_matrix(tensor, output = None):
     """Converts tensor of shape (6,) to matrix of shape (3,3)

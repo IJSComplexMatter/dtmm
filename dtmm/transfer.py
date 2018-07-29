@@ -8,7 +8,7 @@ from dtmm.wave import k0, eigenwave, betaphi
 
 from dtmm.data import uniaxial_order, refind2eps, validate_optical_data
 from dtmm.tmm import alphaffi_xy, phasem, phasem_t
-from dtmm.linalg import dotmdm, dotmm, dotmf, dotmdmf
+from dtmm.linalg import dotmdm, dotmm, dotmf, dotmdmf,dotmtmf
 from dtmm.print_tools import print_progress
 from dtmm.diffract import projection_matrix, diffract, phase_matrix, diffraction_matrix
 from dtmm.field import field2intensity
@@ -234,140 +234,6 @@ def normalize_input_field(field, wavenumbers, rfield, n=1, betamax = BETAMAX, ou
     r = r* fact
     return np.add(rfield, r, out = out)
 
-
-def transfer_field_old(field_data, optical_data, beta = 0., phi = 0., 
-                   eff_data = None, nin = 1., nout = 1., npass = 1,nstep=1,
-              diffraction = True,  interference = False, window = None, betamax = BETAMAX):
-    """Tranfers input field data through optical data.
-    
-    This function calculates transmitted field and possibly (when npass > 1) 
-    updates input field to include reflected waves. 
-    
-    
-    Parameters
-    ----------
-    field_data : Field data tuple
-        Input field data tuple
-    optical_data : Optical data tuple
-        Optical data tuple through which input field is transmitted.
-    beta : float or 1D array_like of floats
-        Beta parameter of the input field. If it is a 1D array, beta[i] is the
-        beta parameter of the field_data[0][i] field array.
-    phi : float or 1D array_like of floats
-        Phi angle of the input light field. If it is a 1D array, phi[i] is the
-        phi parameter of the field_data[0][i] field array.
-    eff_data : Optical data tuple or None
-        Optical data tuple of homogeneous layers through which light is diffracted
-        in the diffraction calculation. If not provided, an effective data is
-        build from optical_data by taking an average isotropic refractive index
-        of the material.
-    nin : float, optional
-        Refractive index of the input (bottom) surface (1. by default). Used
-        in combination with npass > 1 to determine reflections from input layer.
-    nout : float, optional
-        Refractive index of the output (top) surface (1. by default). Used
-        in combination with npass > 1 to determine reflections from output layer.
-    npass: int, optional
-        How many passes (iterations) to perform. For strongly reflecting elements
-        this should be set to a higher value. If npass > 1, then input field data is
-        overwritten and adds reflected light from the sample. (defaults to 1)
-    nstep: int or 1D array_like of ints
-        Specifies layer propagation computation steps (defaults to 1). For thick layers
-        you may want to increase this number.
-    diffraction : bool, optional
-        Whether to perform difraction caclulation or not. Setting this to False 
-        will dissable diffraction calculation (standard 4x4 method). Diffraction
-        is enabled by default.
-    interference : bool, optional
-        Whether to enable interference (disabled by default, enabled also when 
-        npass > 1)
-    window: array or None
-        Additional window function that is multiplied after each layer propagation step.
-        Computed field data is multiplied with this window after each layer.
-
-    """
-    #define optical data
-    d, epsv, epsa = validate_optical_data(optical_data)
-        
-    #define effective optical data
-    if eff_data is None:
-        d_eff, epsv_eff, epsa_eff = _isotropic_effective_data((d, epsv, epsa))
-    else:
-        d_eff, epsv_eff, epsa_eff = validate_optical_data(eff_data, homogeneous = True)
-        
-    #define input field data
-    field_in, wavelengths, pixelsize = field_data
-    
-    #define constants 
-    ks = k0(wavelengths, pixelsize)
-    n = len(d)
-    substeps = np.broadcast_to(np.asarray(nstep),(n,))
-    
-    #define input ray directions. Either a scalar or 1D array
-    beta, phi = _validate_betaphi(beta,phi,extendeddim = field_in.ndim-2)
-    
-    #define output field
-    field_out = np.zeros_like(field_in)
-    
-    if npass > 1:
-        field0 = field_in.copy()
-        field1 = field_out.copy()
-        #i0 = field2intensity(field0)
-        i0 = field2intensity(transmitted_field(field0, ks, n = nin, betamax = betamax))
-        i0 = i0.sum(tuple(range(i0.ndim))[-2:])
-        
-    field = field_in
-    out = field_out
-    out_affi = None
-    
-    interference = True if npass > 1 else interference
-    mode = "t" if interference == False else None
-    
-    verbose_level = DTMMConfig.verbose
-    indices = list(range(n))
-    for i in range(npass):
-        msg = "{}/{}".format(i+1,npass)
-        for pindex, j in enumerate(indices):
-            print_progress(pindex,n,level = verbose_level, suffix = msg) 
-            thickness = d[j]*(-1)**i
-            thickness_eff = d_eff[j]*(-1)**i
-            p = phi 
-            out_affi, field = propagate_field(field, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
-                            beta = beta, phi = p, nsteps = substeps[j], diffraction = diffraction, mode = mode,
-                            betamax = betamax, ret_affi = True, out_affi = out_affi, out = out)
-      
-        print_progress(n,n,level = verbose_level, suffix = msg) 
-        
-        indices.reverse()
-        if npass > 1:
-            if i%2 == 0:
-                if i != npass -1:
-                    field = np.subtract(field,field1,out = field)  
-                    field = transmitted_field(field, ks, n = nout, betamax = betamax, norm = "fft", out = field_out)
-                    #if window is not None:
-                    #    out = np.multiply(field,window,out = field)
-                    field = np.add(field1, field, out = field_out)
-
-                    out = field_in 
-                    field1 = field_out.copy()
-            else:
-                if i != npass -1:
-                    i1 = field2intensity(transmitted_field(field, ks, n = nin, betamax = betamax))
-                    i1 = i1.sum(tuple(range(i1.ndim))[-2:])
-                    fact = (i0/i1)[...,None,None,None]
-                    field = np.multiply(field,fact,out = field) 
-                    field1 = np.multiply(field1,fact,out = field1) 
-                    field_out = np.multiply(field_out,fact,out = field_out) 
-                    field = np.subtract(field,field0,out = field_in)     
-                    field = reflected_field(field, ks, n = nin, betamax = betamax, norm = "local", out = field_in)
-                    if window is not None:
-                        field = np.multiply(field,window,out = field)
-                    field = np.add(field0, field, out = field_in)
-                    field0 = field_in.copy()
-                    out = field_out
-
-    return field_out, wavelengths, pixelsize
-
 def transfer_field(field_data, optical_data, beta = 0., phi = 0., nin = 1., nout = 1.,  
            npass = 1,nstep=1,diffraction = True, interference = True, norm = DTMM_NORM_FFT,
               window = None, betamax = BETAMAX, split = False, method = "effective", eff_data = None):
@@ -429,13 +295,13 @@ def transfer_field(field_data, optical_data, beta = 0., phi = 0., nin = 1., nout
     """
     verbose_level = DTMMConfig.verbose
     if verbose_level >0:
-        print("Transferring input field")    
+        print("Transferring input field.")    
     if split == False:
         return _transfer_field(field_data, optical_data, beta = beta, 
                        phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
                   diffraction = diffraction, interference = interference, norm = norm,
                   window = window, betamax = betamax, method = method)
-    else:#split input data and compotu sequencially
+    else:#split input data and compote sequencially
         
 
         field_in,wavelengths,pixelsize = field_data
@@ -453,7 +319,7 @@ def transfer_field(field_data, optical_data, beta = 0., phi = 0., nin = 1., nout
                        phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
                   diffraction = diffraction, interference = interference, norm = norm,
                   window = window, betamax = betamax, out = out)
-        return field_out,wavelengths,pixelsize
+        return field_out, wavelengths, pixelsize
         
 
 def _transfer_field(field_data, optical_data, beta = 0., 
@@ -464,7 +330,7 @@ def _transfer_field(field_data, optical_data, beta = 0.,
     """
     verbose_level = DTMMConfig.verbose
     if verbose_level >1:
-        print("   Initializing...")
+        print(" * Initializing.")
         
     calc_reference = bool(norm & DTMM_NORM_REF)
     
@@ -526,15 +392,16 @@ def _transfer_field(field_data, optical_data, beta = 0.,
     out_phase = None
 
     for i in range(npass):
-        if verbose_level > 1:
-            prefix = "   Transferring"
+        if verbose_level > 0:
+            prefix = " * Pass {:2d}/{}".format(i+1,npass)
+            suffix = ""
         else:
             prefix = ""
-            #print("Transferring field.")
-        msg = "{}/{}".format(i+1,npass)
+            suffix = "{}/{}".format(i+1,npass)
+
         i0i = total_intensity(transmitted_field(field, ks, n = nin, betamax = betamax))
         for pindex, j in enumerate(indices):
-            print_progress(pindex,n,level = verbose_level, suffix = msg, prefix = prefix) 
+            print_progress(pindex,n,level = verbose_level, suffix = suffix, prefix = prefix) 
             thickness = d[j]*(-1)**i
             thickness_eff = d_eff[j]*(-1)**i
             if calc_reference and i%2 == 0 and interference == True:
@@ -553,14 +420,14 @@ def _transfer_field(field_data, optical_data, beta = 0.,
 
 
       
-        print_progress(n,n,level = verbose_level, suffix = msg, prefix = prefix) 
+        print_progress(n,n,level = verbose_level, suffix = suffix, prefix = prefix) 
         
         indices.reverse()
         if npass > 1:
             if i%2 == 0:
                 if i != npass -1:
                     if verbose_level > 1:
-                        print("   Normalizing transmissions...")
+                        print(" * Normalizing transmissions.")
                     if calc_reference:
                         #normalize reference field, so that total intesity equals total intensity of input light
                         ref = transmitted_field(ref, ks, n = nin, betamax = betamax, out = ref)
@@ -579,7 +446,7 @@ def _transfer_field(field_data, optical_data, beta = 0.,
                 field_in[...] = field
                 if i != npass -1:
                     if verbose_level > 1:
-                        print("   Normalizing reflections...")
+                        print(" * Normalizing reflections.")
                     field = transmitted_field(field, ks, n = nin, betamax = betamax, norm = None, ref = None, out = field)
                     i0f = total_intensity(field)
                     fact = ((i0/i0f))
@@ -615,26 +482,21 @@ def propagate_field_effective(field, wavenumbers, layer, effective_layer, beta =
     if diffraction == True:
         dmat = corrected_diffraction_matrix(shape, wavenumbers, beta,phi, d=d_eff,
                          epsv = epsv_eff, epsa = epsa_eff, betamax = betamax)
-    p = phasem(alpha,kd[...,None,None], out = out_phase)
     if mode == "t":
-        pt = phasem_t(alpha,kd[...,None,None])
+        p = phasem_t(alpha,kd[...,None,None], out = out_phase)
+    else:
+        p = phasem(alpha,kd[...,None,None], out = out_phase)
     for j in range(nsteps):
         if diffraction == True:
             if d > 0:
                 field = diffract(field, dmat, out = out)
-                if mode == "t":
-                    field = dotmdmf(f,pt,fi,field, out = field)
-                    #field = ftransmit(f,alpha,fi, field, kd, out = field)
-                else:
-                    field = dotmdmf(f,p,fi,field, out = field)
-                    #field = transmit(f,alpha,fi, field, kd, out = field)
-            else:
                 field = dotmdmf(f,p,fi,field, out = field)
-                #field = transmit(f,alpha,fi, field, kd, out = out)  
+            else:
+                #first transfer then diffract... inverse of forward transfer
+                field = dotmdmf(f,p,fi,field, out = field)
                 field = diffract(field, dmat, out = field)
         else:
             field = dotmdmf(f,p,fi,field, out = out)
-            #field = transmit(f,alpha,fi, field, kd, out = out) 
         out = field
     if ret_affi == True:
         return (alpha, f, fi), out_phase, out

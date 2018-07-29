@@ -1,10 +1,4 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Mon Jan 15 23:31:38 2018
-
-@author: andrej
-
 Some numba optimized linear algebra functions for 4x4 matrices
 """
 
@@ -364,6 +358,28 @@ def _dotmdmf(a, d, b, f,out):
             out[3,i,j]= a[i,j,3,0] * b0 + a[i,j,3,1] * b1 + a[i,j,3,2] * b2 +a[i,j,3,3] * b3   
             
 
+@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def _dotmtmf(a, d, b, f,out):
+    for i in prange(f.shape[1]):
+        for j in range(f.shape[2]):
+            f0 = f[0,i,j]
+            f1 = f[1,i,j]
+            f2 = f[2,i,j]
+            f3 = f[3,i,j]
+            
+            out0 = b[i,j,0,0] * f0 + b[i,j,0,1] * f1 + b[i,j,0,2] * f2 +b[i,j,0,3] * f3
+            out2 = b[i,j,2,0] * f0 + b[i,j,2,1] * f1 + b[i,j,2,2] * f2 +b[i,j,2,3] * f3
+            
+            b0 = out0*d[i,j,0]
+            b2 = out2*d[i,j,2]
+            
+            out[0,i,j]= a[i,j,0,0] * b0  + a[i,j,0,2] * b2 
+            out[1,i,j]= a[i,j,1,0] * b0  + a[i,j,1,2] * b2 
+            out[2,i,j]= a[i,j,2,0] * b0  + a[i,j,2,2] * b2 
+            out[3,i,j]= a[i,j,3,0] * b0  + a[i,j,3,2] * b2    
+            
+
+
 
 #@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NFDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = True)
 #def _dotmdmrf(a, d, b, r,f,out):
@@ -559,6 +575,12 @@ def dotmdmf(a, d,b,f, out):
     """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
     assert b.shape[0] >= 4 #make sure it is not smaller than 4
     _dotmdmf(a,d, b, f,out)
+    
+@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k)->(n,m,k)",target = "cpu", cache = NUMBA_CACHE)
+def dotmtmf(a, d,b,f, out):
+    """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
+    assert b.shape[0] >= 4 #make sure it is not smaller than 4
+    _dotmtmf(a,d, b, f,out)
 #
 #@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NFDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(m,k,l,l),(n,m,k)->(n,m,k)",target = "cpu")
 #def dotmdmrf(a, d,b,r,f, out):

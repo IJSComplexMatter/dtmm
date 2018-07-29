@@ -144,8 +144,6 @@ IO functions
 Misc
 ++++
 
-.. autofunction:: dtmm.field.jonesvec
-
 .. currentmodule:: dtmm.linalg
 
 .. currentmodule:: dtmm.field_viewer
@@ -155,6 +153,17 @@ Field viewer (``dtmm.field_viewer``)
 
 .. automodule:: dtmm.field_viewer
    :members: field_viewer, FieldViewer, VIEWER_PARAMETERS
+
+Jones Calculus
+--------------
+
+Some helper function for jones calculus
+
+.. autofunction:: dtmm.jones.jonesvec
+
+.. autofunction:: dtmm.jones.polarizer_matrix
+
+.. autofunction:: dtmm.jones.apply_polarizer_matrix
 
 4x4 linear algebra (``dtmm.linalg``)
 ------------------------------------

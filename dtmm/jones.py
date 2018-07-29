@@ -1,17 +1,29 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Fri Feb 23 12:53:08 2018
-
-@author: andrej
+Jones matrix stuff..
 """
 
-from dtmm.conf import FDTYPE,NFDTYPE, NCDTYPE, NUMBA_TARGET
+from dtmm.conf import FDTYPE,NFDTYPE, NCDTYPE, NUMBA_TARGET, NUMBA_CACHE, NUMBA_FASTMATH
 import numba as nb
 import numpy as np
 
+def jonesvec(pol):
+    """Returns normalized jones vector from an input length 2 vector. 
+    Numpy broadcasting rules apply.
+    
+    Example
+    -------
+    
+    >>> jonesvec((1,1j)) #left-handed circuar polarization
+    array([ 0.70710678+0.j        ,  0.00000000+0.70710678j])
+    
+    """
+    pol = np.asarray(pol)
+    assert pol.shape[-1] == 2
+    norm = (pol[...,0] * pol[...,0].conj() + pol[...,1] * pol[...,1].conj())**0.5
+    return pol/norm[...,np.newaxis]
+
 def polarizer_matrix(angle, out = None):
-    """Return jones matrix for polarizer. Angle is the polarizer angle.
+    """Return jones matrix for a polarizer. Angle is the polarizer angle.
     
     Broadcasting rules apply.
     """
@@ -30,7 +42,8 @@ def polarizer_matrix(angle, out = None):
     out[...,1,1] = s*s
     return out
 
-@nb.guvectorize([(NFDTYPE[:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,m),(n,k,l)->(n,k,l)", target = NUMBA_TARGET)
+@nb.guvectorize([(NFDTYPE[:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,m),(n,k,l)->(n,k,l)", 
+                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def apply_polarizer_matrix(pmat, field, out):
     """Multiplies 2x2 jones polarizer matrix with 4 x n x m field array"""
     for i in range(field.shape[1]):
@@ -44,5 +57,5 @@ def apply_polarizer_matrix(pmat, field, out):
             out[2,i,j] = Ey
             out[3,i,j] = Hx
 
-__all__ = ["polarizer_matrix", "apply_polarizer_matrix"]
+__all__ = ["polarizer_matrix", "apply_polarizer_matrix", "jonesvec"]
     

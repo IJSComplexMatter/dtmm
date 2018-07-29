@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Director and optical data creation and IO functions.
 """
@@ -11,6 +10,7 @@ import sys
 
 from dtmm.conf import FDTYPE, CDTYPE, NFDTYPE, NCDTYPE, NUMBA_CACHE,\
 NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE
+from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector
 
 
 def read_director(file, shape, dtype = "float32",  sep = "", endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
@@ -51,6 +51,124 @@ def read_director(file, shape, dtype = "float32",  sep = "", endian = sys.byteor
     data = read_raw(file, shape, dtype, sep = sep, endian = endian)
     return raw2director(data, order, nvec)
 
+def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), out = None):
+    """
+    Rotate a director field around the center of the compute box by a specified
+    rotation matrix. This rotation is lossy, as datapoints are interpolated.
+    The shape of the output remains the same.
+    
+    Parameters
+    ----------
+    rmat : array_like
+        A 3x3 rotation matrix.
+    data: array_like
+        Array specifying director field with ndim = 4
+    method : str
+        Interpolation method "linear" or "nearest"
+    fill_value : numbers, optional
+        If provided, the values (length 3 vector) to use for points outside of the
+        interpolation domain. Dfaults to (0.,0.,0.).
+        
+    out : ndarray, optional
+        Output array.
+        
+    Returns
+    -------
+    y : ndarray
+        A rotated director field
+        
+    See Also
+    --------   
+    data.rot90_director : a lossless rotation by 90 degrees.
+        
+    """
+    
+    from scipy.interpolate import RegularGridInterpolator
+    
+    out = np.empty_like(data)
+    nz,ny,nx,nv = data.shape
+    shape = (nz,ny,nx)
+    az, ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
+    
+    fillx, filly, fillz = fill_value
+    xdir = RegularGridInterpolator((az, ay, ax), data[...,0], 
+              fill_value = fillx,bounds_error = False, method = method)
+    ydir = RegularGridInterpolator((az, ay, ax), data[...,1], 
+              fill_value = filly,bounds_error = False, method = method)
+    zdir = RegularGridInterpolator((az, ay, ax), data[...,2], 
+              fill_value = fillz,bounds_error = False, method = method)
+    zz,yy,xx = np.meshgrid(az,ay,ax, indexing = "ij", copy = False, sparse = True)
+
+    out[...,0] = xx
+    out[...,1] = yy
+    out[...,2] = zz
+    out = rotate_vector(rmat.T,out,out) #rotate coordinates
+    
+    #out2 = out.copy()
+    #out2[...,0] = out[...,2]
+    #out2[...,2] = out[...,0]
+    
+    out2 = out[...,::-1] #reverse direction instead of copying
+    
+    #interpolate new director field
+    xnew = xdir(out2) 
+    ynew = ydir(out2)
+    znew = zdir(out2)
+    
+    out[...,0] = xnew 
+    out[...,1] = ynew
+    out[...,2] = znew
+    
+    return rotate_vector(rmat,out, out) #rotate vector in each voxel
+
+def rot90_director(data,axis = "+x", out = None):
+    """
+    Rotate a director field by 90 degrees around the specified axis.
+    
+    Parameters
+    ----------
+    data: array_like
+        Array specifying director field with ndim = 4.
+    axis: str
+        Axis around which to perform rotation. Can be in the form of
+        '[s][n]a' where the optional parameter 's' can be "+" or "-" decribing 
+        the sign of rotation. [n] is an integer describing number of rotations 
+        to perform, and 'X' is one of 'x', 'y' 'z', and defines rotation axis.
+    out : ndarray, optional
+        Output array.
+    
+    Returns
+    -------
+    y : ndarray
+        A rotated director field
+        
+    See Also
+    --------   
+    data.rotate_director : a general rotation for arbitrary angle.        
+    """
+    nz,ny,nx,nv = data.shape
+
+    axis_name = axis[-1]
+    try:
+        k = int(axis[:-1])
+    except ValueError:
+        k = int(axis[:-1]+"1")
+    angle = np.pi/2*k
+    if axis_name == "x":
+        r = rotation_matrix_x(angle)
+        axes = (1,0)
+    elif axis_name == "y":
+        r = rotation_matrix_y(angle)
+        axes = (0,2)
+    elif axis_name == "z":
+        r = rotation_matrix_z(angle)
+        axes = (2,1)
+    else:
+        raise ValueError("Unknown axis type {}".format( axis_name))
+    data_rot = np.rot90(data,k = k, axes = axes)#first rotate data points
+    return rotate_vector(r,data_rot,out)#rotate vector in each voxel
+    
+    
 def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
                   thickness = None):
     """Builds optical data from director data. Director length is treated as
@@ -218,21 +336,21 @@ def read_raw(file, shape, dtype, sep = "", endian = sys.byteorder):
     else:
         return a.reshape(shape).byteswap(True)
    
-def refind(n1 = 1, n3 = None, n2 = None):
-    """Returns material array (eps)."""
-    if n3 is None:
-        if n2 is None:
-            n3 = n1
-            n2 = n1
-        else:
-            raise ValueError("Both n2, and n3 must be set")
-    if n2 is None:
-        n2 = n1
-    return np.array([n1,n2,n3])
+#def refind(n1 = 1, n3 = None, n2 = None):
+#    """Returns material array (eps)."""
+#    if n3 is None:
+#        if n2 is None:
+#            n3 = n1
+#            n2 = n1
+#        else:
+#            raise ValueError("Both n2, and n3 must be set")
+#    if n2 is None:
+#        n2 = n1
+#    return np.array([n1,n2,n3])
     
 def _r3(shape):
     """Returns r vector array of given shape."""
-    nz,ny,nx = [l//2 for l in shape]
+    #nz,ny,nx = [l//2 for l in shape]
     az, ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
     zz,yy,xx = np.meshgrid(az,ay,ax, indexing = "ij")
     return xx, yy, zz

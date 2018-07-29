@@ -9,6 +9,7 @@ import numpy as np
 from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_CACHE, BETAMAX , DTMMConfig
 from dtmm.wave import planewave
 from dtmm.diffract import diffracted_field
+from dtmm.window import aperture
 
 import numba as nb
 from numba import prange
@@ -17,6 +18,27 @@ if NUMBA_PARALLEL == False:
     prange = range
     
 sqrt = np.sqrt
+
+def diaphragm2rays(diaphragm, betastep = 0.1, norm = True):
+    """Takes a 2D image of a diaphragm and converts it to beta, phi, intensity"""
+    shape = diaphragm.shape
+
+    ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
+    xx, yy = np.meshgrid(ax, ay, indexing = "xy")
+    phi = np.arctan2(yy,xx)
+    beta = np.sqrt(xx**2 + yy**2)*betastep
+    mask = diaphragm > 0.
+    intensity = diaphragm[mask]
+    if norm == True:
+        intensity = intensity/ intensity.sum() * len(intensity)
+    return np.asarray(beta[mask],FDTYPE), np.asarray(phi[mask],FDTYPE), np.asarray(intensity,FDTYPE)
+    
+def illumination_rays(NA, diameter = 5, alpha = 0.2):
+    diameter = int(diameter)
+    betastep = 2.*NA/(diameter-1)
+    diaphragm = aperture((diameter,diameter))
+    return diaphragm2rays(diaphragm, betastep = betastep, norm = True)
+
 
 def illumination_betaphi(NA, nrays = 13):
     """Returns beta, phi values for illumination.
@@ -114,8 +136,9 @@ def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., jones = None
     
     #normalize field to these intensities
     if intensity is not None:
-        intensity = intensity/nrays 
+        intensity = intensity/nrays
         if jones is None:
+            
             #-2 element must be polarization. make it broadcastable to field intensity
             intensity = intensity[...,None,:]
         norm = (intensity/(field2intensity(fieldv).sum((-2,-1))))**0.5
@@ -124,7 +147,7 @@ def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., jones = None
     return fieldv
 
 
-def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., 
+def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., intensity = 1.,
                       n = 1., focus = 0., window = None, backdir = False, 
                       jones = None, betamax = 0.9):
     """Constructs forward (or backward) propagating input illumination field data.
@@ -169,29 +192,12 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0.,
     if wavenumbers.ndim not in (1,):
         raise ValueError("Wavelengths should be 1D array")
     waves = illumination_waves(shape, wavenumbers, beta = beta, phi = phi, window = window)
-    intensity = ((np.abs(waves)**2).sum((-2,-1)))#sum over pixels
+    intensity = ((np.abs(waves)**2).sum((-2,-1)))* np.asarray(intensity)[...,None]#sum over pixels
     mode = "r" if backdir else "t"
-    intensity=None
     field = waves2field(waves, wavenumbers, intensity = intensity, beta = beta, phi = phi, n = n,
                         focus = focus, jones = jones, mode = mode, betamax = betamax)
     return (field, wavelengths, pixelsize)
 
-
-def jonesvec(pol):
-    """Returns normalized jones vector from an input length 2 vector. 
-    Numpy broadcasting rules apply.
-    
-    Example
-    -------
-    
-    >>> jonesvec((1,1j)) #left-handed circuar polarization
-    array([ 0.70710678+0.j        ,  0.00000000+0.70710678j])
-    
-    """
-    pol = np.asarray(pol)
-    assert pol.shape[-1] == 2
-    norm = (pol[...,0] * pol[...,0].conj() + pol[...,1] * pol[...,1].conj())**0.5
-    return pol/norm[...,np.newaxis]
 
 @nb.njit([(NCDTYPE[:,:,:],NFDTYPE[:,:])], parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE)
 def _field2intensity(field, out):
@@ -364,4 +370,4 @@ def load_field(file):
         if own_fid == True:
             f.close()
     
-__all__ = ["load_field", "save_field", "validate_field_data", "jonesvec","field2specter","field2intensity", "illumination_data","illumination_betaphi"]
+__all__ = ["illumination_rays","load_field", "save_field", "validate_field_data","field2specter","field2intensity", "illumination_data","illumination_betaphi"]
