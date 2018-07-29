@@ -142,15 +142,15 @@ The :func:`dtmm.transfer_field` also takes several optional parameters. One wort
 Viewing direction
 -----------------
 
-If a different viewing direction is required you must rotate the object. Currently, you cannot rotate the optical data, but you can rotate the regular spaced director field and the construct the optical data. There are two helper function to achieve that. If you want to rotate by 90 degrees around the *y* axis you can do:
+If a different viewing direction is required you must rotate the object. Currently, you cannot rotate the optical data, but you can rotate the regular spaced director field and then construct the optical data. There are two helper function to achieve that. If you want to rotate by 90 degrees around the *y* axis you can do:
 
-.. doctest:
+.. doctest::
 
    >>> dir90 = dtmm.rot90_director(director, axis = "y")
    
 This rotates the whole compute box and the shape of the director field becomes
    
-.. doctest:
+.. doctest::
 
    >>> dir90.shape
    (96,96,60) 
@@ -158,16 +158,16 @@ This rotates the whole compute box and the shape of the director field becomes
 This transformation is lossless as no data points are cropped and no interpolation is performed. For a more general, lossy transformation you can use the :func:`dtmm.data.rotate_director` function. For a 90 degree rotation around the *y* axis:
 
 
- .. doctest:
+ .. doctest::
    
    >>> room = dtmm.rotation_matrix_y(np.pi/2)
    >>> dir90i = dtmm.rotate_director(rmat,director) 
 
-Now the shape of the output director field is the same, and there are data points in the output that are out of domain in the original data. These data point are by default defined to be a zero vector
+Now the shape of the output director field is the same, and there are data points in the output that are out of domain in the original data and few data points in the original data were cropped in the prices. The out-of-domain data point are by default defined to be a zero vector
 
 .. doctest::
 
-   >>> dir90i[0,0,0] 
+   >>> dir90i[0,0,0] #the border is out of domain in the original data, so this is zero.
    (0.,0.,0.)
 
 For a more general rotation, say a 0.3 rotation around the *z* axis (yaw), followed by a 0.4 rotation around the *y* axis (theta) and finally, a 0.5 rotation around the z axis (phi), there is a helper function that construct a rotation matrix by multiplying the three rotation matrices
@@ -177,9 +177,9 @@ For a more general rotation, say a 0.3 rotation around the *z* axis (yaw), follo
    >>> mat = dtmm.rotation_matrix(0.3,0.4,0.5)
 
 It is up to the user to apply a mask or to specify the optical data parameters of these out of domain data points. 
-
 .. doctest::
 
+   >>> mask = dtmm.sphere_mask((NLAYERS,HEIGHT,WIDTH),30) 
    >>> optical_data = dtmm.director2data(director, no = 1.5, ne = 1.6, mask = mask, nhost = 1.5)
 
 Field Viewer
