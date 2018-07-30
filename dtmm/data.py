@@ -9,7 +9,7 @@ import numba
 import sys
 
 from dtmm.conf import FDTYPE, CDTYPE, NFDTYPE, NCDTYPE, NUMBA_CACHE,\
-NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE
+NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE, DTMMConfig
 from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector
 
 
@@ -51,7 +51,7 @@ def read_director(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder
     data = read_raw(file, shape, dtype, sep = sep, endian = endian)
     return raw2director(data, order, nvec)
 
-def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), out = None):
+def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), norm = True, out = None):
     """
     Rotate a director field around the center of the compute box by a specified
     rotation matrix. This rotation is lossy, as datapoints are interpolated.
@@ -67,8 +67,12 @@ def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), out
         Interpolation method "linear" or "nearest"
     fill_value : numbers, optional
         If provided, the values (length 3 vector) to use for points outside of the
-        interpolation domain. Dfaults to (0.,0.,0.).
-        
+        interpolation domain. Defaults to (0.,0.,0.).
+    norm : bool,
+        Whether to normalize the length of the director to 1. after rotation 
+        (interpolation) is performed. Because of interpolation error, the length 
+        of the director changes slightly, and this options adds a constant 
+        length constraint to reduce the error.
     out : ndarray, optional
         Output array.
         
@@ -84,7 +88,10 @@ def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), out
     """
     
     from scipy.interpolate import RegularGridInterpolator
-    
+    verbose_level = DTMMConfig.verbose
+    if verbose_level >0:
+        print("Rotating director.")   
+        
     out = np.empty_like(data)
     nz,ny,nx,nv = data.shape
     shape = (nz,ny,nx)
@@ -119,7 +126,14 @@ def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), out
     out[...,1] = ynew
     out[...,2] = znew
     
-    return rotate_vector(rmat,out, out) #rotate vector in each voxel
+    rotate_vector(rmat,out, out) #rotate vector in each voxel
+    
+    if norm == True:
+        s = director2order(out)
+        mask = (s == 0.)
+        s[mask] = 1.
+        return np.divide(out, s[...,None], out)
+    return 
 
 def rot90_director(data,axis = "+x", out = None):
     """
