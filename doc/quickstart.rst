@@ -240,7 +240,7 @@ This transformation is lossless as no data points are cropped and no interpolati
    >>> room = dtmm.rotation_matrix_y(np.pi/2)
    >>> dir90i = dtmm.rotate_director(rmat,director) 
 
-Now the shape of the output director field is the same, and there are data points in the output that are out of domain in the original data and few data points in the original data were cropped in the prices. The out-of-domain data point are by default defined to be a zero vector
+Now the shape of the output director field is the same, and there are data points in the output that are out of domain in the original data and few data points in the original data were cropped in the proces. The out-of-domain data point are by default defined to be a zero vector
 
 .. doctest::
 

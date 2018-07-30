@@ -57,11 +57,17 @@ Optical data (``dtmm.data``)
 Creation functions
 ++++++++++++++++++
 
-.. autofunction:: dtmm.data.add_isotropic_border
+
 
 .. autofunction:: dtmm.data.nematic_droplet_data
 
 .. autofunction:: dtmm.data.nematic_droplet_director
+
+.. autofunction:: dtmm.data.reshape_volume
+
+.. autofunction:: dtmm.data.rotate_director
+
+.. autofunction:: dtmm.data.rot90_director
 
 .. autofunction:: dtmm.data.sphere_mask
 
@@ -154,8 +160,8 @@ Field viewer (``dtmm.field_viewer``)
 .. automodule:: dtmm.field_viewer
    :members: field_viewer, FieldViewer, VIEWER_PARAMETERS
 
-Jones Calculus
---------------
+Jones Calculus (``dtmm.jones``)
+-------------------------------
 
 Some helper function for jones calculus
 

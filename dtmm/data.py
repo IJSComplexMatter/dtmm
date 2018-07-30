@@ -357,7 +357,6 @@ def _r3(shape):
     #r = ((xx/(nx*scale))**2 + (yy/(ny*scale))**2 + (zz/(nz*scale))**2) ** 0.5 
     #return r
     
-    
 def sphere_mask(shape, radius, offset = (0,0,0)):
     """Returns a bool mask array that defines a sphere.
     
@@ -383,8 +382,8 @@ def sphere_mask(shape, radius, offset = (0,0,0)):
     xx, yy, zz = _r3(shape)
     r = ((xx-offset[0])**2 + (yy-offset[1])**2 + (zz--offset[2])**2) ** 0.5 
     mask = (r <= radius)
-    return mask    
-    
+    return mask   
+
 def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
     """Returns nematic director data of a nematic droplet with a given radius.
     
@@ -443,7 +442,7 @@ def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
         return out
     
 def cholesteric_director(shape, pitch, hand = "left"):
-    """Returns nematic director data of a nematic droplet with a given radius.
+    """Returns a cholesteric director data.
     
     Parameters
     ----------
@@ -553,7 +552,6 @@ def director2order(data, out):
     s = np.sqrt(x**2+y**2+z**2)
     out[0] = s
 
-
 @numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
 def director2angles(data, out):
     """Converts director data to angles (yaw, theta phi)"""
@@ -570,8 +568,6 @@ def director2angles(data, out):
     out[0] = 0. #yaw = 0.
     out[1] = theta
     out[2] = phi
-
-
 
 @numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
 def angles2director(data, out):
@@ -592,19 +588,48 @@ def angles2director(data, out):
     out[1] = s*sf*st
     out[2] = s*ct
 
-def add_isotropic_border(data, shape, xoff = None, yoff = None, zoff = None):
-    """Adds isotropic border area to director data"""
+def reshape_volume(data, shape, xoff = None, yoff = None, zoff = None, fill_value = 0.):
+    """Creates a new scalar or vector field data with an increased volume shape. 
+    Missing data points are filled with requested fill value. 
+    
+    Parameters
+    ----------
+    data : array_like
+       Input vector or scalar field data
+    shape : array_like
+       A scalar or length 3 vector that defines the volume of the output data
+    xoff : int, optional
+       Data offset value in the x direction. If provided, original data is 
+       copied to new data starting at this offset value. If not provided, data 
+       is copied symmetrically (default).
+    yoff, int, optional
+       Data offset value in the x direction. 
+    zoff, int, optional
+       Data offset value in the z direction.     
+    fill_value: array_like
+       A length 3 vector of default values for the border volume data points.
+       
+    Returns
+    -------
+    y : array_like
+       Reshaped ouput data
+    """
+    data = np.asarray(data)
     nz,nx,ny = shape
-    out = np.zeros(shape = shape + data.shape[3:], dtype = data.dtype)
-    if xoff is None:
-        xoff = (shape[1] - data.shape[1])//2
-    if yoff is None:
-        yoff = (shape[2] - data.shape[2])//2
-    if zoff is None:
-        zoff = (shape[0] - data.shape[0])//2
-
-    out[zoff:data.shape[0]+zoff,yoff:data.shape[1]+yoff,xoff:data.shape[2]+xoff,:] = data
-    return out 
+    if nz >= data.shape[0] and ny >= data.shape[1] and nx >= data.shape[2]:
+        out = np.empty(shape = shape + data.shape[3:], dtype = data.dtype)
+        out[...,:] = fill_value
+        if xoff is None:
+            xoff = (shape[1] - data.shape[1])//2
+        if yoff is None:
+            yoff = (shape[2] - data.shape[2])//2
+        if zoff is None:
+            zoff = (shape[0] - data.shape[0])//2
+    
+        out[zoff:data.shape[0]+zoff,yoff:data.shape[1]+yoff,xoff:data.shape[2]+xoff,:] = data
+        return out 
+    else:
+        raise ValueError("Requested shape {} is not larger than original data's shape".format(shape))
 
 _REFIND_DECL = [(NF32DTYPE[:],NF32DTYPE[:]), (NF64DTYPE[:],NFDTYPE[:]),(NC64DTYPE[:],NC64DTYPE[:]), (NC128DTYPE[:],NCDTYPE[:])]
 
