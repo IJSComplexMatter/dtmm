@@ -120,7 +120,7 @@ Now we can convert the specter to XYZ value with:
 .. doctest::
 
    >>> dc.spec2xyz(spec,cmf)
-   array([ 2008.69027494,  2113.45495097,  2301.13095117])
+   array([2008.69027494, 2113.45495097, 2301.13095117])
 
 Typically you will want to work with a normalized specter:
 
@@ -129,7 +129,7 @@ Typically you will want to work with a normalized specter:
    >>> spec = dc.normalize_specter(spec,cmf)
    >>> xyz = dc.spec2xyz(spec,cmf)
    >>> xyz
-   array([ 0.95042966,  1.        ,  1.08880057])
+   array([0.95042966, 1.        , 1.08880057])
 
 Here we have normalized the specter so that the resulting XYZ value has the Y component equal to 1 (full brightness). 
 
@@ -142,7 +142,7 @@ Resulting XYZ can be converted to sRGB (using sRGB color primaries) with
 
    >>> linear_rgb = dc.xyz2srgb(xyz)
    >>> linear_rgb
-   array([ 0.99988402,  1.00003784,  0.99996664])
+   array([0.99988402, 1.00003784, 0.99996664])
   
 Because we have used a D65 specter data to compute the XYZ tristimulus values, the resulting RGB equals full brightness white color [1,1,1] (small deviation comes from the numerical precision of the XYZ2RGB color matrix transform). Note that Color matrices in the standard are defined for 8bit transformation. When converting float values to unsigned integer (8bit mode), these values have to be multiplied with 255 and clipped to a range of [0,255]. Finally, we have to apply sRGB gamma curve to have this linear data ready to display on a sRGB monitor.
 
@@ -242,7 +242,7 @@ gives a strong negative value in the red channel, which shows that the color is 
 .. doctest::
 
    >>> dc.apply_srgb_gamma(rgb)
-   array([ 0.        ,  0.84176254,  0.        ])
+   array([0.        , 0.84176254, 0.        ])
 
 with the blue and red channel clipped. We should have used wide-gamut color space and a monitor capable of displaying wider gamuts to display this color properly. As stated already, this package was not intended to be a full color management system and you should use your own CMS system if you need more complex color transforms and rendering.
 

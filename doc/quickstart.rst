@@ -8,7 +8,7 @@ Here you will learn how to construct optical data with the provided helper funct
 Importing Data
 --------------
 
-Most likely you have a director data stored in a raw or text file. Let us create a sample director data to work with.
+Say you have a director data stored in a raw or text file (or create a sample director data to work with).
 
 .. doctest::
   
@@ -23,10 +23,10 @@ Here we have generated a director data array and saved it to a binary file writt
 
     >>> director = dtmm.read_director("director.raw", (NLAYERS, HEIGHT, WIDTH ,3))
 
-By default, data is assumed to be stored in single precision (float) and with "zyxn" data order and system endianness. If you have data in double precision and different order, these have to be specified. For instance, if data is in "xyzn" order, meaning that first axis is "x", and third axis is "z" coordinate (layer index) and the last axis is the director vector, and the data is in double precision little endianness, do::
+By default, data is assumed to be stored in double precision and with "zyxn" data order and system endianness. If you have data in double precision and different order, these have to be specified. For instance, if data is in "xyzn" order, meaning that first axis is "x", and third axis is "z" coordinate (layer index) and the last axis is the director vector, and the data is in single precision little endianness, do::
 
     >>> director = dtmm.read_director("test.raw", (WIDTH,HEIGHT,NLAYERS,3),
-    ...        order = "xyzn", dtype = "float64", endian = "little")
+    ...        order = "xyzn", dtype = "float32", endian = "little")
 
 This reads director data and transposes it from (WIDTH, HEIGHT, NLAYERS,3) to shape (NLAYERS, HEIGHT, WIDTH, 3), a data format that is used internally for computation. Now we can build the optical data from the director array by providing the refractive indices of the liquid crystal material.
 
@@ -137,9 +137,9 @@ we have 21 rays evenly distributed in a cone of numerical aperture of 0.1. To ca
 
    When doing multiple ray computation, the beta and phi parameters in the tranfer_field function must match the beta and phi parameters that were used to generate input field. Do not forget to pass the beta, phi values to the appropriate functions!
 
-The :func:`dtmm.transfer_field` also takes several optional parameters. One worth mentioning at this stage is the `split` parameter. If you have large data sets in multi-ray computation, memory requirements for the computation and temporary files may result in out-of-memory issues. To reduce temporary memory storage you can set the `split` parameter to `True`. This way you can limit memory consumption (with large number of rays) more or less to the input field data and output field data memory requirements. So for large multi-ray computations do:
+The :func:`dtmm.transfer_field` also takes several optional parameters. One worth mentioning at this stage is the `split` parameter. If you have large data sets in multi-ray computation, memory requirements for the computation and temporary files may result in out-of-memory issues. To reduce temporary memory storage you can set the `split` parameter to `True`. This way you can limit memory consumption (with large number of rays) more or less to the input field data and output field data memory requirements. So for large multi-ray computations do::
 
-   >>> dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi, nin = 1.5, nout = 1.5, split = True)
+   >>> filed_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi, nin = 1.5, nout = 1.5, split = True)
 
 .. note:: 
 
@@ -236,13 +236,13 @@ This rotates the whole compute box and the shape of the director field becomes
 .. doctest::
 
    >>> dir90.shape
-   (96,96,60) 
+   (96, 96, 60, 3)
 
 This transformation is lossless as no data points are cropped and no interpolation is performed. You may want to crop data and add some border area to increase the size of the compute box and to match it to the original data. Alternative approach, and for a more general, lossy transformation you can use the :func:`dtmm.data.rotate_director` function. For a 90 degree rotation around the *y* axis
 
 .. doctest::
    
-   >>> room = dtmm.rotation_matrix_y(np.pi/2)
+   >>> rmat = dtmm.rotation_matrix_y(np.pi/2)
    >>> dir90i = dtmm.rotate_director(rmat,director) 
 
 Now the shape of the output director field is the same, and there are data points in the output that are out of domain in the original data and few data points in the original data were cropped in the proces. The out-of-domain data point are by default defined to be a zero vector
@@ -250,7 +250,7 @@ Now the shape of the output director field is the same, and there are data point
 .. doctest::
 
    >>> dir90i[0,0,0] #the border is out of domain in the original data, so this is zero.
-   (0.,0.,0.)
+   array([0., 0., 0.])
 
 For a more general rotation, say a 0.3 rotation around the *z* axis (yaw), followed by a 0.4 rotation around the *y* axis (theta) and finally, a 0.5 rotation around the z axis (phi), there is a helper function that construct a rotation matrix by multiplying the three rotation matrices
 

@@ -13,7 +13,7 @@ NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE
 from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector
 
 
-def read_director(file, shape, dtype = "float32",  sep = "", endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
+def read_director(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
     """Reads raw director data from a binary or text file. 
     
     A convinient way to read director data from file. 

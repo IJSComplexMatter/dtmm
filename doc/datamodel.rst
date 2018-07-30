@@ -19,8 +19,6 @@ Coordinate system, units and conventions
 * Light enters the material at *z=0*  at the bottom of the sample and exits at the top of the sample.
 * The sample is defined by a sequence of layers - a *stack*. The first layer being the one at the bottom of the stack.
 * Internally, optical parameters are stored in memory as a C-contiguous array with axes (i,j,k,...) the axes are *z*, *y*, *x*, *parameter(s)*.
-* Optical parameters data is stored in single precision "float32" and "complex64".
-* Computation and the field data is in double precision "complex128".
 
 For uniaxial material, the orientation of the optical axis is defined with two angles. :math:`\theta_m` is an angle between the *z* axis and the optical axis  and :math:`\phi_m` is an angle between the projection of the optical axis vector on the *xy* plane and the *x* axis.
 
@@ -79,9 +77,9 @@ which plots dots at positions where liquid_crystal is defined (where the refract
 .. doctest::
 
    >>> material_eps[0,0,0]
-   array([ 2.25,  2.25,  2.25], dtype=float32)
+   array([2.25, 2.25, 2.25])
    >>> material_eps[30,64,64]
-   array([ 2.25      ,  2.25      ,  2.55999994], dtype=float32)
+   array([2.25, 2.25, 2.56])
    
 The real part of the dielectric constant is the refractive index squared and the imaginary part determines absorption properties. 
 
@@ -94,14 +92,14 @@ The real part of the dielectric constant is the refractive index squared and the
 .. doctest::
 
    >>> eps_angles[0,0,0]
-   array([ 0.,  0.,  0.], dtype=float32)
+   array([0., 0., 0.])
 
 while inside of the sphere, these three elements are
 
 .. doctest::
 
    >>> eps_angles[30,64,64] #z=30, y = 64, x = 64
-   array([ 0.        ,  0.9553166 ,  0.78539819], dtype=float32)
+   array([0.        , 0.95531662, 0.78539816])
 
 The first element is always 0 because it defines the yaw angle (used in biaxial materials), the second value describes the :math:`\theta_m` angle, and the last describes the :math:`\phi_m`  angle.
 
