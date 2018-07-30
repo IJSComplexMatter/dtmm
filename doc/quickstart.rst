@@ -52,8 +52,13 @@ Of course you can provide any mask, just that the shape of the mask must mach th
 
    For testing, there is a :func:`dtmm.nematic_droplet_data` function that you can call to construct a test data of nematic droplet data directly. See :ref:`optical-data` for details.
 
+Sometimes you will need to reshape the compute box (increase the volume). You can do that with
 
-For a more complex data creation please refer to the :ref:`optical-data` format and tutorials.
+.. doctest::
+
+   >>> director_large = dtmm.reshape_volume(director, (60,128,128))
+
+This grows the compute box in lateral dimensions symmetrically, by filling the missing data points with zeros. For a more complex data creation please refer to the :ref:`optical-data` format.
 
 Transmission Calculation
 ------------------------
@@ -145,7 +150,7 @@ The :func:`dtmm.transfer_field` also takes several optional parameters. One wort
 Field Viewer
 ------------
 
-After the transmitted field has been calculated, we can simulate optical polarizing microscope image formation with the FieldViewer object. The output field is a calculated EM field at the exit surface of the optical stack. As such it can be further propagated and optical polarizing microscope image formation can be performed. Instead of doing full optical image formation calculation one can take the computed field and propagate it in space a little (forward or backward) from the initial position. This way one can calculate light intensities that would have been measured by a camera equipped microscope, had the field been propagated through an ideal microscope objective with a 1:1 magnifications and by not introducing any aberrations. Simply do:
+After the transmitted field has been calculated, we can simulate optical polarizing microscope image formation with the FieldViewer object. The output field is a calculated EM field at the exit surface of the optical stack. As such it can be further propagated and optical polarizing microscope image formation can be performed. Instead of doing full optical image formation calculation one can take the computed field and propagate it in space a little (forward or backward) from the initial position. This way one can calculate light intensities that would have been measured by a camera equipped microscope, had the field been propagated through an ideal microscope objective with a 1:1 magnifications. Simply do:
 
 .. doctest::
 
@@ -299,7 +304,8 @@ Now load the package
 
    >>> import dtmm
 
-We now have the package compiled for best performance at the cost of computation accuracy. See :ref:`optimization` for details and further tunning and configuration options.
+We now have the package compiled for best performance at the cost of computation accuracy.
+See :ref:`optimization` for details and further tuning and configuration options.
 
 
 
