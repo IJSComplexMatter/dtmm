@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Custom 2D FFT functions.
 
@@ -151,7 +149,7 @@ def fft2(a, out = None):
     Returns
     -------
     out : complex ndarray
-        Result os the transformation along the last two axes.
+        Result of the transformation along the last two axes.
     """
     a = np.asarray(a, dtype = CDTYPE)
     libname = DTMMConfig["fftlib"]
@@ -178,7 +176,7 @@ def ifft2(a, out = None):
     Returns
     -------
     out : complex ndarray
-        Result os the transformation along the last two axes.
+        Result of the transformation along the last two axes.
     """
     a = np.asarray(a, dtype = CDTYPE)      
     libname = DTMMConfig["fftlib"]

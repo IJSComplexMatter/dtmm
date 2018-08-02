@@ -13,6 +13,7 @@ from dtmm.print_tools import print_progress
 from dtmm.diffract import projection_matrix, diffract, phase_matrix, diffraction_matrix
 from dtmm.field import field2intensity
 from dtmm.fft import fft2, ifft2
+from dtmm.jones import polarizer, apply_jones_matrix, jonesvec
 import numpy as np
 
 #norm flags
@@ -91,20 +92,29 @@ def diffract_normalized_fft(field, dmat, window = None, ref = None, out = None):
     return out  
 
 def diffract_normalized_local(field, dmat, window = None, ref = None, out = None):
+    lmat = polarizer(jonesvec((1,1j)))
+    rmat = polarizer(jonesvec((1,-1j)))
     if ref is not None:
-        intensity1 = field2intensity(ref)
+        intensity1l = field2intensity(apply_jones_matrix(lmat, ref))
+        intensity1r = field2intensity(apply_jones_matrix(rmat, ref))
     else:
-        intensity1 = field2intensity(field)
+        intensity1l = field2intensity(apply_jones_matrix(lmat, field))
+        intensity1r = field2intensity(apply_jones_matrix(rmat, field))
     f1 = fft2(field, out = out)
     
     f2 = dotmf(dmat, f1 ,out = f1)
     out = ifft2(f2, out = out)
-    intensity2 = field2intensity(out)
-    out = normalize_field(out, intensity1, intensity2, out = out)
-    
+    outl = apply_jones_matrix(lmat, out)
+    outr = apply_jones_matrix(rmat, out)
+    intensity2l = field2intensity(outl)
+    intensity2r = field2intensity(outr)
+    #out = normalize_field(out, intensity1, intensity2, out = out)
+    outl = normalize_field(outl, intensity1l, intensity2l)
+    outr = normalize_field(outr, intensity1r, intensity2r)
+    np.add(outl,outr,out)
     if window is not None:
         out = np.multiply(out,window,out = out)
-    return out    
+    return out 
 
 def normalize_field_total(field, i1, i2, out = None):
     m = i2 == 0.
@@ -301,9 +311,8 @@ def transfer_field(field_data, optical_data, beta = 0., phi = 0., nin = 1., nout
                        phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
                   diffraction = diffraction, interference = interference, norm = norm,
                   window = window, betamax = betamax, method = method)
-    else:#split input data and compote sequencially
+    else:#split input data by rays and compute ray-by-ray
         
-
         field_in,wavelengths,pixelsize = field_data
         field_out = np.empty_like(field_in) 
 
@@ -319,6 +328,7 @@ def transfer_field(field_data, optical_data, beta = 0., phi = 0., nin = 1., nout
                        phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
                   diffraction = diffraction, interference = interference, norm = norm,
                   window = window, betamax = betamax, out = out)
+            
         return field_out, wavelengths, pixelsize
         
 

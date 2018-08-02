@@ -57,8 +57,6 @@ Optical data (``dtmm.data``)
 Creation functions
 ++++++++++++++++++
 
-
-
 .. autofunction:: dtmm.data.nematic_droplet_data
 
 .. autofunction:: dtmm.data.nematic_droplet_director
@@ -109,7 +107,6 @@ IO functions
 FFT (``dtmm.fft``)
 ------------------
 
-
 .. automodule:: dtmm.fft
    :members:
 
@@ -147,10 +144,7 @@ IO functions
 
 .. autofunction:: dtmm.field.save_field
 
-Misc
-++++
 
-.. currentmodule:: dtmm.linalg
 
 .. currentmodule:: dtmm.field_viewer
 
@@ -160,16 +154,19 @@ Field viewer (``dtmm.field_viewer``)
 .. automodule:: dtmm.field_viewer
    :members: field_viewer, FieldViewer, VIEWER_PARAMETERS
 
+.. currentmodule:: dtmm.jones
+
 Jones Calculus (``dtmm.jones``)
 -------------------------------
 
-Some helper function for jones calculus
+.. automodule:: dtmm.jones
+
+.. autofunction:: dtmm.jones.apply_polarizer_matrix
 
 .. autofunction:: dtmm.jones.jonesvec
 
 .. autofunction:: dtmm.jones.polarizer_matrix
 
-.. autofunction:: dtmm.jones.apply_polarizer_matrix
 
 4x4 linear algebra (``dtmm.linalg``)
 ------------------------------------

@@ -198,7 +198,7 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
         If provided, this mask must be a 3D bolean mask that define voxels where
         nematic is present. This mask is used to define the nematic part of the sample. 
         Volume not defined by the mask is treated as a host material. If mask is 
-        not provided, all data points are treated as director.
+        not provided, all data points are treated as a director.
     no : float
         Ordinary refractive index
     ne : float
@@ -602,9 +602,10 @@ def angles2director(data, out):
     out[1] = s*sf*st
     out[2] = s*ct
 
-def reshape_volume(data, shape, xoff = None, yoff = None, zoff = None, fill_value = 0.):
-    """Creates a new scalar or vector field data with an increased volume shape. 
-    Missing data points are filled with requested fill value. 
+def expand(data, shape, xoff = None, yoff = None, zoff = None, fill_value = 0.):
+    """Creates a new scalar or vector field data with an expanded volume. 
+    Missing data points are filled with fill_value. Output data shape
+    must be larger than the original data.
     
     Parameters
     ----------
@@ -626,7 +627,7 @@ def reshape_volume(data, shape, xoff = None, yoff = None, zoff = None, fill_valu
     Returns
     -------
     y : array_like
-       Reshaped ouput data
+       Expanded ouput data
     """
     data = np.asarray(data)
     nz,nx,ny = shape
@@ -640,7 +641,7 @@ def reshape_volume(data, shape, xoff = None, yoff = None, zoff = None, fill_valu
         if zoff is None:
             zoff = (shape[0] - data.shape[0])//2
     
-        out[zoff:data.shape[0]+zoff,yoff:data.shape[1]+yoff,xoff:data.shape[2]+xoff,:] = data
+        out[zoff:data.shape[0]+zoff,yoff:data.shape[1]+yoff,xoff:data.shape[2]+xoff,...] = data
         return out 
     else:
         raise ValueError("Requested shape {} is not larger than original data's shape".format(shape))

@@ -136,6 +136,10 @@ def _alphaffi_iso(beta,eps0,alpha,F,Fi):
         Fi[1,3] = 0.
         Fi[2,3] = 1. / gsout 
         Fi[3,3] = -1 / gsout  
+    else:
+        F[...]=0.
+        Fi[...] = 0.
+        alpha[...] = 0.
 
 @nb.njit([(NFDTYPE,NCDTYPE[:],NFDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _alpha_F(beta,eps0,R,alpha,F): 
@@ -531,27 +535,32 @@ def phasem_r(alpha,kd,out):
 @nb.guvectorize([(NCDTYPE[:],NFDTYPE[:], NCDTYPE[:])],
                 "(n),()->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
 def phasem(alpha,kd,out):
-    f0 = 1j*kd[0]*(alpha[0].real)
-    f1 = 1j*kd[0]*(alpha[1].real)
-    f2 = 1j*kd[0]*(alpha[2].real)
-    f3 = 1j*kd[0]*(alpha[3].real)
+#    f0 = 1j*kd[0]*(alpha[0].real)
+#    f1 = 1j*kd[0]*(alpha[1].real)
+#    f2 = 1j*kd[0]*(alpha[2].real)
+#    f3 = 1j*kd[0]*(alpha[3].real)
+
+    f0 = 1j*kd[0]*(alpha[0])
+    f1 = 1j*kd[0]*(alpha[1])
+    f2 = 1j*kd[0]*(alpha[2])
+    f3 = 1j*kd[0]*(alpha[3])
     
     out[0] = np.exp(f0)
     out[1] = np.exp(f1)
     out[2] = np.exp(f2)
     out[3] = np.exp(f3)
 
-def jonesvec(pol):
-    """Returns normalized jones vector from an input length 2 vector. 
-    Numpy broadcasting rules apply.
-    
-    >>> jonesvec((1,1j))
-    
-    """
-    pol = np.asarray(pol)
-    assert pol.shape[-1] == 2
-    norm = (pol[...,0] * pol[...,0].conj() + pol[...,1] * pol[...,1].conj())**0.5
-    return pol/norm[...,np.newaxis]
+#def jonesvec(pol):
+#    """Returns normalized jones vector from an input length 2 vector. 
+#    Numpy broadcasting rules apply.
+#    
+#    >>> jonesvec((1,1j))
+#    
+#    """
+#    pol = np.asarray(pol)
+#    assert pol.shape[-1] == 2
+#    norm = (pol[...,0] * pol[...,0].conj() + pol[...,1] * pol[...,1].conj())**0.5
+#    return pol/norm[...,np.newaxis]
 
     
 

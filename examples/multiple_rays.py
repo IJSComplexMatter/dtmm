@@ -17,8 +17,8 @@ WAVELENGTHS = np.linspace(380,780,21)
 optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
            profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
-#NA 0.25, rays
-beta, phi, intensity = dtmm.illumination_rays(0.15,6)
+#NA 0.25, diaphragm with diameter 8 pixels, around 4*4*pi rays
+beta, phi, intensity = dtmm.illumination_rays(0.25,6)
 
 window = dtmm.aperture((HEIGHT,WIDTH), 1,0.2)
 

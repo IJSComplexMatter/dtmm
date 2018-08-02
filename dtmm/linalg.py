@@ -1,5 +1,5 @@
 """
-Some numba optimized linear algebra functions for 4x4 matrices
+Numba optimized linear algebra functions for 4x4 matrices.
 """
 
 from __future__ import absolute_import, print_function, division
@@ -577,10 +577,10 @@ def dotmdmf(a, d,b,f, out):
     _dotmdmf(a,d, b, f,out)
     
 @guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k)->(n,m,k)",target = "cpu", cache = NUMBA_CACHE)
-def dotmtmf(a, d,b,f, out):
+def dotmtmf(a, t,b,f, out):
     """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
     assert b.shape[0] >= 4 #make sure it is not smaller than 4
-    _dotmtmf(a,d, b, f,out)
+    _dotmtmf(a,t, b, f,out)
 #
 #@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NFDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(m,k,l,l),(n,m,k)->(n,m,k)",target = "cpu")
 #def dotmdmrf(a, d,b,r,f, out):
@@ -647,7 +647,8 @@ def dotmv(a, b, out):
     
 @guvectorize([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:,:])],"(n,n),(n),(n,n)->(n,n)",target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def dotmdm(a, d, b, out):
-    """Computes a dot product of a 4x4 matrix with a diagonal matrix and another 4x4 matrix"""
+    """Computes a dot product of a 4x4 matrix with a diagonal matrix (4-vector) 
+    and another 4x4 matrix"""
     assert a.shape[0] >= 4 #make sure it is not smaller than 4 
     _dotmd(a, d, out)
     _dotmm(out,b,out)

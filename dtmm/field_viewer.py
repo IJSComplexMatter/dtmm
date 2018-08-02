@@ -11,7 +11,7 @@ import scipy.ndimage as nd
 from dtmm.color import load_tcmf, specter2color
 from dtmm.diffract import diffract, diffraction_matrix
 from dtmm.field import field2specter
-from dtmm.jones import polarizer_matrix, apply_polarizer_matrix
+from dtmm.jones import linear_polarizer, apply_jones_matrix
 from dtmm.wave import k0
 from dtmm.data import refind2eps
 from dtmm.conf import BETAMAX
@@ -296,7 +296,7 @@ class FieldViewer(object):
                 out = np.empty_like(tmp[0,0])
             if self.analyzer is not None:
                 angle = -np.pi/180*(self.analyzer - sample)
-                pmat = polarizer_matrix(angle)
+                pmat = linear_polarizer(angle)
             
             for i,data in enumerate(tmp):
                 if self.polarizer is not None:
@@ -307,7 +307,7 @@ class FieldViewer(object):
                     ffield = data
                     
                 if self.analyzer is not None:
-                    pfield = apply_polarizer_matrix(pmat, ffield, out = out)
+                    pfield = apply_jones_matrix(pmat, ffield, out = out)
                 else:
                     pfield = ffield
                 if i == 0:

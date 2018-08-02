@@ -256,7 +256,7 @@ For a more general rotation, say a 0.3 rotation around the *z* axis (yaw), follo
 
 .. doctest::
 
-   >>> mat = dtmm.rotation_matrix(0.3,0.4,0.5)
+   >>> mat = dtmm.rotation_matrix((0.3,0.4,0.5))
 
 It is up to the user to apply a mask or to specify the optical data parameters of these out of domain data points. 
 

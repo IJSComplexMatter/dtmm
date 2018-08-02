@@ -32,13 +32,40 @@ def diaphragm2rays(diaphragm, betastep = 0.1, norm = True):
     if norm == True:
         intensity = intensity/ intensity.sum() * len(intensity)
     return np.asarray(beta[mask],FDTYPE), np.asarray(phi[mask],FDTYPE), np.asarray(intensity,FDTYPE)
-    
-def illumination_rays(NA, diameter = 5, alpha = 0.2):
-    diameter = int(diameter)
-    betastep = 2.*NA/(diameter-1)
-    diaphragm = aperture((diameter,diameter))
-    return diaphragm2rays(diaphragm, betastep = betastep, norm = True)
 
+def illumination_diaphragm(diameter = 5., sharpness = 0.5):
+    n = int(round(diameter))
+    alpha = max(min(1.-sharpness,0),1)
+    diaphragm = aperture((n,n), diameter/n, alpha)
+    return diaphragm
+  
+def illumination_rays(NA, diameter = 5., sharpness = 0.5):
+    """Returns beta, phi, intensity values for illumination.
+    
+    This function can be used to define beta,phi,intensiy arrays that can be used to
+    construct illumination data with the :func:`illumination_data` function.
+    The resulting beta,phi parameters define directions of rays for the input 
+    light with a homogeneous angular distribution of rays - input
+    light with a given numerical aperture.
+    
+    Parameters
+    ----------
+    NA : float
+        Approximate numerical aperture of the illumination.
+    diameter : int
+        Field aperture diaphragm diameter in pixels. Approximate number of rays
+        is np.pi*(diameter/2)**2
+    sharpness : float, optional
+        Sharpness of diaphragm edge between 0. and 1.
+        
+    Returns
+    -------
+    beta,phi, intensity : ndarrays
+        Ray parameters  
+    """
+    betastep = 2.*NA/(diameter-1)
+    diaphragm = illumination_diaphragm(diameter, sharpness)
+    return diaphragm2rays(diaphragm, betastep = betastep, norm = True)
 
 def illumination_betaphi(NA, nrays = 13):
     """Returns beta, phi values for illumination.
@@ -149,7 +176,7 @@ def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., jones = None
 
 def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., intensity = 1.,
                       n = 1., focus = 0., window = None, backdir = False, 
-                      jones = None, betamax = 0.9):
+                      jones = None, betamax = BETAMAX):
     """Constructs forward (or backward) propagating input illumination field data.
     
     Parameters
@@ -211,9 +238,9 @@ def _field2intensity(field, out):
 def field2intensity(field, out):
     """field2intensity(field)
     
-Converts field array of shape [...,4,height,width] to specter array
+Converts field array of shape [...,4,height,width] to intensity array
 of shape [...,height,width]. For each pixel element, a normal
-component of Poynting vector is computed.
+component of the Poynting vector is computed.
     
 Parameters
 ----------
@@ -226,6 +253,7 @@ Returns
 -------
 spec : ndarray
     Computed intensity array"""  
+    assert len(field) == 4
     _field2intensity(field, out)
 
 @nb.njit([(NCDTYPE[:,:,:,:],NFDTYPE[:,:,:])], parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE)
