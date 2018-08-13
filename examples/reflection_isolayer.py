@@ -8,7 +8,7 @@ THICKNESS = 100.
 #: pixel size in nm
 PIXELSIZE = 200
 #: compute box dimensions
-NLAYERS, HEIGHT, WIDTH = 1,128,128
+NLAYERS, HEIGHT, WIDTH = 1,96,96
 #: illumination wavelengths in nm
 WAVELENGTHS = np.linspace(500,600,11)
 #: some experimental data
