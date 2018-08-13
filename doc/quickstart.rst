@@ -23,7 +23,7 @@ Here we have generated a director data array and saved it to a binary file writt
 
     >>> director = dtmm.read_director("director.raw", (NLAYERS, HEIGHT, WIDTH ,3))
 
-By default, data is assumed to be stored in double precision and with "zyxn" data order and system endianness. If you have data in double precision and different order, these have to be specified. For instance, if data is in "xyzn" order, meaning that first axis is "x", and third axis is "z" coordinate (layer index) and the last axis is the director vector, and the data is in single precision little endianness, do::
+By default, data is assumed to be stored in double precision and with "zyxn" data order and system endianness. If you have data in single precision and different order, these have to be specified. For instance, if data is in "xyzn" order, meaning that first axis is "x", and third axis is "z" coordinate (layer index) and the last axis is the director vector, and the data is in single precision little endianness, do::
 
     >>> director = dtmm.read_director("test.raw", (WIDTH,HEIGHT,NLAYERS,3),
     ...        order = "xyzn", dtype = "float32", endian = "little")
@@ -52,13 +52,17 @@ Of course you can provide any mask, just that the shape of the mask must mach th
 
    For testing, there is a :func:`dtmm.nematic_droplet_data` function that you can call to construct a test data of nematic droplet data directly. See :ref:`optical-data` for details.
 
-Sometimes you will need to reshape the compute box (increase the volume). You can do that with
+Sometimes you will need to expand the compute box (increase the volume). You can do that with
 
 .. doctest::
 
-   >>> director_large = dtmm.reshape_volume(director, (60,128,128))
+   >>> director_large = dtmm.expand(director, (60,128,128))
 
 This grows the compute box in lateral dimensions symmetrically, by filling the missing data points with zeros. For a more complex data creation please refer to the :ref:`optical-data` format.
+
+.. note::
+
+   By expansion in lateral dimension we provide more space between the borders and the feature the we wish to observe. This way we can reduce border effects due to the periodic boundary conditions implied by the Fourier transform that is used in diffraction calculation. 
 
 Transmission Calculation
 ------------------------
@@ -68,7 +72,7 @@ In this part we will cover transmission calculation and light creation functions
 Single ray
 ++++++++++
 
-Now that we have defined the sample data we need to construct initial (input) electro-magnetic field. Electro magnetic field is defined by an array of shape *(4,height,width)* where the first axis defines the component of the field, that is, an :math:`E_x`, :math:`H_y`, :math:`E_y` and :math:`H_x` components of the EM field specified at each of the (y,x) coordinates. Typically, you will calculate transmission spectra, so multiple  wavelengths need to be simulated. A multi-wavelength field has a shape of (n_wavelengths,4,height,width). You can define a multi-wavelength input light electro-magnetic field data with a :func:`dtmm.illumination_data` helper function. 
+Now that we have defined the sample data we need to construct initial (input) electro-magnetic field. Electro magnetic field is defined by an array of shape *(4,height,width)* where the first axis defines the component of the field, that is, an :math:`E_x`, :math:`H_y`, :math:`E_y` and :math:`H_x` components of the EM field specified at each of the (y,x) coordinates. To calculate transmission spectra, multiple  wavelengths need to be simulated. A multi-wavelength field has a shape of (n_wavelengths,4,height,width). You can define a multi-wavelength input light electro-magnetic field data with a :func:`dtmm.illumination_data` helper function. 
 
 .. doctest::
 
@@ -76,7 +80,7 @@ Now that we have defined the sample data we need to construct initial (input) el
    >>> WAVELENGTHS = np.linspace(380,780,11)
    >>> field_data = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, jones = (1,0)) 
 
-Here we have defined an x-polarized light (we used jones vector of (1,0)). A left-handed circular polarized light light can be defined by:: 
+Here we have defined an x-polarized light (we used jones vector of (1,0)). A left-handed circular polarized light can be defined by:: 
 
    >>> jones = (1/2**0.5,1j/2**0.5)
 
@@ -89,7 +93,7 @@ or equivalently:
 
    The `illumination_data` function expects the jones vector to be normalized, as it is directly multiplied with EM field coefficients. If this vector is not normalized, intensity of the illumination data changes accordingly. 
 
-Typically, you want input light to be non-polarized. A non-polarized light is taken to be a combination of *x* and *y* polarizations that are transmitted independently and the resulting intensity measured by the detector is an incoherent addition of both of the contributions from both of the two polarizations. So to simulate a non-polarized light, you have to compute both of the polarization states. The illumination_data function can be used to cunstruct such data. Just specify jones parameter to None or call the function without the jones parameter:
+Most times you need the input light to be non-polarized. A non-polarized light is taken to be a combination of *x* and *y* polarizations that are transmitted independently and the resulting intensity measured by the detector is an incoherent addition of both of the contributions from both of the two polarizations. So to simulate a non-polarized light, you have to compute both of the polarization states. The illumination_data function can be used to construct such data. Just specify jones parameter to None or call the function without the jones parameter:
 
 .. doctest::
 
@@ -156,7 +160,7 @@ After the transmitted field has been calculated, we can simulate optical polariz
 
    >>> viewer = dtmm.field_viewer(field_data_out, n = 1.5)
 
-which returns a FieldViewer object. Here 
+which returns a FieldViewer object.
 
 .. warning::
 
@@ -186,6 +190,8 @@ To adjust the intensity of the input light you can set:
 .. doctest::
 
    >>> viewer.intensity = 0.5
+
+The intensity value is a multiplication coefficient for the computed spectra. So a value of 0.5 decreases the intensity by a factor of 0.5. 
 
 If input field was defined to be non polarized, you can set the polarizer
 

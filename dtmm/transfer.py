@@ -3,14 +3,15 @@ Main top level calculation functions for light propagation through optical data.
 """
 from __future__ import absolute_import, print_function, division
 
-from dtmm.conf import DTMMConfig, cached_function, BETAMAX
+from dtmm.conf import DTMMConfig, cached_function, BETAMAX, FDTYPE
 from dtmm.wave import k0, eigenwave, betaphi
 
 from dtmm.data import uniaxial_order, refind2eps, validate_optical_data
-from dtmm.tmm import alphaffi_xy, phasem, phasem_t
-from dtmm.linalg import dotmdm, dotmm, dotmf, dotmdmf,dotmtmf
+from dtmm.tmm import alphaffi_xy, phasem, phasem_t, alphajji_xy, alphaf_xy, transmission_mat
+from dtmm.linalg import dotmdm, dotmm, dotmf, dotmdmf, dotm1f, inv
 from dtmm.print_tools import print_progress
-from dtmm.diffract import projection_matrix, diffract, phase_matrix, diffraction_matrix
+from dtmm.diffract import diffraction_alphaffi_xy, projection_matrix, diffract, phase_matrix, \
+               diffraction_matrix, jones_diffraction_matrix, jones_transmission_matrix
 from dtmm.field import field2intensity
 from dtmm.fft import fft2, ifft2
 from dtmm.jones import polarizer, apply_jones_matrix, jonesvec
@@ -55,14 +56,33 @@ def correction_matrix(beta,phi,ks, d=1., epsv = (1,1,1), epsa = (0,0,0.), out = 
     return dotmdm(f,pmat,fi, out = out)
 
 @cached_function
+def jones_correction_matrix(beta,phi,ks, d=1., epsv = (1,1,1), epsa = (0,0,0.), out = None):
+    alpha, j, ji = alphajji_xy(beta,phi,epsa,epsv)  
+    kd = -np.asarray(ks)*d
+    pmat = phase_matrix(alpha, kd)  
+    return dotmdm(j,pmat,ji, out = out)
+
+@cached_function
 def corrected_diffraction_matrix(shape, ks, beta,phi, d=1.,
                                  epsv = (1,1,1), epsa = (0,0,0.), betamax = BETAMAX, out = None):
+ 
     dmat = diffraction_matrix(shape, ks, d, epsv, epsa, betamax = betamax)
     cmat = correction_matrix(beta, phi, ks, d, epsv, epsa)
     if d > 0:
         return dotmm(dmat,cmat, out = None)
     else:
         return dotmm(cmat, dmat, out = None)
+    
+@cached_function
+def corrected_jones_diffraction_matrix(shape, ks, beta,phi, d=1.,
+                                 epsv = (1,1,1), epsa = (0,0,0.), betamax = BETAMAX, out = None):
+    dmat = jones_diffraction_matrix(shape, ks, d, epsv, epsa, betamax = betamax)
+    cmat = jones_correction_matrix(beta, phi, ks, d, epsv, epsa)
+    if d > 0:
+        return dotmm(dmat,cmat, out = None)
+    else:
+        return dotmm(cmat, dmat, out = None)
+
     
 def normalize_field(field, intensity_in, intensity_out, out = None):
     m = intensity_out == 0.
@@ -94,6 +114,9 @@ def diffract_normalized_fft(field, dmat, window = None, ref = None, out = None):
 def diffract_normalized_local(field, dmat, window = None, ref = None, out = None):
     lmat = polarizer(jonesvec((1,1j)))
     rmat = polarizer(jonesvec((1,-1j)))
+    
+    #lmat = polarizer(jonesvec((1,0)))
+    #rmat = polarizer(jonesvec((0,1)))    
     if ref is not None:
         intensity1l = field2intensity(apply_jones_matrix(lmat, ref))
         intensity1r = field2intensity(apply_jones_matrix(rmat, ref))
@@ -172,6 +195,28 @@ def _projected_field2(field, wavenumbers, mode, n = 1, betamax = BETAMAX, norm =
         return diffract(field, pmat, out = out) 
     else:
         return diffract_normalized_local(field, pmat, out = out)
+    
+#def jones2H(jones,beta = 0., phi = 0., n = 1., out = None):
+#    eps = refind2eps([n]*3)
+#    layer = np.asarray((0.,0.,0.), dtype = FDTYPE)
+#    alpha, f = alphaf_xy(beta,phi,layer,eps) 
+#    A = f[...,::2,::2]
+#    B = f[...,1::2,::2]
+#    Ai = inv(A)
+#    D = dotmm(B,Ai)
+#    return dotm1f(D,jones,out)
+
+def jones2H(jones, wavenumbers, n = 1., betamax = BETAMAX, out = None):  
+    eps = refind2eps([n]*3)
+    shape = jones.shape[-2:]
+    layer = np.asarray((0.,0.,0.), dtype = FDTYPE)
+    alpha, f, fi = diffraction_alphaffi_xy(shape, wavenumbers, epsv = eps, 
+                            epsa = layer, betamax = betamax)
+    A = f[...,::2,::2]
+    B = f[...,1::2,::2]
+    Ai = inv(A)
+    D = dotmm(B,Ai)  
+    return diffract(jones, D, out = out) 
 
 def transmitted_field(field, wavenumbers, n = 1, betamax = BETAMAX, norm = None,  ref = None, out = None):
     """Computes transmitted (forward propagating) part of the field.
@@ -245,7 +290,7 @@ def normalize_input_field(field, wavenumbers, rfield, n=1, betamax = BETAMAX, ou
     return np.add(rfield, r, out = out)
 
 def transfer_field(field_data, optical_data, beta = 0., phi = 0., nin = 1., nout = 1.,  
-           npass = 1,nstep=1,diffraction = True, interference = True, norm = DTMM_NORM_FFT,
+           npass = 1,nstep=1,diffraction = True, reflections = True, interference = False, norm = DTMM_NORM_FFT,
               window = None, betamax = BETAMAX, split = False, method = "effective", eff_data = None):
     """Tranfers input field data through optical data.
     
@@ -282,6 +327,8 @@ def transfer_field(field_data, optical_data, beta = 0., phi = 0., nin = 1., nout
         Whether to perform difraction caclulation or not. Setting this to False 
         will dissable diffraction calculation (standard 4x4 method). Diffraction
         is enabled by default.
+    reflections : bool, optional
+        Whether to include reflections from effective layers or not.
     interference : bool, optional
         Whether to enable interference. Interference is automatically enabled with 
         npass > 1.
@@ -309,7 +356,7 @@ def transfer_field(field_data, optical_data, beta = 0., phi = 0., nin = 1., nout
     if split == False:
         return _transfer_field(field_data, optical_data, beta = beta, 
                        phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
-                  diffraction = diffraction, interference = interference, norm = norm,
+                  diffraction = diffraction, reflections = reflections, interference = interference, norm = norm,
                   window = window, betamax = betamax, method = method)
     else:#split input data by rays and compute ray-by-ray
         
@@ -326,7 +373,7 @@ def transfer_field(field_data, optical_data, beta = 0., phi = 0., nin = 1., nout
             out = field_out[i]
             _transfer_field(field_data, optical_data, beta = beta, 
                        phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
-                  diffraction = diffraction, interference = interference, norm = norm,
+                  diffraction = diffraction, reflections = reflections, interference = interference, norm = norm,
                   window = window, betamax = betamax, out = out)
             
         return field_out, wavelengths, pixelsize
@@ -334,7 +381,7 @@ def transfer_field(field_data, optical_data, beta = 0., phi = 0., nin = 1., nout
 
 def _transfer_field(field_data, optical_data, beta = 0., 
                    phi = 0., eff_data = None, nin = 1., nout = 1., npass = 1,nstep=1,
-              diffraction = True, interference = True, norm = DTMM_NORM_FFT,
+              diffraction = True, reflections = True, interference = False, norm = DTMM_NORM_FFT,
               window = None, betamax = BETAMAX, method = "effective",out = None):
     """Tranfers input field data through optical data. See transfer_field.
     """
@@ -370,6 +417,7 @@ def _transfer_field(field_data, optical_data, beta = 0.,
     substeps = np.broadcast_to(np.asarray(nstep),(n,))
     
     #define input ray directions. Either a scalar or 1D array
+    beta0, phi0 = _validate_betaphi(beta,phi,extendeddim = field_in.ndim-4)
     beta, phi = _validate_betaphi(beta,phi,extendeddim = field_in.ndim-2)
     
     #define output field
@@ -384,10 +432,7 @@ def _transfer_field(field_data, optical_data, beta = 0.,
  
     field0 = field_in.copy()
     field = field_in.copy()
-    if calc_reference:
-        ref = field0.copy()
-    else:
-        ref = None
+
     
     field_in[...] = 0.
             
@@ -395,11 +440,30 @@ def _transfer_field(field_data, optical_data, beta = 0.,
     interference = True if npass > 1 else interference
     mode = "t" if interference == False else None
     
+    if mode == "t" or (norm == 2 and interference == True):
+        #make sure we take only the forward propagating part of the field
+        transmitted_field(field, ks, n = nin, betamax = betamax, out = field)
+
+    if calc_reference:
+        ref = field.copy()
+    else:
+        ref = None    
+    
     i0 = field2intensity(transmitted_field(field0, ks, n = nin, betamax = betamax))
     i0 = i0.sum(tuple(range(i0.ndim))[-2:]) 
-    
+
+
+
     out_affi = None #tmp data
     out_phase = None
+    
+    input_layer = None
+    
+    if interference == True or reflections == False:
+        input_layer = None
+        reflections = False
+    else:
+        input_layer = (0., refind2eps([nin]*3), np.array((0.,0.,0.), dtype = FDTYPE))
 
     for i in range(npass):
         if verbose_level > 0:
@@ -409,26 +473,42 @@ def _transfer_field(field_data, optical_data, beta = 0.,
             prefix = ""
             suffix = "{}/{}".format(i+1,npass)
 
-        i0i = total_intensity(transmitted_field(field, ks, n = nin, betamax = betamax))
+        if mode == "t":
+            
+            field = field[...,::2,:,:]
+        
         for pindex, j in enumerate(indices):
             print_progress(pindex,n,level = verbose_level, suffix = suffix, prefix = prefix) 
             thickness = d[j]*(-1)**i
             thickness_eff = d_eff[j]*(-1)**i
+            
+
             if calc_reference and i%2 == 0 and interference == True:
-                out_affi,out_phase,ref = propagate_field_effective(ref, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
+                ref2 = propagate_field_effective(ref[...,::2,:,:], ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
                             beta = beta, phi = phi, nsteps = substeps[j], diffraction = diffraction, mode = "t",
-                            betamax = betamax, ret_affi = True, out = ref, out_affi = out_affi, out_phase = out_phase)
+                            betamax = betamax, ret_affi = False, out = ref[...,::2,:,:])
+                ref[...,1::2,:,:] = jones2H(ref2,ks,betamax = betamax, n = nout)
+            
             if method == "effective":
+                input_layer 
                 out_affi,out_phase,field = propagate_field_effective(field, ks, (thickness, epsv[j], epsa[j]),(thickness_eff, epsv_eff[j], epsa_eff[j]), 
-                            beta = beta, phi = phi, nsteps = substeps[j], diffraction = diffraction, mode = mode,
+                            beta = beta, phi = phi, nsteps = substeps[j], diffraction = diffraction, mode = mode, input_layer = input_layer,
                             betamax = betamax, ret_affi = True, out = field, out_affi = out_affi, out_phase = out_phase)
 
             else:
-                out_affi,out_phase,field = propagate_field_full(field, ks, (thickness, epsv[j], epsa[j]), 
+                field = propagate_field_full(field, ks, (thickness, epsv[j], epsa[j]), 
                             nsteps = substeps[j], mode = mode,
-                            betamax = betamax, ret_affi = True, out = field, out_affi = out_affi, out_phase = out_phase)
+                            betamax = betamax, out = field)
 
+            if input_layer is not None:
+                input_layer = (0, epsv_eff[j], epsa_eff[j])
 
+            
+        if input_layer is not None:
+            transmit_jones(field, ks,  layer_in =(0, epsv_eff[j],epsa_eff[j]),
+                                       layer_out =(0., refind2eps([nout]*3), np.array((0.,0.,0.), dtype = FDTYPE)),  out = field)
+
+            
       
         print_progress(n,n,level = verbose_level, suffix = suffix, prefix = prefix) 
         
@@ -439,14 +519,7 @@ def _transfer_field(field_data, optical_data, beta = 0.,
                     if verbose_level > 1:
                         print(" * Normalizing transmissions.")
                     if calc_reference:
-                        #normalize reference field, so that total intesity equals total intensity of input light
-                        ref = transmitted_field(ref, ks, n = nin, betamax = betamax, out = ref)
-                        i0tmp = field2intensity(ref)
-                        i0s = i0tmp.sum(tuple(range(i0tmp.ndim))[-2:])
-                        fact = (i0i/i0s)
-                        fact = fact[...,None,None,None]
-                        ref = np.multiply(fact,ref, out = ref)
-                    
+                        np.multiply(ref, (nin/nout)**0.5,ref)
                     field = transmitted_field(field, ks, n = nout, betamax = betamax, norm = norm, ref = ref, out = field)
                     if window is not None:
                         field = np.multiply(field,window,field)
@@ -470,7 +543,15 @@ def _transfer_field(field_data, optical_data, beta = 0.,
                         ref = field.copy()
                         
         else:
-            field_out[...] = field
+            if mode == "t":
+                field_out[...,::2,:,:] = field
+                #field_out[...,1::2,:,:] = jones2H(field,beta = beta0, phi = phi0, n = nout)
+                field_out[...,1::2,:,:] = jones2H(field,ks,betamax = betamax, n = nout)
+                if reflections == False:
+                    #conservation of energy...
+                    np.multiply(field_out, (nin/nout)**0.5,field_out)
+            else:
+                field_out[...] = field
             field_in[...] = field0
             
 
@@ -478,7 +559,7 @@ def _transfer_field(field_data, optical_data, beta = 0.,
 
 
 def propagate_field_effective(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,
-                    nsteps = 1, diffraction = True, mode = None,
+                    nsteps = 1, diffraction = True, mode = None, input_layer = None,
                     betamax = BETAMAX, ret_affi = False, out_affi = None, out_phase = None,out = None):
     
     shape = field.shape[-2:]
@@ -487,18 +568,43 @@ def propagate_field_effective(field, wavenumbers, layer, effective_layer, beta =
     kd = wavenumbers*d/nsteps
     d_eff = d_eff/nsteps
     
-    alpha, f, fi = alphaffi_xy(beta,phi,epsa,epsv, out = out_affi)
+    dmat0 = None
+    rmat = None
     
-    if diffraction == True:
-        dmat = corrected_diffraction_matrix(shape, wavenumbers, beta,phi, d=d_eff,
-                         epsv = epsv_eff, epsa = epsa_eff, betamax = betamax)
     if mode == "t":
-        p = phasem_t(alpha,kd[...,None,None], out = out_phase)
-    else:
-        p = phasem(alpha,kd[...,None,None], out = out_phase)
-    for j in range(nsteps):
+        alpha, f, fi = alphajji_xy(beta,phi,epsa,epsv, out = out_affi)
         if diffraction == True:
+            dmat0 = corrected_jones_diffraction_matrix(shape, wavenumbers, beta,phi, d=d_eff,
+                 epsv = epsv_eff, epsa = epsa_eff, betamax = betamax)
+        if input_layer is not None:
+            d_in, epsv_in, epsa_in = input_layer
+            #calculate fresnel coefficents for reflection
+            rmat = jones_transmission_matrix(shape, wavenumbers, epsv_in = epsv_in, epsa_in = epsa_in,
+                                                 epsv_out = epsv_eff, epsa_out = epsa_eff)
+    else:
+        alpha, f, fi = alphaffi_xy(beta,phi,epsa,epsv, out = out_affi)
+        if diffraction == True:
+            dmat0 = corrected_diffraction_matrix(shape, wavenumbers, beta,phi, d=d_eff,
+                 epsv = epsv_eff, epsa = epsa_eff, betamax = betamax)
+    
+    
+    p = phasem(alpha,kd[...,None,None], out = out_phase)
+    
+
+
+    for j in range(nsteps):
+        if dmat0 is not None or rmat is not None:
+            #with diffraction
+            if rmat is not None:
+                if dmat0 is not None:
+                    dmat = dotmm(dmat0,rmat)
+                else:
+                    dmat = rmat
+                rmat = None
+            else:
+                dmat = dmat0
             if d > 0:
+                
                 field = diffract(field, dmat, out = out)
                 field = dotmdmf(f,p,fi,field, out = field)
             else:
@@ -506,27 +612,42 @@ def propagate_field_effective(field, wavenumbers, layer, effective_layer, beta =
                 field = dotmdmf(f,p,fi,field, out = field)
                 field = diffract(field, dmat, out = field)
         else:
+            #without diffraction
             field = dotmdmf(f,p,fi,field, out = out)
+        
         out = field
     if ret_affi == True:
         return (alpha, f, fi), out_phase, out
     else:
         return out
 
-
-def propagate_field_full(field, wavenumbers, layer, 
+def transmit_jones(field, wavenumbers, layer_in, layer_out, betamax = BETAMAX, out = None):
+    shape = field.shape[-2:]
+    d, epsv_in, epsa_in = layer_in
+    d, epsv_out, epsa_out = layer_out
+    dmat = jones_transmission_matrix(shape, wavenumbers, epsv_in = epsv_in, epsa_in = epsa_in,
+                                                 epsv_out = epsv_out, epsa_out = epsa_out, betamax = betamax)
+    return diffract(field, dmat, out = field)
+      
+def propagate_field_full(field, wavenumbers, layer, input_layer = None,
                     nsteps = 1,  mode = None,
-                    betamax = BETAMAX, ret_affi = False, out_affi = None, out_phase = None,out = None):
+                    betamax = BETAMAX, out = None):
 
     shape = field.shape[-2:]
+    n = field.shape[-3]
+   
     d, epsv, epsa = layer
+    if input_layer is not None:
+        d_in, epsv_in, epsa_in = input_layer
     kd = wavenumbers*d/nsteps
     
     if out is None:
         out = np.empty_like(field)
     
-        
-    shape = field.shape[-2:]
+    out_af_in = None
+    out_af = None
+    pm = None
+    tmat = None
     
     ii,jj = np.meshgrid(range(shape[0]), range(shape[1]),copy = False, indexing = "ij") 
     
@@ -546,18 +667,28 @@ def propagate_field_full(field, wavenumbers, layer,
             
             for j, bp in enumerate(zip(betas,phis)):     
                 beta, phi = bp
-                alpha, f, fi = alphaffi_xy(beta,phi,epsa,epsv, out = out_affi)
-                p = phasem(alpha,kd[i], out = out_phase)
+                if n == 4:
+                    out_af = alphaffi_xy(beta,phi,epsa,epsv, out = out_af)
+                    alpha,f,fi = out_af
+                else:
+                    out_af = alphaf_xy(beta,phi,epsa,epsv, out = out_af)
+                    alpha,fout = out_af 
+                    alpha = alpha[...,::2]
+                    f = fout[...,::2,::2]
+                    fi = inv(f)
+                    if input_layer is not None:
+                        alphain, fin = alphaf_xy(beta,phi,epsa_in,epsv_in, out = out_af_in)
+                        tmat = transmission_mat(fin,f, out = tmat)
+                        dotmm(fi,tmat,out = fi)
+                        input_layer = None
+                        
+                pm = phasem(alpha,kd[i], out = pm)
                 w = eigenwave(amplitude.shape[:-1]+shape, iind[j],jind[j], amplitude = amplitude[...,j])
-                w = dotmdmf(f,p,fi,w, out = w)
+                w = dotmdmf(f,pm,fi,w, out = w)
                 np.add(ofield,w,ofield)
             out[...,i,:,:,:] = ofield
         field = out
-
-    if ret_affi == True:
-        return (alpha, f, fi), out_phase, out
-    else:
-        return out
+    return out
 
 
 __all__ = ["transfer_field", "transmitted_field", "reflected_field"]

@@ -145,7 +145,7 @@ def rot90_director(data,axis = "+x", out = None):
         Array specifying director field with ndim = 4.
     axis: str
         Axis around which to perform rotation. Can be in the form of
-        '[s][n]a' where the optional parameter 's' can be "+" or "-" decribing 
+        '[s][n]X' where the optional parameter 's' can be "+" or "-" decribing 
         the sign of rotation. [n] is an integer describing number of rotations 
         to perform, and 'X' is one of 'x', 'y' 'z', and defines rotation axis.
     out : ndarray, optional

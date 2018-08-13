@@ -1,5 +1,5 @@
 """
-Numba optimized linear algebra functions for 4x4 matrices.
+Numba optimized linear algebra functions for 4x4 matrices and 2x2 martrices.
 """
 
 from __future__ import absolute_import, print_function, division
@@ -15,6 +15,21 @@ if NUMBA_PARALLEL == False:
 
 #numba.config.DUMP_ASSEMBLY = 1
 
+@njit([(NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def _inv2x2(src,dst):
+    a = src[0,0]
+    b = src[0,1]
+    c = src[1,0]
+    d = src[1,1]
+    det = a*d-b*c
+    if det == 0:
+        det = 0.#np.nan
+    else:
+        det = 1./det
+    dst[0,0] = d*det
+    dst[0,1] = -b*det
+    dst[1,0] = -c*det
+    dst[1,1] = a*det
 
 @njit([NCDTYPE[:,:](NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _inv4x4(src,dst):
@@ -77,7 +92,7 @@ def _inv4x4(src,dst):
     #            out[i,j] = dst[j + 4*i]*det
     #    return 1
     if det == 0:
-        det = np.nan
+        det = 0.#np.nan
     else:
         det = 1./det
     for i in range(4):
@@ -88,15 +103,15 @@ def _inv4x4(src,dst):
 
 
 @guvectorize([(NCDTYPE[:,:], NCDTYPE[:,:])], '(n,n)->(n,n)', target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def inv4x4(mat, output):
-    """inv4x4(mat)
+def inv(mat, output):
+    """inv(mat)
     
-Calculates inverse of a 4x4 complex matrix.
+Calculates inverse of a 4x4 complex matrix or 2x2 complex matrix
 
 Parameters
 ----------
 mat : array_like
-    A 4x4 complex matrix.
+    A 4x4 or 2x2 complex matrix.
 
 Examples
 --------
@@ -110,12 +125,17 @@ Examples
 >>> np.allclose(ai2,ai)
 True
     """
-    assert mat.shape[0] >= 4
-    _inv4x4(mat,output)
-
+    if mat.shape[0] == 2:
+        _inv2x2(mat,output)
+    else:
+        assert mat.shape[0] >= 4
+        _inv4x4(mat,output)
+        
+inv4x4 = inv
+inv2x2 = inv
 
 @njit([(NCDTYPE[:,:],NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE)    
-def _dotmm(a,b,out):
+def _dotmm4(a,b,out):
     a0 = a[0,0]*b[0,0]+a[0,1]*b[1,0]+a[0,2]*b[2,0]+a[0,3]*b[3,0]
     a1 = a[0,0]*b[0,1]+a[0,1]*b[1,1]+a[0,2]*b[2,1]+a[0,3]*b[3,1]
     a2 = a[0,0]*b[0,2]+a[0,1]*b[1,2]+a[0,2]*b[2,2]+a[0,3]*b[3,2]
@@ -155,6 +175,20 @@ def _dotmm(a,b,out):
     out[3,1] = d1
     out[3,2] = d2
     out[3,3] = d3 
+    
+@njit([(NCDTYPE[:,:],NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE)    
+def _dotmm2(a,b,out):
+    a0 = a[0,0]*b[0,0]+a[0,1]*b[1,0]
+    a1 = a[0,0]*b[0,1]+a[0,1]*b[1,1]
+
+    b0 = a[1,0]*b[0,0]+a[1,1]*b[1,0]
+    b1 = a[1,0]*b[0,1]+a[1,1]*b[1,1] 
+   
+    out[0,0] = a0
+    out[0,1] = a1
+
+    out[1,0] = b0
+    out[1,1] = b1
     
 @njit([(NCDTYPE[:,:],NFDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE)    
 def _dotmr2(a,b,out):
@@ -242,7 +276,7 @@ def _dotr2m(r,a,out):
     out[3,3] = d3 
     
 @njit([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])], cache = NUMBA_CACHE)
-def _dotmv(a, b, out):
+def _dotmv4(a, b, out):
     out0 = a[0,0] * b[0] + a[0,1] * b[1] + a[0,2] * b[2] +a[0,3] * b[3]
     out1 = a[1,0] * b[0] + a[1,1] * b[1] + a[1,2] * b[2] +a[1,3] * b[3]
     out2 = a[2,0] * b[0] + a[2,1] * b[1] + a[2,2] * b[2] +a[2,3] * b[3]
@@ -252,8 +286,15 @@ def _dotmv(a, b, out):
     out[2]= out2
     out[3]= out3
     
+@njit([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])], cache = NUMBA_CACHE)
+def _dotmv2(a, b, out):
+    out0 = a[0,0] * b[0] + a[0,1] * b[1] 
+    out1 = a[1,0] * b[0] + a[1,1] * b[1]
+    out[0]= out0
+    out[1]= out1
+    
 @njit([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE)
-def _dotmd(a, b, out):
+def _dotmd4(a, b, out):
     a0 = a[0,0]*b[0]
     a1 = a[0,1]*b[1]
     a2 = a[0,2]*b[2]
@@ -294,9 +335,23 @@ def _dotmd(a, b, out):
     out[3,2] = a2
     out[3,3] = a3
     
+@njit([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE)
+def _dotmd2(a, b, out):
+    a0 = a[0,0]*b[0]
+    a1 = a[0,1]*b[1]
+    
+    out[0,0] = a0
+    out[0,1] = a1
+
+    a0 = a[1,0]*b[0]
+    a1 = a[1,1]*b[1]
+  
+    out[1,0] = a0
+    out[1,1] = a1
+
     
 @njit([(NCDTYPE[:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE)
-def _dotm1f(a, b, out):
+def _dotm1f4(a, b, out):
     for i in prange(b.shape[1]):
         for j in range(b.shape[2]):
             b0 = b[0,i,j]
@@ -312,10 +367,23 @@ def _dotm1f(a, b, out):
             out[0,i,j]= out0
             out[1,i,j]= out1
             out[2,i,j]= out2
-            out[3,i,j]= out3    
+            out[3,i,j]= out3
+            
+@njit([(NCDTYPE[:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE)
+def _dotm1f2(a, b, out):
+    for i in prange(b.shape[1]):
+        for j in range(b.shape[2]):
+            b0 = b[0,i,j]
+            b1 = b[1,i,j]
+            
+            out0 = a[0,0] * b0 + a[0,1] * b1
+            out1 = a[1,0] * b0 + a[1,1] * b1 
+            
+            out[0,i,j]= out0
+            out[1,i,j]= out1
             
 @njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE)
-def _dotmf(a, b, out):
+def _dotmf4(a, b, out):
     for i in prange(b.shape[1]):
         for j in range(b.shape[2]):
             b0 = b[0,i,j]
@@ -333,8 +401,21 @@ def _dotmf(a, b, out):
             out[2,i,j]= out2
             out[3,i,j]= out3  
             
+@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE)
+def _dotmf2(a, b, out):
+    for i in prange(b.shape[1]):
+        for j in range(b.shape[2]):
+            b0 = b[0,i,j]
+            b1 = b[1,i,j]
+            
+            out0 = a[i,j,0,0] * b0 + a[i,j,0,1] * b1 
+            out1 = a[i,j,1,0] * b0 + a[i,j,1,1] * b1 
+            
+            out[0,i,j]= out0
+            out[1,i,j]= out1
+            
 @njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def _dotmdmf(a, d, b, f,out):
+def _dotmdmf4(a, d, b, f,out):
     for i in prange(f.shape[1]):
         for j in range(f.shape[2]):
             f0 = f[0,i,j]
@@ -356,10 +437,26 @@ def _dotmdmf(a, d, b, f,out):
             out[1,i,j]= a[i,j,1,0] * b0 + a[i,j,1,1] * b1 + a[i,j,1,2] * b2 +a[i,j,1,3] * b3
             out[2,i,j]= a[i,j,2,0] * b0 + a[i,j,2,1] * b1 + a[i,j,2,2] * b2 +a[i,j,2,3] * b3
             out[3,i,j]= a[i,j,3,0] * b0 + a[i,j,3,1] * b1 + a[i,j,3,2] * b2 +a[i,j,3,3] * b3   
-            
 
 @njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def _dotmtmf(a, d, b, f,out):
+def _dotmdmf2(a, d, b, f,out):
+    for i in prange(f.shape[1]):
+        for j in range(f.shape[2]):
+            f0 = f[0,i,j]
+            f1 = f[1,i,j]
+            
+            out0 = b[i,j,0,0] * f0 + b[i,j,0,1] * f1 
+            out1 = b[i,j,1,0] * f0 + b[i,j,1,1] * f1 
+            
+            b0 = out0*d[i,j,0]
+            b1 = out1*d[i,j,1]
+            
+            out[0,i,j]= a[i,j,0,0] * b0 + a[i,j,0,1] * b1 
+            out[1,i,j]= a[i,j,1,0] * b0 + a[i,j,1,1] * b1  
+                        
+
+@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def _dotmtmf4(a, d, b, f,out):
     for i in prange(f.shape[1]):
         for j in range(f.shape[2]):
             f0 = f[0,i,j]
@@ -378,8 +475,6 @@ def _dotmtmf(a, d, b, f,out):
             out[2,i,j]= a[i,j,2,0] * b0  + a[i,j,2,2] * b2 
             out[3,i,j]= a[i,j,3,0] * b0  + a[i,j,3,2] * b2    
             
-
-
 
 #@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NFDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = True)
 #def _dotmdmrf(a, d, b, r,f,out):
@@ -555,38 +650,36 @@ def _ftransmit(a, d, b, f,kd,out):
 @guvectorize([(NCDTYPE[:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(n,n),(n,m,k)->(n,m,k)",target = "cpu", cache = NUMBA_CACHE)
 def dotm1f(a, b, out):
     """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
-    assert a.shape[0] >= 4 #make sure it is not smaller than 4
-    _dotm1f(a, b, out)
+    if a.shape[0] == 2:
+        _dotm1f2(a, b, out)
+    else:
+        assert a.shape[0] >= 4 #make sure it is not smaller than 4
+        _dotm1f4(a, b, out)
 
 @guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(n,m,k)->(n,m,k)",target = "cpu", cache = NUMBA_CACHE)
 def dotmf(a, b, out):
     """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
-    assert b.shape[0] >= 4 #make sure it is not smaller than 4
-    _dotmf(a, b, out)
+    if b.shape[0] == 2:
+        _dotmf2(a, b, out)
+    else:
+        assert b.shape[0] >= 4 #make sure it is not smaller than 4
+        _dotmf4(a, b, out)
  
-#@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,l,n),(n,m,k)->(n,m,k)",target = "cpu")
-#def dotFf(a, b, out):
-#    """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
-#    assert b.shape[0] >= 4 #make sure it is not smaller than 4
-#    _dotFf(a, b, out)    
-    
+        
 @guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k)->(n,m,k)",target = "cpu", cache = NUMBA_CACHE)
 def dotmdmf(a, d,b,f, out):
     """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
-    assert b.shape[0] >= 4 #make sure it is not smaller than 4
-    _dotmdmf(a,d, b, f,out)
-    
+    if f.shape[0] == 2:
+        _dotmdmf2(a, d,b,f, out)
+    else:    
+        assert f.shape[0] >= 4 #make sure it is not smaller than 4
+        _dotmdmf4(a,d, b, f,out)
+        
 @guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k)->(n,m,k)",target = "cpu", cache = NUMBA_CACHE)
 def dotmtmf(a, t,b,f, out):
     """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
-    assert b.shape[0] >= 4 #make sure it is not smaller than 4
-    _dotmtmf(a,t, b, f,out)
-#
-#@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NFDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(m,k,l,l),(n,m,k)->(n,m,k)",target = "cpu")
-#def dotmdmrf(a, d,b,r,f, out):
-#    """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
-#    assert b.shape[0] >= 4 #make sure it is not smaller than 4
-#    _dotmdmrf(a,d, b, r, f,out)
+    assert f.shape[0] >= 4 #make sure it is not smaller than 4
+    _dotmtmf4(a,t, b, f,out)
 
 @guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NFDTYPE[:], NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k),()->(n,m,k)",target = "cpu", cache = NUMBA_CACHE)
 def transmit( a, d, b, f,kd, out):
@@ -595,43 +688,24 @@ def transmit( a, d, b, f,kd, out):
 @guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NFDTYPE[:], NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k),()->(n,m,k)",target = "cpu", cache = NUMBA_CACHE)
 def ftransmit( a, d, b, f,kd, out):
     _ftransmit( a, d, b, f, kd[0], out)
-    
-    
-#@guvectorize([( NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NFDTYPE[:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k),()->(n,m,k)",target = "cpu")
-#def btransmit(a, d, b, f,kd,out):
-#    _transmit( a, d, b, f,-kd[0],out)
-#    
-#@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NFDTYPE[:,:],NCDTYPE[:,:,:],NFDTYPE[:], NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(l,l),(n,m,k),()->(n,m,k)",target = "cpu")
-#def ftransmitr( a, d, b, r,f,kd, out):
-#    _transmitr( a, d, b,r, f, kd[0], out)
-#    
-#@guvectorize([( NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NFDTYPE[:,:],NCDTYPE[:,:,:],NFDTYPE[:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(l,l),(n,m,k),()->(n,m,k)",target = "cpu")
-#def btransmitr(a, d, b, r,f,kd,out):
-#    _transmitr( a, d, b, r,f,-kd[0],out)
-#
-#@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n)->(m,k,n)",target = "cpu")
-#def dotmf0(a, b, out):
-#    """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
-#    assert a.shape[0] >= 4 #make sure it is not smaller than 4
-#    _dotmf0(a, b, out)
-#
-#@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(n,n,m,k),(n,m,k)->(n,m,k)",target = "cpu")
-#def dotmf2(a, b, out):
-#    """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
-#    assert a.shape[2] >= 4 #make sure it is not smaller than 4
-#    _dotmf2(a, b, out)
-    
+        
 @guvectorize([(NCDTYPE[:,:],NCDTYPE[:,:],NCDTYPE[:,:])],"(n,n),(n,n)->(n,n)",target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def dotmm(a, b, out):
     """Computes a dot product of a 4x4 matrix with a 4x4 matrix"""
-    assert a.shape[0] >= 4 #make sure it is not smaller than 4
-    _dotmm(a, b, out)
-
+    if a.shape[0] == 2:
+        _dotmm2(a, b, out)
+    else:
+        assert a.shape[0] >= 4 #make sure it is not smaller than 4
+        _dotmm4(a, b, out)
+        
 @guvectorize([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])],"(n,n),(n)->(n,n)",target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def dotmd(a, b, out):
      """Computes a dot product of a 4x4 matrix with a diagonal matrix"""
-     assert a.shape[0] >= 4 #make sure it is not smaller than 4
-     _dotmd(a, b, out)
+     if a.shape[0]== 2:
+         _dotmd2(a, b, out)
+     else:
+         assert a.shape[0] >= 4 #make sure it is not smaller than 4
+         _dotmd4(a, b, out)
 
 @guvectorize([(NCDTYPE[:,:],NFDTYPE[:],NCDTYPE[:,:])],"(n,n),(m)->(n,n)",target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def dotmr2(a, b, out):
@@ -641,17 +715,25 @@ def dotmr2(a, b, out):
 
 @guvectorize([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])],"(n,n),(n)->(n)",target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def dotmv(a, b, out):
-    """Computes a dot product of a 4x4 matrix with a vector"""
-    assert a.shape[0] >= 4 #make sure it is not smaller than 4
-    _dotmv(a, b, out)
+    """Computes a dot product of a 4x4 or 2x2 matrix with a vector"""
+    if a.shape[0] == 2:
+        _dotmv2(a, b, out)
+    else:
+        assert a.shape[0] >= 4 #make sure it is not smaller than 4
+        _dotmv4(a, b, out)
     
 @guvectorize([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:,:])],"(n,n),(n),(n,n)->(n,n)",target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def dotmdm(a, d, b, out):
-    """Computes a dot product of a 4x4 matrix with a diagonal matrix (4-vector) 
-    and another 4x4 matrix"""
-    assert a.shape[0] >= 4 #make sure it is not smaller than 4 
-    _dotmd(a, d, out)
-    _dotmm(out,b,out)
+    """Computes a dot product of a 4x4 (or 2x2) matrix with a diagonal matrix (4- or 2-vector) 
+    and another 4x4 (or 2x2) matrix"""
+    #assert a.shape[0] >= 4 #make sure it is not smaller than 4 
+    if a.shape[0] == 2:
+        _dotmd2(a, d, out)
+        _dotmm2(out,b,out)
+    else:
+        assert a.shape[0] >= 4 #make sure it is not smaller than 4
+        _dotmd4(a, d, out)
+        _dotmm4(out,b,out)        
     
 
 

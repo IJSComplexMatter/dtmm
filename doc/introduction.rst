@@ -35,14 +35,14 @@ Status and limitations
 * No absorption yet - real dielectric tensors only.
 * Non-dispersive material only. 
 * Limited data IO functions.
-* Two methods (One additional `hybrid method` is in development):
+* Two approximate methods for slowly varying medium:
 
    * An `effective` method : very fast, neglects double refractions (suitable for low birefringence media)
    * A `full` method : very slow, most accurate.
 
 .. note::
 
-   EMF field propagation calculation is exact for homogeneous layers, but it is only approximate for inhomogeneous layers. It works reasonably well for slowly varying refractive index material (e.g. confined liquid crystals with slowly varying director field). 
+   EMF field propagation calculation is exact for homogeneous layers, but it is only approximate for inhomogeneous layers. It works reasonably well for slowly varying (within the layer) refractive index material (e.g. confined liquid crystals with slowly varying director field).  
 
 Other than that, the package is fully operational. Try the example below to get an impression on how it works.
 

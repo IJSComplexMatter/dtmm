@@ -160,13 +160,15 @@ def cached_function(f):
             pass     
         cache[key] = result
 
-    def to_key(arg):
+    def to_key(arg, name = None):
         from dtmm.hashing import hash_buffer 
         if isinstance(arg, np.ndarray):
-            return (arg.shape, arg.dtype, arg.strides, hash_buffer(arg))
+            arg = (arg.shape, arg.dtype, arg.strides, hash_buffer(arg))
             #return (arg.shape, arg.dtype, tuple(arg.flat))
-        else:
+        if name is None:
             return arg
+        else:
+            return (name, arg)
         
     def copy(result,out):
         if out is not None:
@@ -196,7 +198,7 @@ def cached_function(f):
     def _f(*args,**kwargs):
         try_read_from_cache = (kwargs.pop("cache",True) == True) and (DTMMConfig.cache != 0) and _f.cache is not None
         if try_read_from_cache:
-            key = tuple((to_key(arg) for arg in args)) + tuple((to_key(arg) for arg in kwargs.values()))
+            key = tuple((to_key(arg) for arg in args)) + tuple((to_key(arg, name = key) for key,arg in kwargs.items()))
             out = kwargs.pop("out",None)    
             try:
                 result = _f.cache[key]

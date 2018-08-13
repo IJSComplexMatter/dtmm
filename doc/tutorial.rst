@@ -246,6 +246,8 @@ gives a strong negative value in the red channel, which shows that the color is 
 
 with the blue and red channel clipped. We should have used wide-gamut color space and a monitor capable of displaying wider gamuts to display this color properly. As stated already, this package was not intended to be a full color management system and you should use your own CMS system if you need more complex color transforms and rendering.
 
+
+
 .. _`CIE 1931`: https://en.wikipedia.org/wiki/CIE_1931_color_space
 .. _`sRGB`: https://en.wikipedia.org/wiki/SRGB
 

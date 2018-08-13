@@ -57,11 +57,15 @@ Optical data (``dtmm.data``)
 Creation functions
 ++++++++++++++++++
 
+.. autofunction:: dtmm.data.cholesteric_director
+
+.. autofunction:: dtmm.data.cholesteric_droplet_data
+
+.. autofunction:: dtmm.data.expand
+
 .. autofunction:: dtmm.data.nematic_droplet_data
 
 .. autofunction:: dtmm.data.nematic_droplet_director
-
-.. autofunction:: dtmm.data.reshape_volume
 
 .. autofunction:: dtmm.data.rotate_director
 
@@ -161,11 +165,15 @@ Jones Calculus (``dtmm.jones``)
 
 .. automodule:: dtmm.jones
 
-.. autofunction:: dtmm.jones.apply_polarizer_matrix
+.. autofunction:: dtmm.jones.apply_jones_matrix
+
+.. autofunction:: dtmm.jones.circular_polarizer
 
 .. autofunction:: dtmm.jones.jonesvec
 
-.. autofunction:: dtmm.jones.polarizer_matrix
+.. autofunction:: dtmm.jones.linear_polarizer
+
+.. autofunction:: dtmm.jones.polarizer
 
 
 4x4 linear algebra (``dtmm.linalg``)

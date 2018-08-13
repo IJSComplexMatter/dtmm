@@ -40,10 +40,11 @@ def betaphi(shape, k0):
     #ax, ay = map(np.fft.fftfreq, shape,(d,)*len(shape))
     ay, ax = map(np.fft.fftfreq, shape)
     xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
-    phi = np.arctan2(yy,xx)
     beta = (2 * np.pi / k0) * np.sqrt(xx**2 + yy**2)
-    return np.asarray(beta, dtype = FDTYPE), np.asarray(phi, dtype = FDTYPE)
-
+    beta = np.asarray(beta, dtype = FDTYPE)
+    phi = np.empty_like(beta)
+    phi[...,:,:] = np.arctan2(yy,xx)
+    return beta, phi
 
 def betaxy(shape, k0):
     """Returns betax, betay arrays of plane eigenwaves with 
@@ -150,4 +151,4 @@ def mean_betaphi(wave, k0, beta, phi):
     beta[0] = (betax**2+betay**2)**0.5
     phi[0] = np.arctan2(betay,betax)
 
-__all__ = [ "betaphi","planewave"]
+__all__ = [ "betaphi","planewave","k0"]
