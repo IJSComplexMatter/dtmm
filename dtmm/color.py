@@ -5,7 +5,7 @@ Color conversion functions and utilities.
 
 from __future__ import absolute_import, print_function, division
 
-from dtmm.conf import FDTYPE, NUMBA_TARGET, NFDTYPE, NCDTYPE, NUMBA_CACHE, DATAPATH
+from dtmm.conf import FDTYPE, NUMBA_TARGET, NFDTYPE, NCDTYPE, NUMBA_CACHE, DATAPATH, CMF
 
 import numpy as np
 import numba
@@ -13,8 +13,7 @@ import os
 
 #DATAPATH = os.path.join(os.path.dirname(__file__), "data")
 
-#: path to 2-deg XYZ 5nm CMFs 
-CMFPATH = os.path.join(DATAPATH, "CIE1931XYZ.dat" )
+
 # D65 standard light 5nm specter
 D65PATH = os.path.join(DATAPATH, "D65.dat" )
 #: color matrix for sRGB color space in D65 reference white
@@ -224,7 +223,7 @@ def normalize_specter(spec, cmf, out = None):
     return np.divide(spec,norm,out)
 
 
-def load_tcmf(wavelengths = None, illuminant = "D65", norm = True, retx = False, 
+def load_tcmf(wavelengths = None, illuminant = "D65", cmf = CMF, norm = True, retx = False, 
               single_wavelength = False):
     """Loads transmission color matching function.
     
@@ -238,7 +237,12 @@ def load_tcmf(wavelengths = None, illuminant = "D65", norm = True, retx = False,
         Wavelengths at which data is computed. If not specified (default), original
         data from the 5nm tabulated data is returned.
     illuminant : str, optional
-        Name of the standard illuminant or illuminant data filename
+        Name of the standard illuminant or path to illuminant data.
+    cmf : str, optional
+        Name or path to the cmf function. Can be 'CIE1931' for CIE 1931 2-deg 
+        5nm tabulated data, 'CIE1964' for CIE1964 10-deg 5nm tabulatd data, or
+        'CIE2006-2' or 'CIE2006-10' for a proposed CIE 2006 2- or 10-deg 5nm 
+        tabulated data. 
     norm : bool, optional
         By default cmf is normalized so that unity transmission value over the
         full spectral range of the illuminant is converted to XYZ color with Y=1.
@@ -249,7 +253,7 @@ def load_tcmf(wavelengths = None, illuminant = "D65", norm = True, retx = False,
         calculated by interpolation. By default, specter is assumed to be a 
         piece-wise linear function and continuous between the specified 
         wavelengts, and data is integrated instead.
-        
+    
     Returns
     -------
     cmf : array
@@ -267,11 +271,11 @@ def load_tcmf(wavelengths = None, illuminant = "D65", norm = True, retx = False,
         single_wavelength = True
 
     if single_wavelength == True:
-        x, cmf = load_cmf(wavelengths, single_wavelength = True,retx = True)
+        x, cmf = load_cmf(wavelengths, single_wavelength = True,retx = True, cmf = cmf)
         spec = load_specter(wavelengths = x, illuminant = illuminant)
         cmf = cmf2tcmf(cmf, spec, norm = norm)  
     else:
-        x,cmf = load_cmf(retx = True)
+        x,cmf = load_cmf(retx = True, cmf = cmf)
         spec = load_specter(wavelengths = x, illuminant = illuminant)
         cmf = cmf2tcmf(cmf, spec, norm = norm) 
         if wavelengths is not None:
@@ -328,9 +332,9 @@ def load_specter(wavelengths = None, illuminant = "D65", retx = False):
         Specter array of shape [num] or a tuple of (x,specter) 
         if retx is specified
         """
-    if illuminant == "D65":   
-        data = np.loadtxt(D65PATH)
-    else:
+    try:
+        data = np.loadtxt(os.path.join(DATAPATH, illuminant + ".dat"))
+    except:
         data = np.loadtxt(illuminant)
         
     if wavelengths is not None:
@@ -346,7 +350,7 @@ def load_specter(wavelengths = None, illuminant = "D65", retx = False):
         return data
 
 
-def load_cmf(wavelengths = None,  retx = False, single_wavelength = False):
+def load_cmf(wavelengths = None, cmf = CMF,  retx = False, single_wavelength = False):
     """Load XYZ Color Matching function as an array.
     
     This function loads 5nm tabulated data and re-calculates xyz array on a given range of
@@ -359,6 +363,11 @@ def load_cmf(wavelengths = None,  retx = False, single_wavelength = False):
     wavelengths : array_like, optional
         A 1D array of wavelengths at which data is computed. If not specified 
         (default), original data from the 5nm tabulated data is returned.
+    cmf : str, optional
+        Name or path to the cmf function. Can be 'CIE1931' for CIE 1931 2-deg 
+        5nm tabulated data, 'CIE1964' for CIE1964 10-deg 5nm tabulatd data, or
+        'CIE2006-2' or 'CIE2006-10' for a proposed CIE 2006 2- or 10-deg 5nm 
+        tabulated data. 
     retx : bool, optional
         Should the selected wavelengths be returned as well.
     single_wavelength : bool, optional
@@ -366,6 +375,7 @@ def load_cmf(wavelengths = None,  retx = False, single_wavelength = False):
         calculated by interpolation. By default, specter is assumed to be a 
         piece-wise linear function and continuous between the specified 
         wavelengts, and data is integrated instead.
+
         
     Returns
     -------
@@ -373,7 +383,10 @@ def load_cmf(wavelengths = None,  retx = False, single_wavelength = False):
         Color matching function array of shape [n,3] or a tuple of (x,cmf) 
         if retx is specified.
     """
-    data = np.loadtxt(CMFPATH)
+    try:
+        data = np.loadtxt(os.path.join(DATAPATH, cmf + "XYZ.dat"))
+    except:
+        data = np.loadtxt(cmf)
     x, data = np.ascontiguousarray(data[:,0], dtype = FDTYPE),  np.ascontiguousarray(data[:,1:], dtype = FDTYPE)
     if wavelengths is not None:
         wavelengths = np.asarray(wavelengths, dtype = FDTYPE)
@@ -392,7 +405,7 @@ def load_cmf(wavelengths = None,  retx = False, single_wavelength = False):
     else:
         return data
 
-import scipy.interpolate as interpolate
+#import scipy.interpolate as interpolate
 
 def interpolate_data(x, x0, data):
     data = np.asarray(data, dtype = FDTYPE)

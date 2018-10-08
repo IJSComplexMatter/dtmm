@@ -62,7 +62,7 @@ This grows the compute box in lateral dimensions symmetrically, by filling the m
 
 .. note::
 
-   By expansion in lateral dimension we provide more space between the borders and the feature the we wish to observe. This way we can reduce border effects due to the periodic boundary conditions implied by the Fourier transform that is used in diffraction calculation. 
+   By expansion in lateral dimension we provide more space between the borders and the feature that we wish to observe. This way we can reduce border effects due to the periodic boundary conditions implied by the Fourier transform that is used in diffraction calculation. 
 
 Transmission Calculation
 ------------------------
@@ -123,18 +123,18 @@ For numerical aperture of NA = 0.1 you can call
 
 .. doctest::
 
-   >>> beta, phi = dtmm.illumination_betaphi(0.1, 21)
+   >>> beta, phi, intensity = dtmm.illumination_rays(0.1,4) 
 
-which constructs direction parameters (beta, phi) of input rays of numerical aperture of 0.1 and with approximate number of rays of 21. In our case 
+which constructs direction parameters (beta, phi) of input rays of numerical aperture of 0.1 and with approximate number of rays of Pi*2*2. It defines a cone of light rays, where each ray originates from a different evenly distributed angle determined from the position of the pixel in a diaphragm of a diameter specified by the second parameter (e.g. 4). Therefore in our case
 
 .. doctest::
 
    >>> len(beta)
-   21
+   12
  
-we have 21 rays evenly distributed in a cone of numerical aperture of 0.1. To calculate the transmitted field we now have to pass these ray parameters to the transmit_field function::
+we have 12 rays evenly distributed in a cone of numerical aperture of 0.1. To calculate the transmitted field we now have to pass these ray parameters to the illumination_data and transfer_field functions::
 
-   >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, beta = beta, phi = phi, n = 1.5)
+   >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, beta = beta, phi = phi, intensity = intensity, n = 1.5)
    >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi, nin = 1.5, nout = 1.5)
 
 .. warning::
@@ -270,7 +270,6 @@ It is up to the user to apply a mask or to specify the optical data parameters o
 
    >>> mask = dtmm.sphere_mask((NLAYERS,HEIGHT,WIDTH),30) 
    >>> optical_data = dtmm.director2data(director, no = 1.5, ne = 1.6, mask = mask, nhost = 1.5)
-
 
 
 Data IO

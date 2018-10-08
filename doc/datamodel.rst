@@ -17,19 +17,16 @@ Coordinate system, units and conventions
 * Propagation is said to be *forward propagation* if the wave vector has a positive *z* component. 
 * Propagation is said to be *backward propagation* if the the wave vector has a negative *z* component.
 * Light enters the material at *z=0*  at the bottom of the sample and exits at the top of the sample.
-* The sample is defined by a sequence of layers - a *stack*. The first layer being the one at the bottom of the stack.
+* The sample is defined by a sequence of layers - a *stack*. The first layer is the one at the bottom of the stack.
 * Internally, optical parameters are stored in memory as a C-contiguous array with axes (i,j,k,...) the axes are *z*, *y*, *x*, *parameter(s)*.
 
 For uniaxial material, the orientation of the optical axis is defined with two angles. :math:`\theta_m` is an angle between the *z* axis and the optical axis  and :math:`\phi_m` is an angle between the projection of the optical axis vector on the *xy* plane and the *x* axis.
 
+For biaxial media, there is an additional parameter :math:`\psi_m` that together with :math:`\theta_m`and :math:`\phi_m` define the three Euler angles for rotations of the  frame around the z,y and z axes respectively.
+
 Direction of light propagation (wave vector) is defined with two parameters, :math:`\beta_x = n \sin\theta_k \cos\phi_k` and  :math:`\beta_y = n \sin\theta_k \sin\phi_k`, or equivalently :math:`\beta = \sqrt{\beta_x^2 + \beta_y^2} = n \sin\theta_k` and :math:`\phi_k = \arctan(\beta_y/\beta_x)`, where :math:`\theta_k` is an angle between the wave vector and the *z* axis, and :math:`\phi_k` between the projection of the wave vector on the *xy* plane and the *x* axis. 
 
 Parameter :math:`\beta` is a fundamental parameter in transfer matrix method. This parameter is conserved when light is propagated through a stack of homogeneous layers.
-
-
-.. note::
-
-   In the current implementation, only isotropic and uniaxial material is implemented. Biaxial material is not yet supported.
 
 .. _optical-data:
 
@@ -57,7 +54,7 @@ Here we have generated some test optical data, a nematic droplet with a radius o
    >>> np.allclose(thickness, np.ones(shape = (60,)))
    True 
 
-which means that layer thickness is the same as layer pixel size. `material_eps` is an array of shape (60,128,128,3) of dtype "float32" and describes the three eigenvalues of the dielectric tensor of the material. In our case we have two types of material, a host material (the one surrounding the droplet), and a liquid crystal material. We can plot this data:
+which means that layer thickness is the same as layer pixel size - a cubic lattice. Note that in general, layer thickness may not be constant and you can set any layer thickness. `material_eps` is an array of shape (60,128,128,3) of dtype "float32" or "float64" and describes the three eigenvalues of the dielectric tensor of the material. In our case we have two types of material, a host material (the one surrounding the droplet), and a liquid crystal material. We can plot this data:
 
 .. doctest::
 
@@ -83,10 +80,6 @@ which plots dots at positions where liquid_crystal is defined (where the refract
    
 The real part of the dielectric constant is the refractive index squared and the imaginary part determines absorption properties. 
 
-.. note::
-
-   In the current implementation, complex part of the dielectric tensor is ignored in the computation. This will change in the future.
-
 `eps_angles` is an array of shape (60,128,128,3) and describe optical axis angles measured in radians in voxel. For isotropic material these are all meaningless and are zero, so outside of the sphere, these are all zero:
 
 .. doctest::
@@ -101,11 +94,7 @@ while inside of the sphere, these three elements are
    >>> eps_angles[30,64,64] #z=30, y = 64, x = 64
    array([0.        , 0.95531662, 0.78539816])
 
-The first element is always 0 because it defines the yaw angle (used in biaxial materials), the second value describes the :math:`\theta_m` angle, and the last describes the :math:`\phi_m`  angle.
-
-.. note::
-
-   Biaxial material is not yet supported. Data with biaxial symmetry is treated as uniaxial. This will change in the future.
+The first element is always 0 because it defines the :math:`\psi_m` angle (used in biaxial materials), the second value describes the :math:`\theta_m` angle, and the last describes the :math:`\phi_m` angle.
 
 We can plot the director around the center (around the point defect) of the droplet by
 

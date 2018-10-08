@@ -1,7 +1,8 @@
 Introduction
 ============
 
-``dtmm`` is an electro-magnetic field transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as confined liquid-crystals with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method. Details of the method are given in *... some future paper*.
+``dtmm`` is an electro-magnetic field transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as confined liquid-crystals with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method and an adapted 2x2 extended Jones method. Details of the method are given in *... some future paper*.
+
 
 .. note::
 
@@ -16,7 +17,7 @@ Highlights
 ----------
 
 * Easy-to-use interface.
-* Computes transmission and reflection from the material (Includes interference and diffraction).
+* Computes transmission and reflection from the material (with interference and diffraction).
 * Biaxial, uniaxial and isotropic material supported.
 * Exact calculation for homogeneous layers. Two different approximate methods for inhomogeneous layers.
 * EMF visualizer (polarizing microscope simulator) - can be used with external computed data:
@@ -31,13 +32,12 @@ Status and limitations
 
 ``dtmm`` is a young (experimental) project. The package was developed mainly for light propagation through liquid crystals, and as such, other use cases have not yet been fully tested or implemented. Also, in the current version some limitations apply, which will hopefully be resolved in future versions:
  
-* Limited color rendering functions and settings - D65 illumination only.
-* No absorption yet - real dielectric tensors only.
+* Limited color rendering functions and settings - no white balance correction of computed imaged.
 * Non-dispersive material only. 
 * Limited data IO functions.
 * Two approximate methods for slowly varying medium:
 
-   * An `effective` method : very fast, neglects double refractions (suitable for low birefringence media)
+   * An `effective` method : tunable accuracy (can be very fast) 
    * A `full` method : very slow, most accurate.
 
 .. note::
@@ -54,7 +54,7 @@ Example
    >>> import dtmm
    >>> import numpy as np
    >>> NLAYERS, HEIGHT, WIDTH = (60, 96, 96)
-   >>> WAVELENGTHS = np.linspace(380,780,11)
+   >>> WAVELENGTHS = np.linspace(380,780,9)
 
 Build sample optical data:
 
@@ -82,7 +82,7 @@ Visualize the transmitted field with matplotlib plot:
 
    >>> viewer = dtmm.field_viewer(field_data_out)
    >>> viewer.set_parameters(sample = 0, polarizer = 0,
-   ...      focus = -20, analyzer = 90)
+   ...      focus = -18, analyzer = 90)
    >>> fig, ax = viewer.plot() #creates matplotlib figure and axes
    >>> fig.show()
 

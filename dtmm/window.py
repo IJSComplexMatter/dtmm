@@ -17,6 +17,13 @@ def _r(shape, scale = 1.):
     r = ((xx/(nx*scale))**2 + (yy/(ny*scale))**2) ** 0.5    
     return r
 
+def _r2(shape):
+    """Returns radius array of a given shape."""
+    ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
+    xx, yy = np.meshgrid(ax, ay, indexing = "xy")
+    r = ((xx)**2 + (yy)**2) ** 0.5    
+    return r
+
 def blackman(shape):
     """Returns a blacman window of a given shape
     
@@ -32,6 +39,20 @@ def blackman(shape):
     out[mask] = 0.
     return out
 
+def gaussian(shape, waist):
+    r = _r(shape, waist)
+    out = np.empty(shape, FDTYPE)
+    return np.exp(-r**2, out = out)
+
+def gaussian_beam(shape, w0, k0, z = 0., n = 1):
+    k = k0*n
+    z0 = w0**2 *k/2.
+    Rm2 = z/(z0**2+z**2)/2.
+    w = w0 * (1+ (z/z0)**2)**0.5
+    psi = np.arctan(z/z0)
+    r = _r2(shape)
+    return w0/w*np.exp(-(r/w)**2)*np.exp(1j*(k*z- psi))*np.exp(1j*(r*Rm2)**2)
+    
 def aperture(shape, diameter = 1., alpha = 0.05):
     """Returns aperture window function. 
     

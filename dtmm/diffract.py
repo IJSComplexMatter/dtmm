@@ -5,9 +5,9 @@ from __future__ import absolute_import, print_function, division
 
 from dtmm.conf import cached_function, BETAMAX, FDTYPE, CDTYPE
 from dtmm.wave import betaphi
-from dtmm.window import tukey
+#from dtmm.window import tukey
 from dtmm.data import refind2eps
-from dtmm.tmm import alphaffi_xy, phasem,phasem_r, phasem_t, alphajji_xy, transmission_mat
+from dtmm.tmm import alphaffi, phasem, alphajji, transmission_mat
 from dtmm.linalg import dotmdm, dotmf, inv, dotmm
 from dtmm.fft import fft2, ifft2
 import numpy as np
@@ -17,7 +17,7 @@ DIFRACTION_PARAMETERS = ("distance", "mode")#, "refind")
 
 
 @cached_function
-def diffraction_alphaffi_xy(shape, ks, epsv = (1,1,1), 
+def diffraction_alphaffi(shape, ks, epsv = (1.,1.,1.), 
                             epsa = (0.,0.,0.), betamax = BETAMAX, out = None):
 
     ks = np.asarray(ks)
@@ -28,12 +28,13 @@ def diffraction_alphaffi_xy(shape, ks, epsv = (1,1,1),
     #m = tukey(beta,0.,betamax)
     #mask0 = (beta>0.9) & (beta < 1.1)
     mask0 = (beta >= betamax)#betamax)
+    
     #mask = np.empty(mask0.shape + (4,), mask0.dtype)
     #for i in range(4):
     #    mask[...,i] = mask0   
 
             
-    alpha, f, fi = alphaffi_xy(beta,phi,epsa,epsv,out = out) 
+    alpha, f, fi = alphaffi(beta,phi,epsv,epsa,out = out) 
     fi[mask0] = 0.
     f[mask0] = 0.
     alpha[mask0] = 0.
@@ -47,7 +48,7 @@ def diffraction_alphaffi_xy(shape, ks, epsv = (1,1,1),
 
 
 @cached_function
-def jones_diffraction_alphajji_xy(shape, ks, epsv = (1,1,1), 
+def jones_diffraction_alphajji(shape, ks, epsv = (1,1,1), 
                             epsa = (0.,0.,0.), betamax = BETAMAX, out = None):
 
     ks = np.asarray(ks)
@@ -63,7 +64,7 @@ def jones_diffraction_alphajji_xy(shape, ks, epsv = (1,1,1),
     #    mask[...,i] = mask0   
 
             
-    alpha, j, ji = alphajji_xy(beta,phi,epsa,epsv, out = out) 
+    alpha, j, ji = alphajji(beta,phi,epsv,epsa, out = out) 
     ji[mask0] = 0.
     j[mask0] = 0.
     alpha[mask0] = 0.
@@ -75,41 +76,46 @@ def jones_diffraction_alphajji_xy(shape, ks, epsv = (1,1,1),
     
     return out
 
-
-def layer_matrices(shape, ks, eps = (1,1,1), layer = (0.,0.,0.), betamax = BETAMAX):
-    ks = np.asarray(ks)
-    ks = abs(ks)
-    #shape = fieldv.shape[-2:]
-    #eps = uniaxial_order(0.,eps0)
-    beta, phi = betaphi(shape,ks)
-    #m = tukey(beta,0.1)
-    #mask0 = (beta>0.9) & (beta < 1.1)
-    mask0 = (beta >=betamax)
-    #mask = np.empty(mask0.shape + (4,), mask0.dtype)
-    #for i in range(4):
-    #    mask[...,i] = mask0    
-    
- 
-            
-    alpha, f, fi = alphaffi_xy(beta,phi,layer,eps) 
-    fi[mask0] = 0.
-    f[mask0] = 0.
-    alpha[mask0] = 0.
-    
-    #np.multiply(f,m[...,None,None],f)
-    #np.multiply(fi,m[...,None,None],fi)
-    #return mask, alpha,f,fi
-    return alpha,f,fi
+#
+#def layer_matrices(shape, ks, epsv = (1,1,1), epsa = (0.,0.,0.), betamax = BETAMAX):
+#    ks = np.asarray(ks)
+#    ks = abs(ks)
+#    #shape = fieldv.shape[-2:]
+#    #eps = uniaxial_order(0.,eps0)
+#    beta, phi = betaphi(shape,ks)
+#    #m = tukey(beta,0.1)
+#    #mask0 = (beta>0.9) & (beta < 1.1)
+#    mask0 = (beta >=betamax)
+#    #mask = np.empty(mask0.shape + (4,), mask0.dtype)
+#    #for i in range(4):
+#    #    mask[...,i] = mask0    
+#    
+# 
+#            
+#    alpha, f, fi = alphaffi(beta,phi,epsv,epsa) 
+#    fi[mask0] = 0.
+#    f[mask0] = 0.
+#    alpha[mask0] = 0.
+#    
+#    #np.multiply(f,m[...,None,None],f)
+#    #np.multiply(fi,m[...,None,None],fi)
+#    #return mask, alpha,f,fi
+#    return alpha,f,fi
 
   
 def phase_matrix(alpha, kd, mode = None, mask = None, out = None):
     kd = np.asarray(kd, dtype = FDTYPE)
+    out = phasem(alpha,kd[...,None,None], out = out)  
     if mode == "t":
-        out = phasem_t(alpha ,kd[...,None,None], out = out)
+        #phasem(alpha[...,::2],kd[...,None,None],out = out[...,::2])
+        out[...,1::2] = 0.
+        #out = phasem_t(alpha ,kd[...,None,None], out = out)
     elif mode == "r":
-        out = phasem_r(alpha, kd[...,None,None], out = out)
-    else:
-        out = phasem(alpha,kd[...,None,None], out = out)  
+        #phasem(alpha[...,1::2],kd[...,None,None],out = out[...,1::2])
+        out[...,::2] = 0.
+        #out = phasem_r(alpha, kd[...,None,None], out = out)
+    #else:
+    #    out = phasem(alpha,kd[...,None,None], out = out)  
     if mask is not None:
         out[mask] = 0.
     return out  
@@ -120,7 +126,7 @@ def diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.), mode
     ks = np.asarray(ks, dtype = FDTYPE)
     epsv = np.asarray(epsv, dtype = CDTYPE)
     epsa = np.asarray(epsa, dtype = FDTYPE)
-    alpha, f, fi = diffraction_alphaffi_xy(shape, ks, epsv = epsv, epsa = epsa, betamax = betamax)
+    alpha, f, fi = diffraction_alphaffi(shape, ks, epsv = epsv, epsa = epsa, betamax = betamax)
     kd =ks * d
     pmat = phase_matrix(alpha, kd , mode = mode)
     return dotmdm(f,pmat,fi,out = out) 
@@ -130,7 +136,7 @@ def jones_diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.)
     ks = np.asarray(ks, dtype = FDTYPE)
     epsv = np.asarray(epsv, dtype = CDTYPE)
     epsa = np.asarray(epsa, dtype = FDTYPE)
-    alpha, j, ji = jones_diffraction_alphajji_xy(shape, ks, epsv = epsv, epsa = epsa, betamax = betamax)
+    alpha, j, ji = jones_diffraction_alphajji(shape, ks, epsv = epsv, epsa = epsa, betamax = betamax)
     kd =ks * d
     pmat = phase_matrix(alpha, kd)
     return dotmdm(j,pmat,ji,out = out) 
@@ -141,10 +147,10 @@ def jones_transmission_matrix(shape, ks, epsv_in = (1.,1.,1.), epsa_in = (0.,0.,
                             epsv_out = (1.,1.,1.), epsa_out = (0.,0.,0.), betamax = BETAMAX, out = None):
     
     
-    alpha, fin,fini = diffraction_alphaffi_xy(shape, ks, epsv = epsv_in, 
+    alpha, fin,fini = diffraction_alphaffi(shape, ks, epsv = epsv_in, 
                             epsa = epsa_in, betamax = betamax)
     
-    alpha, fout,fouti = diffraction_alphaffi_xy(shape, ks, epsv = epsv_out, 
+    alpha, fout,fouti = diffraction_alphaffi(shape, ks, epsv = epsv_out, 
                             epsa = epsa_out, betamax = betamax)
     
     return transmission_mat(fin, fout, fini = fini, out = out)
@@ -157,7 +163,7 @@ def projection_matrix(shape, ks, epsv = (1,1,1),epsa = (0,0,0.), mode = "t", bet
     ks = np.asarray(ks, dtype = FDTYPE)
     epsv = np.asarray(epsv, dtype = CDTYPE)
     epsa = np.asarray(epsa, dtype = FDTYPE)    
-    alpha, f, fi = diffraction_alphaffi_xy(shape, ks, epsv = epsv, epsa = epsa, betamax = betamax)
+    alpha, f, fi = diffraction_alphaffi(shape, ks, epsv = epsv, epsa = epsa, betamax = betamax)
     mask = None
     kd = np.zeros_like(ks)
     pmat = phase_matrix(alpha, kd , mode = mode, mask = mask)

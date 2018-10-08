@@ -6,6 +6,10 @@ Tutorial
 Interference and reflections
 ----------------------------
 
+By default, interference is neglected in the computation. You can enable interference by
+
+>>> transfer_field(field_in, optical_data, interference = True) 
+
 Background
 ++++++++++
 
@@ -54,7 +58,7 @@ In this example, we use multiple passes to compute reflections of the cholesteri
 droplet. For cholesterics one should take the `norm` = 2 argument in the
 computation of the tranfered field.
 
-The droplet is a left-handed cholesteric with pitch of 350 nm, which results in a strong reflection of right-handed light of wavelength 520 nm (350*1.5 nm). Already with `npass` = 3, the residual field has almost vanished.
+The droplet is a left-handed cholesteric with pitch of 350 nm, which results in a strong reflection of right-handed light of wavelength 520 nm (350*1.5 nm). Already with `npass` = 5, the residual field has almost vanished.
 
 In the example below, we simulated propagation of right-handed light with beta parameter `beta` = 0.2. See the `examples/cholesteric_droplet.py` for details.
 
@@ -64,17 +68,120 @@ In the example below, we simulated propagation of right-handed light with beta p
    Reflection and transmission properties of a cholesterol droplet.
 
 
+Field viewer 
+------------
+
+Here we will cover some additional configuration options for the FieldViewer. The field viewer can be used to inspect the output field (which was covered in the quick-start guide), or to inspect the bulk field data.
+
+Projection mode
++++++++++++++++
+
+One powerful feature of the FieldViewer is the ability to project the waves and isolate the forward or backward propagating waves. This is how the images of the examples above were created, so to take the transmitted part of the field do:
+
+>>> viewer = dtmm.field_viewer(field_data_out, mode = "t") #the transmitted part
+
+to view the reflected part of the field do:
+
+>>> viewer = dtmm.field_viewer(field_data_out, mode = "r") #the transmitted part
+
+When field viewer is called without the mode argument it performs no projection calculation. A power flow is calculated directly from the electro-magnetic field (Poynting vector times layer normal). As such, the power flow can be positive or negative. A negative power flow comes from the back propagating waves and it has to be stressed that negative values are clipped in the conversion to RGB. Therefore, when dealing with reflections and interference calculations, you should be explicit about the projection mode.
+
+The numerical aperture
+++++++++++++++++++++++
+
+Another parameter that you can use is the `betamax` parameter. Some explanation on this is below, but in short, with betamax parameter defined in the field_viewer function you can simulate the finite numerical aperture of the objective. So to simulate an image taken by a microscope with NA of 0.4 do:
+
+>>> viewer = dtmm.field_viewer(field_data_out, mode = "t", betamax = 0.4)
+
+And if you want to observe ideal-lens microscope image formation set betamax to the value of refractive index). For instance an oil-immersion objective with n = 1.5 and NA 1.3 do
+
+>>> viewer = dtmm.field_viewer(field_data_out, mode = "t", betamax = 1.3, n = 1.5)
+
+but of course, here it is up to the user to calculate the output field for the output refractive index of 1.5.
+
+Viewing bulk data
++++++++++++++++++
+
+The field_viewer function can also be used to show bulk EM data in color. Here you will generally use it as
+
+>>> viewer = dtmm.field_viewer(field_data_out, bulk_data = True)
+
+Now instead of the "focus" parameter you can change the "layer" parameter and the viewer shows the power of the EM field in a specified layer.
+
+
+.. plot:: examples/viewer_bulk_data.py
+
+   A hello world example, but this time we show bulk EM data in a specified layer.
+
+The refractive index `n`, and `betamax` parameters are meaningless when using the field_viewer to visualize bulk data, except if you define a transmission or reflection `mode`. In this case, the viewer project the EM field and calculates the forward or backward propagating parts and removes the waves with beta value larger than the specified betamax parameter before calculating the intensity. 
+
+
+On the calculation accuracy
+---------------------------
+
+Diffraction
++++++++++++
+
+Diffraction calculation can be performed at different levels of accuracy. By default, diffraction and transmission through the inhomogeneous layer is calculated in a single step by assuming a single beam. This works well for very low birefringent media. When birefringence is larger you should increase the accuracy (and computation complexity) by defining how many beams to use in the diffraction calculation. For instance,
+
+>>> dtmm.transfer_field(field, data, diffraction = 3) 
+
+in the diffraction calculation step, the method takes beams defined with beta parameters in a 3x3 grid of beta_x beta_y values defined between -betamax and +betamax, so a total of 9 beams (instead of a single beam when diffraction = 1). Therefore this will take significantly longer to compute. You can use any sensible integer value - this depends on the pixel size and domain size. For calculation of 100x100 grid with pixelsize of 50 nm and 500nm wavelength, the maximum sensible value is 100*50/500=10, but generally, above say diffraction = 7 you will not notice much improvement, but this depends on the material of course. In the extreme case, the most accurate calculation can be done by specifying  
+
+>>> dtmm.transfer_field(field, data, diffraction = np.inf)
+
+or with a value of 
+
+>>> dtmm.transfer_field(field, data, diffraction = -1) 
+
+This triggers a `full` treatment of diffraction, transfers all waves within the beta < betamax. This method has a very slow, and should not be used generally, except for very small samples.
+
+Try experimenting yourself. As a rule of thumb, diffraction = 1 gives a reasonable first approximation and is very fast to compute, and with diffraction = 5 you are very close to the real thing, but about 5*5 slower to compute. 
+
+In the examples below we show difference between several diffraction arguments (0,1,5). With diffraction = 0, the method does not include diffraction effects. With diffraction = 1 and 5, one can see that due to diffraction a halo ring appears and the appearance of colors is slightly different for all three methods. 
+
+
+.. plot:: examples/diffraction_accuracy.py
+
+   A comparison of diffraction = 0, diffraction = 1, and diffraction = 5 transmission calculations of same radial nematic droplet. See source for details on optical parameters.
+
+
+.. note:: You can also disable diffraction calculation step by setting the diffraction = False. to trigger a standard 2x2 jones calculation or 4x4 Berreman calculation (when interference = True)
+
+On the betamax parameter
+++++++++++++++++++++++++
+
+The `betamax` parameter defines the maximum value of the plane wave `beta` parameter in the diffraction step of the calculation. In air, the maximum value of beta is 1. A plane wave with beta = 1 is a plane wave traversing in the lateral direction (at 90 degree with respect to the layer normal). If beta is greater than 1 in air, the plane wave is no longer a traveling wave, but it becomes an evanescent wave and the propagation becomes unstable in the 4x4 method (when `interference` = True is used in the computation). In a medium with higher refractive index, the maximum value for a traveling wave is the refractive index beta=n. Generally you should use betamax < n, where n is the lowest refractive index in the optical stack (including the input and output isotropic layers). Therefore, if you should set betamax < 1 when the input and output layers are air with n=1. Some examples:
+
+>>> dtmm.transfer_field(field, data, betamax = 0.99, interference = True) #safe
+>>> dtmm.transfer_field(field, data, betamax = 1, interference = True) #unsafe
+>>> dtmm.transfer_field(field, data, betamax = 1.49, interference = True, nin = 1.5, nout = 1.5) #safe
+>>> dtmm.transfer_field(field, data, betamax = 1.6, interference = True, nin = 1.5, nout = 1.5) #unsafe
+
+When dealing only with forward waves (the 2x2 approach).. the method is stable, and all above examples are safe to execute:
+
+>>> dtmm.transfer_field(field, data, betamax = 2) #safe
+
+However, there is one caveat.. when increasing the diffraction accuracy it is also better to stay in the betamax < 1 range to increase computation speed. For instance, both examples below will give similar results, but computation complexity is higher when we use higher number of waves in the diffraction calculation step:
+
+>>> dtmm.transfer_field(field, data, betamax = 2, diffraction = 5) #safe but slow
+>>> dtmm.transfer_field(field, data, betamax = 1, diffraction = 3) #safe and faster
+
+
 
 Color Conversion
 ----------------
 
-In this tutorial you will learn how to transform specter to RGB colors using `CIE 1931`_ standard observer color matching function (see `CIE 1931`_ wiki pages for details on XYZ color space).
+In this tutorial you will learn how to transform specter to RGB colors using `CIE 1931`_ standard observer color matching function (see `CIE 1931`_ wiki pages for details on XYZ color space). You will learn how to use custom light source specter data and how to compare the simulated data with experiments (images obtained by a color camera). First we will go through some basics, but you can skip this part and go directly to :ref:`custom-light-source` 
+
+Background
+++++++++++
 
 In the :mod:`dtmm.color` there is a limited set of functions for converting computed specters to RGB images. It is not a full color engine, so only a few color conversion functions are implemented. The specter is converted to color using a `CIE 1931`_ color matching function (CMF). Conversion to color is performed as follows. Specter data is first converted to XYZ color space using the `CIE 1931`_ standard observer (5 nm tabulated) color matching function data. Then the image is converted to RGB color space (using a D65 reference white point) as specified in the `sRGB`_ standard (see `sRGB`_ wiki pages for details on sRGB color space). Data values are then clipped to (0.,1.) and finally, sRGB gamma transfer function is applied.
 
 
 CIE 1931 standard observer
-++++++++++++++++++++++++++
+''''''''''''''''''''''''''
 
 `CIE 1931`_ color matching function can be loaded from table with.
 
@@ -93,7 +200,7 @@ It is a 5nm tabulated data (between 380 and 780 nm) of 2-deg *XYZ* tristimulus v
    XYZ tristimulus values.
 
 D65 standard illuminant
-+++++++++++++++++++++++
+'''''''''''''''''''''''
 
 CIE also defines several standard illuminants. We will work with a D65 standard illuminant, which represents natural daylight. Its XYZ tristimulus value is used as a reference white color in the `sRGB`_ standard.
 
@@ -106,7 +213,7 @@ CIE also defines several standard illuminants. We will work with a D65 standard 
    D65 color specter from 5nm tabulated data.
 
 XYZ Color Space
-+++++++++++++++
+'''''''''''''''
 
 The CMF table and D65 specter are defined so that resulting RGB image gives a white color.  To convert specter to XYZ color space the specter dimensions has to match CMF table dimensions. CIE 1931 CMF is defined between 380 and 780 nm, while the D65 specter is defined between 300 and 830 nm. Let us match the specter to CMF by interpolating D65 tabulated data at CMF wavelengths:
 
@@ -134,7 +241,7 @@ Typically you will want to work with a normalized specter:
 Here we have normalized the specter so that the resulting XYZ value has the Y component equal to 1 (full brightness). 
 
 SRGB Color Space
-++++++++++++++++
+''''''''''''''''
 
 Resulting XYZ can be converted to sRGB (using sRGB color primaries) with
 
@@ -159,7 +266,7 @@ Since conversion to sRGB color space (from the input specter values) is a standa
    True
 
 Transmission CMF
-++++++++++++++++
+''''''''''''''''
 
 We can define a transmission color matching function. The idea is to have the CMF function defined for a transmission coefficients for a specific illumination so that the transmission computation becomes independent on the actual light spectra used in the experiment. For example, say we have computed transmission coefficients for a given set of wavelengths
 
@@ -218,7 +325,7 @@ Now we can compute
    True
 
 Color Rendering
-+++++++++++++++
+'''''''''''''''
 
 Not all colors can be displayed on a sRGB monitor. Colors that are out of gamut (R,G,B) chanels are larger than 1. or smaller than 0. are clipped. For instance, a D65 light that gives (R,G,B) = (1,1,1)* intensity filtered with a 150 nm band-pass filter already has colors clipped at some higher values of intensities. These colors are more vivid and saturated at light intensity of 1. 
 
@@ -246,6 +353,29 @@ gives a strong negative value in the red channel, which shows that the color is 
 
 with the blue and red channel clipped. We should have used wide-gamut color space and a monitor capable of displaying wider gamuts to display this color properly. As stated already, this package was not intended to be a full color management system and you should use your own CMS system if you need more complex color transforms and rendering.
 
+.. _`custom-light-source`:
+
+Examples
+++++++++
+
+By default, in simulations light source is assumed to be the D65 illuminant. The reason is that with a D65 light source the color of fully transmissive filter is neutral gray (or white) when using the CIE color matching functions. If you want co compare with experiments, when using D65 light in simulation, you should do a proper white balance correction in your camera to obtain similar color rendering of the images obtained in experiments. 
+
+Another option is to match the illuminant used in simulation to the illuminant used in experiments. Say you have an illuminant data stored in a file called "illuminant.dat", you can create a cmf function by
+
+>>> cmf = dc.load_tcmf(wavelengths, illuminant = "illuminant.dat")
+
+Afterwards, it is possible to set this illuminant in the field_viewer.
+
+>>> viewer = dtmm.field_viewer(field_data, cmf = cmf)
+
+For a standard A illuminant the example from the front page look like this:
+
+
+.. plot:: examples/custom_illuminant.py
+
+   A hello world example, but this time, illumination was performed with a standard A illuminant.
+
+Now, to compare this with the experimentally obtained images, you should disable all white balance correction in your camera, or if your camera has this option, set the white balance to day-light conditions. This way your color camera will transform the image assuming a D65 light source illuminant, just as the `dtmm` package does when it computes the RGB image. Also, non-scientific SLR cameras typically use some standard color profile that tend to increase the saturation of colors. Probably it is best to use a neutral or faithful color profile if your camera provides you with this option.
 
 
 .. _`CIE 1931`: https://en.wikipedia.org/wiki/CIE_1931_color_space

@@ -6,7 +6,7 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_CACHE, BETAMAX , DTMMConfig
+from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_TARGET, NUMBA_CACHE, BETAMAX , DTMMConfig
 from dtmm.wave import planewave
 from dtmm.diffract import diffracted_field
 from dtmm.window import aperture
@@ -18,6 +18,44 @@ if NUMBA_PARALLEL == False:
     prange = range
     
 sqrt = np.sqrt
+
+
+@nb.guvectorize([(NCDTYPE[:,:,:],NFDTYPE[:,:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NCDTYPE[:,:,:],NFDTYPE[:],NFDTYPE[:])], 
+                 "(n,i,j),(i,j),(i,j),(),(),(),(),()->(n,i,j),(),()",
+                 target = NUMBA_TARGET, cache = NUMBA_CACHE)
+def select_fftfield(fftfield, fftbetax, fftbetay,betax, betay, stepx,stepy, betamax, out, betaxmean, betaymean):
+    nn, ni, nj = fftfield.shape
+    betaxmean[0] = 0.
+    betaymean[0] = 0.
+    n = 0
+    for i in range(ni):
+        for j in range(nj):
+            fftbetaxij = fftbetax[i,j]
+            cx = 1. - np.abs(fftbetaxij - betax[0])/stepx[0]
+            if cx < 0:
+                cx = 0.           
+            fftbetayij = fftbetay[i,j]
+            cy = 1. - np.abs(fftbetayij - betay[0])/stepy[0]
+            if cy < 0:
+                cy = 0.
+            beta = (fftbetaxij**2 + fftbetayij**2)**0.5 
+            if beta >= betamax[0]:
+                coeff = 0.
+            else:
+                coeff = cx * cy
+            if coeff > 0.:
+                out[:,i,j] = fftfield[:,i,j]*coeff
+                betaxmean[0] += fftbetaxij
+                betaymean[0] += fftbetayij
+                n += 1
+            else:
+                out[:,i,j] = 0.
+      
+    if n != 0:
+        betaxmean[0] /= n
+        betaymean[0] /= n
+    
+
 
 def diaphragm2rays(diaphragm, betastep = 0.1, norm = True):
     """Takes a 2D image of a diaphragm and converts it to beta, phi, intensity"""
@@ -212,7 +250,7 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
     """
     
     verbose_level = DTMMConfig.verbose
-    if verbose_level >0:
+    if verbose_level > 0:
         print("Building illumination data.") 
     wavelengths = np.asarray(wavelengths)
     wavenumbers = 2*np.pi/wavelengths * pixelsize
@@ -226,7 +264,7 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
     return (field, wavelengths, pixelsize)
 
 
-@nb.njit([(NCDTYPE[:,:,:],NFDTYPE[:,:])], parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE)
+@nb.njit([(NCDTYPE[:,:,:],NFDTYPE[:,:])], cache = NUMBA_CACHE)
 def _field2intensity(field, out):
     for j in range(field.shape[1]):
         for k in range(field.shape[2]):
@@ -234,7 +272,7 @@ def _field2intensity(field, out):
             tmp2 = (field[2,j,k].real * field[3,j,k].real + field[2,j,k].imag * field[3,j,k].imag)
             out[j,k] = tmp1-tmp2 
 
-@nb.guvectorize([(NCDTYPE[:,:,:],NFDTYPE[:,:])],"(k,n,m)->(n,m)", target = "parallel", cache = NUMBA_CACHE)
+@nb.guvectorize([(NCDTYPE[:,:,:],NFDTYPE[:,:])],"(k,n,m)->(n,m)", target = NUMBA_TARGET, cache = NUMBA_CACHE)
 def field2intensity(field, out):
     """field2intensity(field)
     

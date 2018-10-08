@@ -6,6 +6,7 @@ and broad band filters of different central wavelengths. """
 import dtmm.color as dc
 import matplotlib.pyplot as plt
 import numpy as np
+import dtmm
 
 nw = 161 #number of wavelengths
 ni = 31 #number of intensities
@@ -26,7 +27,7 @@ for k,delta in enumerate((50,150,400)):
     
     for i,w in enumerate(ws):
         for j, intensity in enumerate(intensities):
-            s = np.zeros(shape = (nw,))
+            s = np.zeros(shape = (nw,), dtype = dtmm.conf.FDTYPE)
             mask = (ws < w + delta/2.) & (ws > w - delta/2.)
             s[mask] = intensity #make band-pass specter
             im[j,i] = dc.specter2color(s,cmf)

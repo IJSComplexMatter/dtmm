@@ -1,4 +1,4 @@
-"""Hello nematic droplet example."""
+"""Nematic droplet example using bulk data calculation and bulk viewer"""
 
 import dtmm
 import numpy as np
@@ -16,12 +16,12 @@ optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH),
 #: create non-polarized input light
 field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, 
                                             pixelsize = PIXELSIZE) 
-#: transfer input light through stack
-field_data_out = dtmm.transfer_field(field_data_in, optical_data)
+#: transfer input light through stack and compute bulk EM field
+field_data_out = dtmm.transfer_field(field_data_in, optical_data, ret_bulk = True)
 
 #: visualize output field
-viewer = dtmm.field_viewer(field_data_out)
+viewer = dtmm.field_viewer(field_data_out, bulk_data = True)
 viewer.set_parameters(sample = 0, intensity = 2,
-                polarizer = 0, focus = -18, analyzer = 90)
+                polarizer = 0, layer = 20, analyzer = 90)
 
 fig,ax = viewer.plot()

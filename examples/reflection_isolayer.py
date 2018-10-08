@@ -10,7 +10,7 @@ PIXELSIZE = 200
 #: compute box dimensions
 NLAYERS, HEIGHT, WIDTH = 1,96,96
 #: illumination wavelengths in nm
-WAVELENGTHS = np.linspace(500,600,11)
+WAVELENGTHS = np.linspace(500,600,9)
 #: some experimental data
 BETA = 0.4
 
@@ -28,15 +28,15 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, window = wi
 field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = BETA, npass =3, norm = 1)
 
 #: visualize output field
-viewer1 = dtmm.field_viewer(field_data_out, mode = "t",intensity = 100) 
+viewer1 = dtmm.field_viewer(field_data_out, mode = "t",intensity = 10) 
 fig1,ax1 = viewer1.plot()
 ax1.set_title("Transmitted field")
 
 #: residual back propagating field is close to zero
-viewer2 = dtmm.field_viewer(field_data_out, mode = "r",intensity = 100)
+viewer2 = dtmm.field_viewer(field_data_out, mode = "r",intensity = 10)
 fig2,ax2 = viewer2.plot()
 ax2.set_title("Residual field")
 
-viewer3 = dtmm.field_viewer(field_data_in, mode = "r", intensity = 100)
+viewer3 = dtmm.field_viewer(field_data_in, mode = "r", intensity = 10)
 fig3,ax3 = viewer3.plot()
 ax3.set_title("Reflected field")

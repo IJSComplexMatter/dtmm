@@ -31,38 +31,6 @@ def _input_matrix(mat, shape, dtype):
         _check_matrix(mat, shape, dtype)
     return mat
 
-#@nb.njit([(NFDTYPE,NFDTYPE[:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-#def _rotation_vector2(angle, out):
-#    c = np.cos(angle)
-#    s = np.sin(angle)
-#    out[0] = c
-#    out[1] = s
-
-#@nb.njit([(NFDTYPE,NFDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-#def _rotation_matrix2(angle, out):
-#    c = np.cos(angle)
-#    s = np.sin(angle)
-#    out[0,0] = c
-#    out[1,0] = s
-#    out[0,1] = -s
-#    out[1,1] = c 
-#    
-#@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:,:])], "(),(n)->(n,n)", 
-#                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-#def _rotation_matrix2_vec(angle,dummy, out):
-#    _rotation_matrix2(angle[0], out)
-#    
-#@nb.guvectorize([(NF32DTYPE[:],NFDTYPE[:],NFDTYPE[:]),
-#                 (NF64DTYPE[:],NFDTYPE[:],NFDTYPE[:])], "(),(n)->(n)", 
-#                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-#def _rotation_vector2_vec(angle,dummy, out):
-#    _rotation_vector2(angle[0], out)
-
-#_dummy_array = np.empty(shape = (2,), dtype = FDTYPE)
-
-#def rotation_matrix2(angle, out = None):
-#    return _rotation_matrix2_vec(angle,_dummy_array, out)
-
 def rotation_vector2(angle, out = None):
     """Returns rotation vector (cos(angle), sin(angle)).
     Numpy broadcasting rules apply."""
@@ -75,6 +43,7 @@ def rotation_vector2(angle, out = None):
 
 def rotation_matrix_z(angle, out = None):
     """Calculates a rotation matrix for rotations around the z axis.
+    
     Numpy broadcasting rules apply.
     """
     c,s = np.cos(angle), np.sin(angle)
@@ -89,6 +58,7 @@ def rotation_matrix_z(angle, out = None):
 
 def rotation_matrix_y(angle, out = None):
     """Calculates a rotation matrix for rotations around the y axis.
+    
     Numpy broadcasting rules apply.
     """
     c,s = np.cos(angle), np.sin(angle)
@@ -103,6 +73,7 @@ def rotation_matrix_y(angle, out = None):
 
 def rotation_matrix_x(angle, out = None):
     """Calculates a rotation matrix for rotations around the x axis.
+    
     Numpy broadcasting rules apply.
     """
     c,s = np.cos(angle), np.sin(angle)
@@ -259,6 +230,8 @@ def rotate_vector(R,vector, out):
     if len(vector) != 3:
         raise ValueError("Invalid input data shape")    
     _rotate_vector(R,vector,out)
+    
+
     
 dotrv = rotate_vector
     

@@ -176,10 +176,24 @@ Jones Calculus (``dtmm.jones``)
 .. autofunction:: dtmm.jones.polarizer
 
 
-4x4 linear algebra (``dtmm.linalg``)
-------------------------------------
+.. currentmodule:: dtmm.linalg
 
-.. autofunction:: dtmm.linalg.inv4x4
+4x4 and 2x2 linear algebra (``dtmm.linalg``)
+--------------------------------------------
+
+.. automodule:: dtmm.linalg
+
+.. autofunction:: dtmm.linalg.dotmd
+
+.. autofunction:: dtmm.linalg.dotmdm
+
+.. autofunction:: dtmm.linalg.dotmdmf
+
+.. autofunction:: dtmm.linalg.dotmf
+
+.. autofunction:: dtmm.linalg.dotmv
+
+.. autofunction:: dtmm.linalg.inv
 
 .. currentmodule:: dtmm.transfer
 
@@ -188,7 +202,6 @@ Field transfer (``dtmm.transfer``)
 
 .. automodule:: dtmm.transfer
    :members: 
-
 
 .. currentmodule:: dtmm.window
 

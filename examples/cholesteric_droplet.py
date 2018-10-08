@@ -1,6 +1,6 @@
 """Cholester droplet example.
 
-In this example, we use multiple passes to compute reflections of the cholesteric
+In this example, we use multiple passes to compute reflections off the cholesteric
 droplet. For cholesterics one should take the norm = 2 argument in the
 computation of the tranfered field and have npass > 1 to compute reflections.
 
@@ -23,7 +23,7 @@ PIXELSIZE = 50
 #: compute box dimensions
 NLAYERS, HEIGHT, WIDTH = 40,96,96
 #: illumination wavelengths in nm
-WAVELENGTHS = np.linspace(380,780,11)
+WAVELENGTHS = np.linspace(380,780,9)
 #: create some experimental data (stack) left-handed cholesteric
 optical_data = dtmm.cholesteric_droplet_data((NLAYERS, HEIGHT, WIDTH), 
           radius = 20, pitch = 7, no = 1.5, ne = 1.7, nhost = 1.5) #approx 50*7*1.5 nm bragg reflection
@@ -37,7 +37,7 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, jones = jon
                        pixelsize = PIXELSIZE, n = 1.5, window = window, focus = focus) 
 
 #: transfer input light through stack
-field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, interference = True,nin = 1.5, nout = 1.5,npass = 15, norm = 2)
+field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, interference = True,nin = 1.5, nout = 1.5,npass = 7, norm = 2)
 
 #: visualize output field
 viewer1 = dtmm.field_viewer(field_data_out, mode = "t",n = 1.5, intensity = 0.5, focus = -20, analyzer = 0) 

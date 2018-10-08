@@ -23,7 +23,7 @@ To install these it is best to go with one of the python distributions, e.g. `an
   
     It is important that you have recent enough version of numba installed.
 
-For faster FFT calculation, you should also install `mkl_fft`_ that is readily available in `anaconda`_. See the :ref:`optimization` for details.
+For faster FFT calculation, you should also install `mkl_fft`_ that is readily available in both `anaconda`_ and `canopy`_. See the :ref:`optimization` for details.
 
 Installing in Canopy
 --------------------

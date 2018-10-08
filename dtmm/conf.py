@@ -151,13 +151,10 @@ def cached_function(f):
         try:
             return cache.pop(next(iter(cache.keys())))
         except StopIteration:
-            return None          
+            return None   
         
     def add_result_to_cache(result, key, cache):
-        try:
-            cache.pop(next(iter(cache.keys())))
-        except StopIteration:
-            pass     
+        pop_fifo_result_from_cache(cache)   
         cache[key] = result
 
     def to_key(arg, name = None):
@@ -187,11 +184,18 @@ def cached_function(f):
                 a.setflags(write = False)
         else:
             result.setflags(write = False)     
-            
-    def delete(f):
-        f.cache.clear()
-        _cache.remove(f)
-        f.cache = None
+ 
+    def unset_readonly(result):
+        if isinstance(result, tuple):
+            for a in result:
+                a.setflags(write = True)
+        else:
+            result.setflags(write = True)     
+           
+#    def delete(f):
+#        f.cache.clear()
+#        _cache.remove(f)
+#        f.cache = None
    
      
     @wraps(f)
@@ -204,7 +208,10 @@ def cached_function(f):
                 result = _f.cache[key]
                 return copy(result,out)
             except KeyError:
-                
+                if kwargs.pop("reuse",False):
+                    result = pop_fifo_result_from_cache(_f.cache)
+                    unset_readonly(result)
+                    kwargs["out"] = result 
                 result = f(*args,**kwargs)
                 set_readonly(result)
                 add_result_to_cache(result,key, _f.cache)
@@ -214,7 +221,7 @@ def cached_function(f):
     _f.cache = {}
     
     _cache.add(_f)
-    _f.delete = delete
+    #_f.delete = delete
     return _f    
     
 
@@ -313,6 +320,8 @@ class DTMMConfig(object):
 DTMMConfig = DTMMConfig()
 if DTMMConfig.nthreads > 1:
     disable_mkl_threading()
+    
+CMF = _readconfig(config.get, "viewer", "cmf", "CIE1931")
 
 def print_config():
     """Prints all compile-time and run-time configurtion parameters and settings."""
@@ -323,7 +332,7 @@ def print_config():
     options.update(DTMMConfig.__dict__)
     print(options)
 
-#setter functions for DTMMConfig
+#setter functions for DTMMConfig    
 def set_verbose(level):
     """Sets verbose level (0-2) used by compute functions."""
     out = DTMMConfig.verbose
