@@ -223,7 +223,69 @@ def cached_function(f):
     _cache.add(_f)
     #_f.delete = delete
     return _f    
+ 
+def cached_result(f):
+    """A decorator that converts a function into a cached result function. 
     
+    The function needs to be a function that returns any result.
+    Function arguments must all be hashable, or
+    are small numpy arrays. 
+    """
+    
+    def pop_fifo_result_from_cache(cache):
+        try:
+            return cache.pop(next(iter(cache.keys())))
+        except StopIteration:
+            return None   
+        
+    def add_result_to_cache(result, key, cache):
+        pop_fifo_result_from_cache(cache)   
+        cache[key] = result
+
+    def to_key(arg, name = None):
+        from dtmm.hashing import hash_buffer 
+        if isinstance(arg, np.ndarray):
+            arg = (arg.shape, arg.dtype, arg.strides, hash_buffer(arg))
+            #return (arg.shape, arg.dtype, tuple(arg.flat))
+        if name is None:
+            return arg
+        else:
+            return (name, arg)
+
+    def set_readonly(result):
+        if isinstance(result, tuple):
+            for a in result:
+                try:
+                    a.setflags(write = False)
+                except AttributeError:
+                    pass
+        else:
+            try:
+                result.setflags(write = False)  
+            except AttributeError:
+                pass
+            
+    @wraps(f)
+    def _f(*args,**kwargs):
+        try_read_from_cache = (kwargs.pop("cache",True) == True) and (DTMMConfig.cache != 0) and _f.cache is not None
+        if try_read_from_cache:
+            key = tuple((to_key(arg) for arg in args)) + tuple((to_key(arg, name = key) for key,arg in kwargs.items()))  
+            try:
+                result = _f.cache[key]
+                return result
+            except KeyError:
+                result = f(*args,**kwargs)
+                set_readonly(result)
+                add_result_to_cache(result,key, _f.cache)
+                return result
+        else:
+            return f(*args,**kwargs)
+    _f.cache = {}
+    
+    _cache.add(_f)
+    #_f.delete = delete
+    return _f      
+
 
 def detect_number_of_cores():
     """

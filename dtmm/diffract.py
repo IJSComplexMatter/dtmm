@@ -7,13 +7,30 @@ from dtmm.conf import cached_function, BETAMAX, FDTYPE, CDTYPE
 from dtmm.wave import betaphi
 #from dtmm.window import tukey
 from dtmm.data import refind2eps
-from dtmm.tmm import alphaffi, phasem, alphajji, transmission_mat
+from dtmm.tmm import alphaffi, alphaf, phasem, alphajji, transmission_mat, alphaEEi, tr_mat, t_mat
 from dtmm.linalg import dotmdm, dotmf, inv, dotmm
 from dtmm.fft import fft2, ifft2
 import numpy as np
 
 
 DIFRACTION_PARAMETERS = ("distance", "mode")#, "refind")
+
+@cached_function
+def diffraction_alphaf(shape, ks, epsv = (1.,1.,1.), 
+                            epsa = (0.,0.,0.), betamax = BETAMAX, out = None):
+
+    ks = np.asarray(ks)
+    ks = abs(ks)
+    beta, phi = betaphi(shape,ks)
+
+    mask0 = (beta >= betamax)
+
+    alpha, f= alphaf(beta,phi,epsv,epsa,out = out) 
+    f[mask0] = 0.
+    alpha[mask0] = 0.
+    out = (alpha,f)
+
+    return out
 
 
 @cached_function
@@ -49,7 +66,7 @@ def diffraction_alphaffi(shape, ks, epsv = (1.,1.,1.),
 
 @cached_function
 def jones_diffraction_alphajji(shape, ks, epsv = (1,1,1), 
-                            epsa = (0.,0.,0.), betamax = BETAMAX, out = None):
+                            epsa = (0.,0.,0.), mode = +1, betamax = BETAMAX, out = None):
 
     ks = np.asarray(ks)
     ks = abs(ks)
@@ -64,7 +81,7 @@ def jones_diffraction_alphajji(shape, ks, epsv = (1,1,1),
     #    mask[...,i] = mask0   
 
             
-    alpha, j, ji = alphajji(beta,phi,epsv,epsa, out = out) 
+    alpha, j, ji = alphaEEi(beta,phi,epsv,epsa, mode = mode, out = out) 
     ji[mask0] = 0.
     j[mask0] = 0.
     alpha[mask0] = 0.
@@ -132,11 +149,11 @@ def diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.), mode
     return dotmdm(f,pmat,fi,out = out) 
 
 @cached_function
-def jones_diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.), betamax = BETAMAX, out = None):
+def jones_diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.), mode = +1, betamax = BETAMAX, out = None):
     ks = np.asarray(ks, dtype = FDTYPE)
     epsv = np.asarray(epsv, dtype = CDTYPE)
     epsa = np.asarray(epsa, dtype = FDTYPE)
-    alpha, j, ji = jones_diffraction_alphajji(shape, ks, epsv = epsv, epsa = epsa, betamax = betamax)
+    alpha, j, ji = jones_diffraction_alphajji(shape, ks, epsv = epsv, epsa = epsa, mode = mode, betamax = betamax)
     kd =ks * d
     pmat = phase_matrix(alpha, kd)
     return dotmdm(j,pmat,ji,out = out) 
@@ -144,7 +161,7 @@ def jones_diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.)
 
 @cached_function
 def jones_transmission_matrix(shape, ks, epsv_in = (1.,1.,1.), epsa_in = (0.,0.,0.),
-                            epsv_out = (1.,1.,1.), epsa_out = (0.,0.,0.), betamax = BETAMAX, out = None):
+                            epsv_out = (1.,1.,1.), epsa_out = (0.,0.,0.), mode = +1, betamax = BETAMAX, out = None):
     
     
     alpha, fin,fini = diffraction_alphaffi(shape, ks, epsv = epsv_in, 
@@ -153,7 +170,33 @@ def jones_transmission_matrix(shape, ks, epsv_in = (1.,1.,1.), epsa_in = (0.,0.,
     alpha, fout,fouti = diffraction_alphaffi(shape, ks, epsv = epsv_out, 
                             epsa = epsa_out, betamax = betamax)
     
-    return transmission_mat(fin, fout, fini = fini, out = out)
+    return transmission_mat(fin, fout, fini = fini, mode = mode, out = out)
+
+@cached_function
+def jones_tr_matrix(shape, ks, epsv_in = (1.,1.,1.), epsa_in = (0.,0.,0.),
+                            epsv_out = (1.,1.,1.), epsa_out = (0.,0.,0.), mode = +1, betamax = BETAMAX, out = None):
+    
+    
+    alpha, fin,fini = diffraction_alphaffi(shape, ks, epsv = epsv_in, 
+                            epsa = epsa_in, betamax = betamax)
+    
+    alpha, fout,fouti = diffraction_alphaffi(shape, ks, epsv = epsv_out, 
+                            epsa = epsa_out, betamax = betamax)
+    
+    return tr_mat(fin, fout, fini = fini, mode = mode, out = out)
+
+@cached_function
+def jones_t_matrix(shape, ks, epsv_in = (1.,1.,1.), epsa_in = (0.,0.,0.),
+                            epsv_out = (1.,1.,1.), epsa_out = (0.,0.,0.), mode = +1, betamax = BETAMAX, out = None):
+    
+    
+    alpha, fin,fini = diffraction_alphaffi(shape, ks, epsv = epsv_in, 
+                            epsa = epsa_in, betamax = betamax)
+    
+    alpha, fout,fouti = diffraction_alphaffi(shape, ks, epsv = epsv_out, 
+                            epsa = epsa_out, betamax = betamax)
+    
+    return t_mat(fin, fout, fini = fini, mode = mode, out = out)
         
 
 @cached_function

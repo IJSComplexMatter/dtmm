@@ -56,6 +56,47 @@ def select_fftfield(fftfield, fftbetax, fftbetay,betax, betay, stepx,stepy, beta
         betaymean[0] /= n
     
 
+@nb.guvectorize([(NFDTYPE[:,:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:,:])], 
+                 "(i,j),(i,j),(),(),(),(),(),(),()->(i,j)",
+                 target = NUMBA_TARGET, cache = NUMBA_CACHE)
+def fft_window(fftbetax, fftbetay,betax, betay, stepx,stepy, xtyp, ytyp, betamax, out):
+    ni, nj = fftbetax.shape
+    for i in range(ni):
+        for j in range(nj):
+            fftbetaxij = fftbetax[i,j]
+            dx = (fftbetaxij - betax[0])/stepx[0]
+            cx = 1. - np.abs(dx)
+            if cx < 0.:
+                cx = 0.  
+            else:
+                if xtyp[0] < 0:
+                    if dx < 0:
+                        cx = 1.
+                elif xtyp[0] > 0:
+                    if dx > 0:
+                        cx = 1.
+            fftbetayij = fftbetay[i,j]
+            dy = (fftbetayij - betay[0])/stepy[0]
+            cy = 1. - np.abs(dy)
+            if cy < 0.:
+                cy = 0.
+            else:
+                if ytyp[0] < 0:
+                    if dy < 0:
+                        cy = 1.
+                elif ytyp[0] > 0:
+                    if dy > 0:
+                        cy = 1.
+            beta = (fftbetaxij**2 + fftbetayij**2)**0.5 
+            if beta >= betamax[0]:
+                coeff = 0.
+            else:
+                coeff = cx * cy
+            if coeff > 0.:
+                out[i,j] = coeff
+            else:
+                out[i,j] = 0.
+
 
 def diaphragm2rays(diaphragm, betastep = 0.1, norm = True):
     """Takes a 2D image of a diaphragm and converts it to beta, phi, intensity"""

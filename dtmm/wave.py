@@ -12,7 +12,7 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import FDTYPE, CDTYPE, NCDTYPE,NFDTYPE, CDTYPE,  NUMBA_CACHE
+from dtmm.conf import FDTYPE, CDTYPE, NCDTYPE,NFDTYPE, CDTYPE,  NUMBA_CACHE, NUMBA_TARGET, cached_function
 from dtmm.window import blackman
 
 #from dtmm.diffract import transmitted_field
@@ -46,16 +46,18 @@ def betaphi(shape, k0):
     phi[...,:,:] = np.arctan2(yy,xx)
     return beta, phi
 
-def betaxy(shape, k0):
+@cached_function
+def betaxy(shape, k0, out = None):
     """Returns betax, betay arrays of plane eigenwaves with 
     a given wave number k0 and step size d"""
     #ax, ay = map(np.fft.fftfreq, shape,(d,)*len(shape))
-    k0 = np.asarray(k0)[...,np.newaxis,np.newaxis] #make it broadcastable
-    ay, ax = map(np.fft.fftfreq, shape)
+    k0 = np.asarray(k0,dtype = FDTYPE)[...,np.newaxis,np.newaxis] #make it broadcastable
+    ay, ax = map(lambda x : np.asarray(np.fft.fftfreq(x), dtype = FDTYPE), shape)
     xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
-    betax = 2 * np.pi * xx/k0
-    betay = 2 * np.pi * yy/k0
-    return np.asarray(betax, dtype = FDTYPE), np.asarray(betay, dtype = FDTYPE)
+    if out is None:
+        out = None, None
+    l = (2 * np.pi / k0)
+    return np.multiply(l,xx, out = out[0]), np.multiply(l,yy, out = out[1])
 
 def k0(wavelength,d = 1.):
     """Calculate wave number in vacuum from a given wavelength"""
@@ -150,5 +152,51 @@ def mean_betaphi(wave, k0, beta, phi):
     #save results to output
     beta[0] = (betax**2+betay**2)**0.5
     phi[0] = np.arctan2(betay,betax)
+
+@nb.guvectorize([(NCDTYPE[:,:,:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:])], "(k,n,m),()->(),()", cache = NUMBA_CACHE)
+def mean_betaphi2(wave, k0, beta, phi):
+    """Calculates mean beta and phi of a given wave array. """
+    b = blackman(wave.shape[1:])
+    f = fft.fft2(wave*b) #filter it with blackman..
+    s = np.abs(f)**2
+    p = s/s.sum()#normalize probability coefficients
+    p = p.sum(axis = 0)
+    betax, betay = betaxy(wave.shape[1:],k0)
+    betax = (betax*p).sum()
+    betay = (betay*p).sum()
+    #save results to output
+    beta[0] = (betax**2+betay**2)**0.5
+    phi[0] = np.arctan2(betay,betax)
+    
+@nb.guvectorize([(NCDTYPE[:,:,:],NFDTYPE[:,:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:])], "(k,n,m),(n,m),(n,m)->(),()", target = NUMBA_TARGET, cache = NUMBA_CACHE)
+def mean_betaphi3(f, betax, betay, beta, phi):
+    """Calculates mean beta and phi of a given wave array. """
+    
+    s = np.abs(f)**2
+    p = s/s.sum()#normalize probability coefficients
+    p = p.sum(axis = 0)
+    betax = (betax*p).sum()
+    betay = (betay*p).sum()
+    #save results to output
+    beta[0] = (betax**2+betay**2)**0.5
+    phi[0] = np.arctan2(betay,betax)
+    
+    
+@nb.guvectorize([(NCDTYPE[:,:,:],NFDTYPE[:,:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:])], "(k,n,m),(n,m),(n,m)->(),()", target = NUMBA_TARGET, cache = NUMBA_CACHE)
+def mean_betaphi4(f, betax, betay, beta, phi):
+    """Calculates mean beta and phi of a given wave array. """
+    _betax = 0.
+    _betay = 0.
+    _ssum = 0.
+    for i in range(f.shape[0]):
+        for j in range(f.shape[1]):
+            for k in range(f.shape[2]):
+                s = f[i,j,k].real**2 + f[i,j,k].imag**2
+                _betax += s*betax[j,k]
+                _betay += s*betay[j,k]
+                _ssum += s
+    #save results to output
+    beta[0] = (_betax**2+_betay**2)**0.5 / _ssum
+    phi[0] = np.arctan2(_betay,_betax)
 
 __all__ = [ "betaphi","planewave","k0"]

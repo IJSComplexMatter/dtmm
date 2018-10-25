@@ -252,17 +252,23 @@ _dummy_array = np.empty((4,),CDTYPE)
 _dummy_array2 = np.empty((9,),CDTYPE)
     
 
+def _alphaf(beta,phi,epsv,epsa,out = None):
+    rv = rotation_vector2(phi) 
+    return _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array,out = out)
+
 def alphaf(beta,phi,epsv,epsa,out = None):
     rv = rotation_vector2(phi) 
     return _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array,out = out)
 
+
+
 def alphaffi(beta,phi,epsv,epsa,out = None):
     if out is not None:
         a,f,fi = out
-        alphaf(beta,phi,epsv,epsa, out = (a,f))
+        _alphaf(beta,phi,epsv,epsa, out = (a,f))
         inv(f,fi)
     else:
-        a,f = alphaf(beta,phi,epsv,epsa)
+        a,f = _alphaf(beta,phi,epsv,epsa)
         fi = inv(f)
     return a,f,fi
         
@@ -281,9 +287,29 @@ def alphajji(beta,phi,epsv,epsa, out = None):
     else:
         return a,j,ji
  
-def alphae(beta,phi,epsv,epsa, out = None):
+def alphaE(beta,phi,epsv,epsa, mode = +1, out = None):
     alpha,f = alphaf(beta,phi,epsv,epsa)
-    e = E_mat(f)
+    e = E_mat(f,mode = mode, copy = False)
+    if mode == 1:
+        alpha = alpha[...,::2]
+    else:
+        alpha = alpha[...,1::2]
+    if out is not None:
+        out[0][...] = alpha
+        out[1][...] = e
+    else:
+        out = alpha.copy(), e.copy()
+    return out
+
+def alphaEEi(beta,phi,epsv,epsa, mode = +1, out = None):
+    if out is None:
+        alpha,E = alphaE(beta,phi,epsv,epsa, mode = mode)
+        return alpha, E, inv(E)
+    else:
+        alpha, E, Ei = out
+        alpha, E = alphaE(beta,phi,epsv,epsa, mode = mode, out = (alpha, E))
+        Ei = inv(E,out = Ei)
+        return alpha, E, Ei 
 
 _numba_0_39_or_greater = False    
 
@@ -318,47 +344,123 @@ else:
 def phase_mat(alpha, kd, mode = None, out = None):
     kd = np.asarray(kd, dtype = FDTYPE)
     if out is None:
-        b = np.broadcast(alpha,kd[...,None])
+        if mode is None:
+            b = np.broadcast(alpha,kd[...,None])
+        else:
+            b = np.broadcast(alpha[...,::2],kd[...,None])
         out = np.empty(b.shape, dtype = CDTYPE)
-    if mode == "forward":
-        phasem(alpha[...,::2],kd, out = out[...,::2])
-        out[...,1::2] = 0.
-    elif mode == "backward":
-        phasem(alpha[...,1::2],kd,out = out[...,1::2])
-        out[...,::2] = 0.
+        
+    if mode == +1:
+        phasem(alpha[...,::2],kd, out = out)
+    elif mode == -1:
+        phasem(alpha[...,1::2],kd,out = out)
     elif mode is None:
         out = phasem(alpha,kd, out = out) 
     else:
         raise ValueError("Unknown propagation mode.")
     return out  
-       
-def transmission_mat(fin, fout, fini = None, out = None):
+
+def S_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1):
+    if overwrite_fini == True:
+        out = fini
+    else:
+        out = None
     if fini is None:
-        fini = inv(fin)
-    S = dotmm(fini,fout)
-    A1 = fin[...,::2,::2]
-    A2 = fout[...,::2,::2]
-    A = S[...,::2,::2]
+        fini = inv(fin, out = out)
+        out = fini
+    S = dotmm(fini,fout, out = out)
+    if mode == +1:
+        return S[...,::2,::2],S[...,1::2,0::2]
+    elif mode == -1:
+        return S[...,1::2,1::2],S[...,0::2,1::2]
+    else:
+        raise ValueError("Unknown propagation mode.")  
+        
+def transmission_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1,out = None):
+    A,B = S_mat(fin, fout, fini = fini, overwrite_fini = overwrite_fini, mode = mode)
+    if mode == +1:
+        A1 = fin[...,::2,::2]
+        A2 = fout[...,::2,::2]
+    elif mode == -1:
+        A1 = fin[...,1::2,1::2]
+        A2 = fout[...,1::2,1::2]
+    else:
+        raise ValueError("Unknown propagation mode.")        
     Ai = inv(A, out = out)
     A1i = inv(A1)
     return dotmm(dotmm(A2,Ai, out = Ai),A1i, out = Ai)
 
-def E_mat(fmat, mode = "forward", copy = False):
-    if mode == "forward":
+def reflection_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1,out = None):
+    A,B = S_mat(fin, fout, fini = fini, overwrite_fini = overwrite_fini, mode = mode)
+    if mode == +1:
+        A1p = fin[...,::2,::2]
+        A1m = fin[...,::2,1::2]
+    elif mode == -1:
+        A1p = fin[...,1::2,1::2]
+        A1m = fin[...,1::2,::2]  
+    else:
+        raise ValueError("Unknown propagation mode.")
+    Ai = inv(A, out = out)
+    A1pi = inv(A1p)
+    return dotmm(dotmm(dotmm(A1m,B,out = Ai),Ai, out = Ai),A1pi, out = Ai)
+
+def tr_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1, out = None):
+    eti,eri = Etri_mat(fin, fout, fini = fini, overwrite_fini = overwrite_fini, mode = mode, out = out)
+    et = E_mat(fout, mode = mode, copy = False)
+    er = E_mat(fin, mode = mode * (-1), copy = False)
+    return dotmm(et,eti, out = eti), dotmm(er,eri, out = eri)
+
+def t_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1, out = None):
+    eti = Eti_mat(fin, fout, fini = fini, overwrite_fini = overwrite_fini, mode = mode, out = out)
+    et = E_mat(fout, mode = mode, copy = False)
+    return dotmm(et,eti, out = eti)
+
+def E_mat(fmat, mode = +1, copy = True):
+    if mode == +1:
         e = fmat[...,::2,::2]
-    elif mode == "backward":
+    elif mode == -1:
         e = fmat[...,::2,1::2]
     else:
         raise ValueError("Unknown propagation mode.")
     return e.copy() if copy else e     
 
-def EEi_mat(fmat,mode = "forward", copy = False):
+def Eti_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1, out = None):
+    St,Sr = S_mat(fin, fout, fini = fini, overwrite_fini = overwrite_fini, mode = mode)
+    if mode == +1:
+        A = fin[...,::2,::2]
+    elif mode == -1:
+        A = fin[...,::2,1::2]
+    else:
+        raise ValueError("Unknown propagation mode.")        
+    Sti = inv(St, out = St)
+    Ai = inv(A, out = out)
+    return dotmm(Sti,Ai, out = Ai)
+
+def Etri_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1, out = None):
+    St,Sr = S_mat(fin, fout, fini = fini, overwrite_fini = overwrite_fini, mode = mode)
+    A = E_mat(fin, mode = mode, copy = False)
+  
+    out1, out2 = out if out is not None else None, None
+
+    Sti = inv(St, out = St)
+    Ai = inv(A, out = out1)
+    ei = dotmm(Sti,Ai,out = Ai)
+    return ei, dotmm(Sr,ei, out = out2)
+
+
+def EEi_mat(fmat,mode = +1, copy = True):
     e = E_mat(fmat, mode, copy)
     return e,inv(e)
     
-def E2H_mat(fmat, out = None):  
-    A = fmat[...,::2,::2]
-    B = fmat[...,1::2,::2]
+def E2H_mat(fmat, mode = +1, out = None):  
+    if mode == +1:
+        A = fmat[...,::2,::2]
+        B = fmat[...,1::2,::2]
+    elif mode == -1:
+        A = fmat[...,::2,1::2]
+        B = fmat[...,1::2,1::2]
+    else:
+        raise ValueError("Unknown propagation mode.") 
     Ai = inv(A, out = out)
     return dotmm(B,Ai, out = Ai)  
 

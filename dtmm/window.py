@@ -7,7 +7,7 @@ Window functions.
 from __future__ import absolute_import, print_function, division
 
 import numpy as np
-from dtmm.conf import FDTYPE
+from dtmm.conf import FDTYPE, cached_function
 
 def _r(shape, scale = 1.):
     """Returns radius array of a given shape."""
@@ -24,7 +24,8 @@ def _r2(shape):
     r = ((xx)**2 + (yy)**2) ** 0.5    
     return r
 
-def blackman(shape):
+@cached_function
+def blackman(shape, out = None):
     """Returns a blacman window of a given shape
     
     Parameters
@@ -32,8 +33,9 @@ def blackman(shape):
     shape : (int,int)
         A shape of the 2D window.
     """
-    r = _r(shape)   
-    out = np.ones(shape, FDTYPE)
+    r = _r(shape)  
+    if out is None:
+        out = np.ones(shape, FDTYPE)
     out[...] = 0.42 + 0.5*np.cos(1*np.pi*r)+0.08*np.cos(2*np.pi*r)
     mask = (r>= 1.)
     out[mask] = 0.
