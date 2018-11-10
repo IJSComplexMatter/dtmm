@@ -6,7 +6,7 @@ import numpy as np
 #: pixel size in nm
 PIXELSIZE = 200
 #: compute box dimensions
-NLAYERS, HEIGHT, WIDTH = 60, 96, 96
+NLAYERS, HEIGHT, WIDTH = 20, 64, 64
 #: illumination wavelengths in nm
 WAVELENGTHS = [550]
 #: create some experimental data (stack)
@@ -22,6 +22,6 @@ field_data_out = dtmm.transfer_field(field_data_in, optical_data, ret_bulk = Tru
 #: visualize output field
 viewer = dtmm.field_viewer(field_data_out, bulk_data = True)
 viewer.set_parameters(sample = 0, intensity = 2,
-                polarizer = 0, layer = 20, analyzer = 90)
+                polarizer = 0, focus = 20, analyzer = 90)
 
 fig,ax = viewer.plot()

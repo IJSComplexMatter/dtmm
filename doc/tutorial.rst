@@ -145,6 +145,7 @@ Now  the "focus" parameter has a role of selecting a layer index and the viewer 
 The refractive index `n`, and `betamax` parameters are meaningless when using the field_viewer to visualize bulk data, except if you define a transmission or reflection `mode`. In this case, the viewer project the EM field and calculates the forward or backward propagating parts and removes the waves with beta value larger than the specified betamax parameter before calculating the intensity. 
 
 
+
 On the calculation accuracy
 ---------------------------
 
