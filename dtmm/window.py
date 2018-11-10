@@ -73,6 +73,7 @@ def aperture(shape, diameter = 1., alpha = 0.05):
     return tukey(r,alpha)
 
 def tukey(r,alpha = 0.1, rmax = 1.):
+    r = np.asarray(r, FDTYPE)
     out = np.ones(r.shape, FDTYPE)
     alpha = alpha * rmax
     mask = r > rmax -alpha

@@ -74,6 +74,7 @@ def _readconfig(func, section, name, default):
         return default
 
 BETAMAX = _readconfig(config.getfloat, "core", "betamax", 0.8)
+SMOOTH = _readconfig(config.getfloat, "core", "smooth", 0.1)
     
 if NUMBA_CACHE_DIR != "":
     os.environ["NUMBA_CACHE_DIR"] = NUMBA_CACHE_DIR #set it to os.environ.. so that numba can use it
@@ -387,7 +388,7 @@ CMF = _readconfig(config.get, "viewer", "cmf", "CIE1931")
 
 def print_config():
     """Prints all compile-time and run-time configurtion parameters and settings."""
-    options = {"PRECISION" : PRECISION, "BETAMAX": BETAMAX, 
+    options = {"PRECISION" : PRECISION, "BETAMAX": BETAMAX, "SMOOTH" : SMOOTH,
                "NUMBA_FASTMATH" :NUMBA_FASTMATH, "NUMBA_PARALLEL" : NUMBA_PARALLEL,
            "NUMBA_CACHE" : NUMBA_CACHE, "NUMBA_FASTMATH" : NUMBA_FASTMATH,
            "NUMBA_TARGET" : NUMBA_TARGET}

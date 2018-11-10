@@ -105,15 +105,17 @@ In the field data above we have also used *n = 1.5* argument, which defines a fo
 
    >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, nin = 1.5, nout = 1.5)
 
+Here we have set the index matching medium by specifying *nin* and *nout* arguments to the effective refractive index of the medium. By default input and output fields are assumed to be propagating in *nin = nout = 1.*. 
+
 .. note :: 
 
-   If you want to eliminate the reflections from the input and output surfaces you have to set the index matching medium by specifying *nin* and *nout* arguments to the effective refractive index of the medium. By default input and output fields are assumed to be propagating in *nin = nout = 1.*. See :ref:`Tutorial` for details on reflections and interference.
+   The transfer_field function by default uses 2x2 method and does not compute reflections. Therefore, `nin` and `nout` arguments must be equal. If they are not, you must enable reflections. See :ref:`Tutorial` for details on reflections and interference.
 
 
 Multiple rays
 +++++++++++++
 
-If you want to simulate multiple rays (multiple plane waves), directions of these rays have to be defined. A simple approach is to use the illumination_betaphi helper function. This function returns beta values and phi values of the input rays for a specified numerical aperture of the illumination. 
+If you want to simulate multiple rays (multiple plane waves), directions of these rays have to be defined. A simple approach is to use the illumination_rays helper function. This function returns beta values and phi values of the input rays for a specified numerical aperture of the illumination. 
 
 .. note::
 
@@ -125,7 +127,7 @@ For numerical aperture of NA = 0.1 you can call
 
    >>> beta, phi, intensity = dtmm.illumination_rays(0.1,4) 
 
-which constructs direction parameters (beta, phi) of input rays of numerical aperture of 0.1 and with approximate number of rays of Pi*2*2. It defines a cone of light rays, where each ray originates from a different evenly distributed angle determined from the position of the pixel in a diaphragm of a diameter specified by the second parameter (e.g. 4). Therefore in our case
+which constructs direction parameters and intensity (beta, phi, intensity) of input rays of numerical aperture of 0.1 and with approximate number of rays of Pi*2*2. It defines a cone of light rays, where each ray originates from a different evenly distributed angle determined from the position of the pixel in a diaphragm of a diameter specified by the second parameter (e.g. 4). Therefore in our case
 
 .. doctest::
 

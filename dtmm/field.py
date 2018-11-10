@@ -20,82 +20,41 @@ if NUMBA_PARALLEL == False:
 sqrt = np.sqrt
 
 
-@nb.guvectorize([(NCDTYPE[:,:,:],NFDTYPE[:,:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NCDTYPE[:,:,:],NFDTYPE[:],NFDTYPE[:])], 
-                 "(n,i,j),(i,j),(i,j),(),(),(),(),()->(n,i,j),(),()",
-                 target = NUMBA_TARGET, cache = NUMBA_CACHE)
-def select_fftfield(fftfield, fftbetax, fftbetay,betax, betay, stepx,stepy, betamax, out, betaxmean, betaymean):
-    nn, ni, nj = fftfield.shape
-    betaxmean[0] = 0.
-    betaymean[0] = 0.
-    n = 0
-    for i in range(ni):
-        for j in range(nj):
-            fftbetaxij = fftbetax[i,j]
-            cx = 1. - np.abs(fftbetaxij - betax[0])/stepx[0]
-            if cx < 0:
-                cx = 0.           
-            fftbetayij = fftbetay[i,j]
-            cy = 1. - np.abs(fftbetayij - betay[0])/stepy[0]
-            if cy < 0:
-                cy = 0.
-            beta = (fftbetaxij**2 + fftbetayij**2)**0.5 
-            if beta >= betamax[0]:
-                coeff = 0.
-            else:
-                coeff = cx * cy
-            if coeff > 0.:
-                out[:,i,j] = fftfield[:,i,j]*coeff
-                betaxmean[0] += fftbetaxij
-                betaymean[0] += fftbetayij
-                n += 1
-            else:
-                out[:,i,j] = 0.
-      
-    if n != 0:
-        betaxmean[0] /= n
-        betaymean[0] /= n
-    
-
-@nb.guvectorize([(NFDTYPE[:,:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:,:])], 
-                 "(i,j),(i,j),(),(),(),(),(),(),()->(i,j)",
-                 target = NUMBA_TARGET, cache = NUMBA_CACHE)
-def fft_window(fftbetax, fftbetay,betax, betay, stepx,stepy, xtyp, ytyp, betamax, out):
-    ni, nj = fftbetax.shape
-    for i in range(ni):
-        for j in range(nj):
-            fftbetaxij = fftbetax[i,j]
-            dx = (fftbetaxij - betax[0])/stepx[0]
-            cx = 1. - np.abs(dx)
-            if cx < 0.:
-                cx = 0.  
-            else:
-                if xtyp[0] < 0:
-                    if dx < 0:
-                        cx = 1.
-                elif xtyp[0] > 0:
-                    if dx > 0:
-                        cx = 1.
-            fftbetayij = fftbetay[i,j]
-            dy = (fftbetayij - betay[0])/stepy[0]
-            cy = 1. - np.abs(dy)
-            if cy < 0.:
-                cy = 0.
-            else:
-                if ytyp[0] < 0:
-                    if dy < 0:
-                        cy = 1.
-                elif ytyp[0] > 0:
-                    if dy > 0:
-                        cy = 1.
-            beta = (fftbetaxij**2 + fftbetayij**2)**0.5 
-            if beta >= betamax[0]:
-                coeff = 0.
-            else:
-                coeff = cx * cy
-            if coeff > 0.:
-                out[i,j] = coeff
-            else:
-                out[i,j] = 0.
+#@nb.guvectorize([(NCDTYPE[:,:,:],NFDTYPE[:,:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NCDTYPE[:,:,:],NFDTYPE[:],NFDTYPE[:])], 
+#                 "(n,i,j),(i,j),(i,j),(),(),(),(),()->(n,i,j),(),()",
+#                 target = NUMBA_TARGET, cache = NUMBA_CACHE)
+#def select_fftfield(fftfield, fftbetax, fftbetay,betax, betay, stepx,stepy, betamax, out, betaxmean, betaymean):
+#    nn, ni, nj = fftfield.shape
+#    betaxmean[0] = 0.
+#    betaymean[0] = 0.
+#    n = 0
+#    for i in range(ni):
+#        for j in range(nj):
+#            fftbetaxij = fftbetax[i,j]
+#            cx = 1. - np.abs(fftbetaxij - betax[0])/stepx[0]
+#            if cx < 0:
+#                cx = 0.           
+#            fftbetayij = fftbetay[i,j]
+#            cy = 1. - np.abs(fftbetayij - betay[0])/stepy[0]
+#            if cy < 0:
+#                cy = 0.
+#            beta = (fftbetaxij**2 + fftbetayij**2)**0.5 
+#            if beta >= betamax[0]:
+#                coeff = 0.
+#            else:
+#                coeff = cx * cy
+#            if coeff > 0.:
+#                out[:,i,j] = fftfield[:,i,j]*coeff
+#                betaxmean[0] += fftbetaxij
+#                betaymean[0] += fftbetayij
+#                n += 1
+#            else:
+#                out[:,i,j] = 0.
+#      
+#    if n != 0:
+#        betaxmean[0] /= n
+#        betaymean[0] /= n
+#    
 
 
 def diaphragm2rays(diaphragm, betastep = 0.1, norm = True):
@@ -114,7 +73,7 @@ def diaphragm2rays(diaphragm, betastep = 0.1, norm = True):
 
 def illumination_diaphragm(diameter = 5., sharpness = 0.5):
     n = int(round(diameter))
-    alpha = max(min(1.-sharpness,0),1)
+    alpha = 1-min(abs(sharpness),1)
     diaphragm = aperture((n,n), diameter/n, alpha)
     return diaphragm
   

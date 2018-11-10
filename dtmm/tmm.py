@@ -324,7 +324,7 @@ if _numba_0_39_or_greater:
     @nb.vectorize([NCDTYPE(NCDTYPE,NFDTYPE)],
         target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
     def _phase_mat_vec(alpha,kd):
-        return np.exp(1j*kd*(alpha))
+        return np.exp(1j*kd*(alpha.real))
 
     def phasem(alpha,kd,out = None):
         kd = np.asarray(kd,FDTYPE)[...,None]
@@ -360,14 +360,13 @@ def phase_mat(alpha, kd, mode = None, out = None):
         raise ValueError("Unknown propagation mode.")
     return out  
 
-def S_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1):
-    if overwrite_fini == True:
-        out = fini
+def S_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1):
+    if overwrite_fin == True:
+        out = fin
     else:
         out = None
     if fini is None:
         fini = inv(fin, out = out)
-        out = fini
     S = dotmm(fini,fout, out = out)
     if mode == +1:
         return S[...,::2,::2],S[...,1::2,0::2]
@@ -376,8 +375,8 @@ def S_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1):
     else:
         raise ValueError("Unknown propagation mode.")  
         
-def transmission_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1,out = None):
-    A,B = S_mat(fin, fout, fini = fini, overwrite_fini = overwrite_fini, mode = mode)
+def transmission_mat(fin, fout, fini = None, mode = +1,out = None):
+    A,B = S_mat(fin, fout, fini = fini, mode = mode)
     if mode == +1:
         A1 = fin[...,::2,::2]
         A2 = fout[...,::2,::2]
@@ -390,8 +389,8 @@ def transmission_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1,o
     A1i = inv(A1)
     return dotmm(dotmm(A2,Ai, out = Ai),A1i, out = Ai)
 
-def reflection_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1,out = None):
-    A,B = S_mat(fin, fout, fini = fini, overwrite_fini = overwrite_fini, mode = mode)
+def reflection_mat(fin, fout, fini = None, mode = +1,out = None):
+    A,B = S_mat(fin, fout, fini = fini, mode = mode)
     if mode == +1:
         A1p = fin[...,::2,::2]
         A1m = fin[...,::2,1::2]
@@ -404,14 +403,17 @@ def reflection_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1,out
     A1pi = inv(A1p)
     return dotmm(dotmm(dotmm(A1m,B,out = Ai),Ai, out = Ai),A1pi, out = Ai)
 
-def tr_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1, out = None):
-    eti,eri = Etri_mat(fin, fout, fini = fini, overwrite_fini = overwrite_fini, mode = mode, out = out)
+def tr_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None):
+    if overwrite_fin == True:
+        er = E_mat(fin, mode = mode * (-1), copy = True)
+    else:
+        er = E_mat(fin, mode = mode * (-1), copy = False)
     et = E_mat(fout, mode = mode, copy = False)
-    er = E_mat(fin, mode = mode * (-1), copy = False)
+    eti,eri = Etri_mat(fin, fout, fini = fini, overwrite_fin = overwrite_fin, mode = mode, out = out)
     return dotmm(et,eti, out = eti), dotmm(er,eri, out = eri)
 
-def t_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1, out = None):
-    eti = Eti_mat(fin, fout, fini = fini, overwrite_fini = overwrite_fini, mode = mode, out = out)
+def t_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None):
+    eti = Eti_mat(fin, fout, fini = fini, overwrite_fin = overwrite_fin, mode = mode, out = out)
     et = E_mat(fout, mode = mode, copy = False)
     return dotmm(et,eti, out = eti)
 
@@ -420,37 +422,33 @@ def E_mat(fmat, mode = +1, copy = True):
         e = fmat[...,::2,::2]
     elif mode == -1:
         e = fmat[...,::2,1::2]
+    elif mode is None:
+        ep = fmat[...,::2,::2]
+        en = fmat[...,::2,1::2]
+        out = np.zeros_like(fmat)
+        out[...,::2,::2] = ep
+        out[...,1::2,1::2] = en
+        return out 
     else:
         raise ValueError("Unknown propagation mode.")
-    return e.copy() if copy else e     
+    return e.copy() if copy else e  
 
-def Eti_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1, out = None):
-    St,Sr = S_mat(fin, fout, fini = fini, overwrite_fini = overwrite_fini, mode = mode)
-    if mode == +1:
-        A = fin[...,::2,::2]
-    elif mode == -1:
-        A = fin[...,::2,1::2]
-    else:
-        raise ValueError("Unknown propagation mode.")        
-    Sti = inv(St, out = St)
+def Eti_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None):
+    A = E_mat(fin, mode = mode, copy = False) 
     Ai = inv(A, out = out)
+    St,Sr = S_mat(fin, fout, fini = fini, overwrite_fin = overwrite_fin, mode = mode)
+    Sti = inv(St, out = St)
     return dotmm(Sti,Ai, out = Ai)
 
-def Etri_mat(fin, fout, fini = None, overwrite_fini = False, mode = +1, out = None):
-    St,Sr = S_mat(fin, fout, fini = fini, overwrite_fini = overwrite_fini, mode = mode)
+def Etri_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None):
+    out1, out2 = out if out is not None else (None, None)
     A = E_mat(fin, mode = mode, copy = False)
-  
-    out1, out2 = out if out is not None else None, None
-
+    Ai = inv(A, out = out1)  
+    St,Sr = S_mat(fin, fout, fini = fini, overwrite_fin = overwrite_fin, mode = mode)
     Sti = inv(St, out = St)
-    Ai = inv(A, out = out1)
     ei = dotmm(Sti,Ai,out = Ai)
     return ei, dotmm(Sr,ei, out = out2)
 
-
-def EEi_mat(fmat,mode = +1, copy = True):
-    e = E_mat(fmat, mode, copy)
-    return e,inv(e)
     
 def E2H_mat(fmat, mode = +1, out = None):  
     if mode == +1:

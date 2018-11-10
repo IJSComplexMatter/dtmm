@@ -19,7 +19,7 @@ optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
 #NA 0.25, diaphragm with diameter 4 pixels, around 2*2*pi rays
 beta, phi, intensity = dtmm.illumination_rays(0.25,4)
 
-window = dtmm.aperture((HEIGHT,WIDTH), 1,0.2)
+window = dtmm.aperture((HEIGHT,WIDTH), 1,0.1)
 
 field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, PIXELSIZE, 
                                        beta,phi, intensity,

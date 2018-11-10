@@ -79,8 +79,8 @@ def linear_polarizer(angle, out = None):
 polarizer_matrix = linear_polarizer
 
 def circular_polarizer(hand, out = None):
-    """Returns circular polarizee matrix. Hand is an integer  +1 (left-) or -1 
-    (right-hand).
+    """Returns circular polarizee matrix. Hand is an integer  +1 (left-hand)
+    or -1 (right-hand).
     """
     hand = np.asarray(hand)*0.5
     shape = hand.shape + (2,2)
@@ -109,7 +109,23 @@ def apply_jones_matrix(pmat, field, out):
             out[2,i,j] = Ey
             out[3,i,j] = Hx
             
-__all__ = ["polarizer","circular_polarizer","linear_polarizer", "apply_jones_matrix", "jonesvec", ]
+            
+@nb.guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(k,l,m,m),(n,k,l)->(n,k,l)", 
+                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def apply_jones_matrix2(pmat, field, out):
+    """Multiplies 2x2 jones polarizer matrix with 4 x n x m field array"""
+    for i in range(field.shape[1]):
+        for j in range(field.shape[2]):
+            Ex = field[0,i,j] * pmat[i,j,0,0] + field[2,i,j] * pmat[i,j,0,1]
+            Hy = field[1,i,j] * pmat[i,j,0,0] - field[3,i,j] * pmat[i,j,0,1]
+            Ey = field[0,i,j] * pmat[i,j,1,0] + field[2,i,j] * pmat[i,j,1,1]
+            Hx = -field[1,i,j] * pmat[i,j,1,0] + field[3,i,j] * pmat[i,j,1,1]
+            out[0,i,j] = Ex
+            out[1,i,j] = Hy
+            out[2,i,j] = Ey
+            out[3,i,j] = Hx            
+            
+__all__ = ["polarizer","circular_polarizer","linear_polarizer", "apply_jones_matrix",  "apply_jones_matrix","jonesvec", ]
     
 if __name__ == "__main__":
     import doctest
