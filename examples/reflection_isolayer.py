@@ -34,6 +34,10 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, window = wi
 field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = BETA,  phi = 0.,
             reflection = 2, diffraction =1, npass = 3, method = "2x2")
 
+viewer4 = dtmm.field_viewer(field_data_in, mode = "t", intensity = 1)
+fig4,ax4 = viewer4.plot()
+ax4.set_title("Input field")
+
 #: visualize output field
 viewer1 = dtmm.field_viewer(field_data_out, mode = "t",intensity = 1) 
 fig1,ax1 = viewer1.plot()
@@ -48,6 +52,3 @@ viewer3 = dtmm.field_viewer(field_data_in, mode = "r", intensity = 1)
 fig3,ax3 = viewer3.plot()
 ax3.set_title("Reflected field")
 
-viewer4 = dtmm.field_viewer(field_data_in, mode = "t", intensity = 1)
-fig4,ax4 = viewer4.plot()
-ax4.set_title("Input field")
