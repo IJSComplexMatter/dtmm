@@ -1,6 +1,7 @@
-"""This examples shows how illumination_rays function works.
+"""This examples shows how illumination_rays function works:
 
-It builds beta and phi and intensity parameters for Koehler illumination"""
+It builds beta and phi and intensity parameters for Koehler illumination.
+"""
 
 import dtmm
 import matplotlib.pyplot as plt
