@@ -171,7 +171,7 @@ Try experimenting yourself. As a rule of thumb, diffraction = 1 gives a reasonab
 In the examples below we show difference between several diffraction arguments (0,1,5). With diffraction = 0, the method does not include diffraction effects. With diffraction = 1 and 5, one can see that due to diffraction a halo ring appears and the appearance of colors is slightly different for all three methods. 
 
 
-.. .. plot:: examples/diffraction_accuracy.py
+.. plot:: examples/diffraction_accuracy.py
 
    A comparison of diffraction = 0, diffraction = 1, and diffraction = 5 transmission calculations of same radial nematic droplet. See source for details on optical parameters.
 
