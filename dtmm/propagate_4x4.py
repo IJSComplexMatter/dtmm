@@ -292,7 +292,7 @@ def propagate_4x4_effective_1(field, wavenumbers, layer, effective_layer, beta =
         return _transfer_ray_4x4_1(field, wavenumbers, layer,dmat1, dmat2, 
                                 beta = beta, phi = phi, nsteps =  nsteps, 
                                 betamax = betamax,  out = out)
-    else:
+    elif diffraction > 1:
         fout = np.zeros_like(field)
         _out = None
 
@@ -360,7 +360,7 @@ def propagate_4x4_effective_3(field, wavenumbers, layer, effective_layer, beta =
         return _transfer_ray_4x4_3(field, wavenumbers, layer,dmat1, dmat2, 
                                 beta = beta, phi = phi, nsteps =  nsteps, 
                                 betamax = betamax,  out = out)
-    else:
+    elif diffraction > 1:
         fout = np.zeros_like(field)
         _out = None
 

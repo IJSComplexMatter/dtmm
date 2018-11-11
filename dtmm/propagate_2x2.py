@@ -65,12 +65,14 @@ def _transfer_ray_2x2_1(fft_field, wavenumbers, layer, effective_layer_in,effect
                 fft_field = dotmf(dmat1, fft_field, out = fft_field)
                 out = fft_field
         else:
-            fft_field = dotmf(dmat1, fft_field, out = out)
+            if dmat1 is not None:
+                fft_field = dotmf(dmat1, fft_field, out = out)
             out = fft_field
         field = ifft2(fft_field, out = out)
         field = dotmdmf(e,p,ei,field, out = field)
         fft_field = fft2(field, out = field)
-        fft_field = dotmf(dmat2, fft_field, out = fft_field)
+        if dmat2 is not None:
+            fft_field = dotmf(dmat2, fft_field, out = fft_field)
     #return fft_field, refl  
     
     #out = ifft2(fft_field, out = out)
@@ -194,15 +196,17 @@ def propagate_2x2_effective_1(field, wavenumbers, layer_in, layer_out, effective
     shape = field.shape[-2:]
     
     if diffraction <= 1:
-        dmat1 = first_E_diffraction_matrix(shape, wavenumbers, beta, phi,d_out/2, epsv = epsv_out, 
+        if diffraction == 1:
+            dmat1 = first_E_diffraction_matrix(shape, wavenumbers, beta, phi,d_out/2, epsv = epsv_out, 
                                         epsa =  epsa_out, mode = mode, betamax = betamax) 
-        dmat2 = second_E_diffraction_matrix(shape, wavenumbers, beta, phi,d_out/2, epsv = epsv_out, 
+            dmat2 = second_E_diffraction_matrix(shape, wavenumbers, beta, phi,d_out/2, epsv = epsv_out, 
                                         epsa =  epsa_out, mode = mode, betamax = betamax) 
-
+        else:
+            dmat1, dmat2 = None,None
         return _transfer_ray_2x2_1(field, wavenumbers, layer_out, effective_layer_in, effective_layer_out,dmat1, dmat2,
                                 beta = beta, phi = phi, nsteps =  nsteps,reflection = reflection,
                                 betamax = betamax, mode = mode, refl = refl, bulk = bulk, out = out, tmpdata = tmpdata)            
-    else:
+    elif diffraction > 1:
         fout = np.zeros_like(field)
         reflpart = None
         fpart = None
