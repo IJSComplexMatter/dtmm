@@ -6,7 +6,7 @@ import numpy as np
 #: pixel size in nm
 PIXELSIZE = 200
 #: compute box dimensions
-NLAYERS, HEIGHT, WIDTH = 20, 64, 64
+NLAYERS, HEIGHT, WIDTH = 60, 96, 96
 #: illumination wavelengths in nm
 WAVELENGTHS = [550]
 #: create some experimental data (stack)

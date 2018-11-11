@@ -138,7 +138,7 @@ The field_viewer function can also be used to show bulk EM data in color. Here y
 Now  the "focus" parameter has a role of selecting a layer index and the viewer shows the power of the EM field in the specified layer.
 
 
-.. .. plot:: examples/viewer_bulk_data.py
+.. plot:: examples/viewer_bulk_data.py
 
    Bulk viewer - viewing field in a specified layer.
 
