@@ -31,19 +31,26 @@ ax.set_title("diffraction = 0")
 
 viewer2 = dtmm.field_viewer(field_data_out)
 viewer2.set_parameters(sample = 0, intensity = 2,
-                polarizer = 0, focus = -15, analyzer = 90)
+                polarizer = 0, focus = -14, analyzer = 90)
 
 fig,ax = viewer2.plot()
 ax.set_title("diffraction = 1")
 
-field_data_out = dtmm.transfer_field(field_data_in, optical_data, diffraction = 3, betamax = 1)
+import os
+on_rtd = os.environ.get('READTHEDOCS') == 'True'
+if on_rtd:
+    SPLITDIFF = True
+else:
+    SPLITDIFF = False
+
+field_data_out = dtmm.transfer_field(field_data_in, optical_data, diffraction = 5, betamax = 1,  split_diffraction = SPLITDIFF)
 
 viewer3 = dtmm.field_viewer(field_data_out)
 viewer3.set_parameters(sample = 0, intensity = 2,
-                polarizer = 0, focus = -15, analyzer = 90)
+                polarizer = 0, focus = -14, analyzer = 90)
 
 
 fig,ax = viewer3.plot()
-ax.set_title("diffraction = 3")
+ax.set_title("diffraction = 5")
 
 

@@ -276,7 +276,8 @@ def normalize_input_field(field, wavenumbers, rfield, n=1, betamax = BETAMAX, ou
 
 def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., nout = 1.,  
            npass = 1, nstep=1, diffraction = 1, reflection = None, method = "2x2", 
-           norm = DTMM_NORM_FFT, betamax = BETAMAX, smooth = SMOOTH, split = False, 
+           norm = DTMM_NORM_FFT, betamax = BETAMAX, smooth = SMOOTH, split_rays = False,
+           split_diffraction = False,
            eff_data = None, ret_bulk = False):
     """Tranfers input field data through optical data.
     
@@ -338,7 +339,11 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         npass > 1 and 4x4 method. Possible values are values above 0.Setting this
         to higher values > 1 removes noise but reduces convergence speed. Setting
         this to < 0.1 increases convergence, but it increases noise. 
-    split: bool, optional
+    split_diffraction : bool, optional
+        In diffraction > 1 calculation this option specifies whether to split 
+        computation over single beam to consume less temporary memory storage.
+        For large diffraction values this option should be set.
+    split_rays: bool, optional
         In multi-ray computation this option specifies whether to split 
         computation over single rays to consume less temporary memory storage.
         For large multi-ray datasets this option should be set.
@@ -360,18 +365,19 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
             if diffraction > 1 and method == "2x2":
                 reflection = 2
                 
-    if verbose_level >0:
+    if verbose_level > 0:
         print("Transferring input field.")    
-            
-    if split == False:
+ 
+    if split_rays == False:
         if method  == "4x4":
-            return transfer_4x4(field_data, optical_data, beta = beta, 
+            out = transfer_4x4(field_data, optical_data, beta = beta, 
                            phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
                       diffraction = diffraction, reflection = reflection,norm = norm, smooth = smooth,
                       betamax = betamax, ret_bulk = ret_bulk)
-        return transfer_2x2(field_data, optical_data, beta = beta, 
+        else:
+            out = transfer_2x2(field_data, optical_data, beta = beta, 
                    phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
-              diffraction = diffraction, reflection = reflection, betamax = betamax, ret_bulk = ret_bulk)
+              diffraction = diffraction,  split_diffraction = split_diffraction,reflection = reflection, betamax = betamax, ret_bulk = ret_bulk)
         
     else:#split input data by rays and compute ray-by-ray
         
@@ -402,10 +408,19 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
             else:
                 transfer_2x2(field_data, optical_data, beta = beta, 
                    phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
-              diffraction = diffraction, reflection = reflection, betamax = betamax, out = out, ret_bulk = ret_bulk)
+              diffraction = diffraction, split_diffraction = split_diffraction, reflection = reflection, betamax = betamax, out = out, ret_bulk = ret_bulk)
         
             
-        return field_out, wavelengths, pixelsize
+        out = field_out, wavelengths, pixelsize
+    if verbose_level >1:
+        print(" * Computation done:")  
+        print("     calculation method: {}".format(method))  
+        print("     reflection mode: {}".format(reflection)) 
+        print("     diffraction mode: {}".format(diffraction))  
+        print("     number of substeps: {}".format(nstep))     
+        print("     input refractive index: {}".format(nin))   
+        print("     output refractive index: {}".format(nin))  
+    return out
 
         
 
@@ -734,7 +749,7 @@ def field2betaphi(field_in,ks):
 def transfer_2x2(field_data, optical_data, beta = None, 
                    phi = None, eff_data = None, nin = 1., 
                    nout = 1., npass = 1,nstep=1,
-              diffraction = True, reflection = True,
+              diffraction = True, reflection = True, split_diffraction = False,
               betamax = BETAMAX, ret_bulk = False, out = None):
     """Tranfers input field data through optical data using the 2x2 method
     See transfer_field for documentation.
@@ -867,11 +882,11 @@ def transfer_2x2(field_data, optical_data, beta = None,
 
                 if reflection <= 1 :
                     field, refli = propagate_2x2_effective_1(field, ks, input_layer, output_layer ,input_layer_eff, output_layer_eff, 
-                            beta = beta, phi = phi, nsteps = nstep, diffraction = diffraction, reflection = reflection, 
+                            beta = beta, phi = phi, nsteps = nstep, diffraction = diffraction, split_diffraction = split_diffraction, reflection = reflection, 
                             betamax = betamax,mode = direction, refl = refl[j], bulk = bulk, tmpdata = tmpdata)
                 else:
                     field, refli = propagate_2x2_effective_2(field, ks, input_layer, output_layer ,input_layer_eff, output_layer_eff, 
-                            beta = beta, phi = phi, nsteps = nstep, diffraction = diffraction, reflection = reflection, 
+                            beta = beta, phi = phi, nsteps = nstep, diffraction = diffraction, split_diffraction = split_diffraction, reflection = reflection, 
                             betamax = betamax,mode = direction, refl = refl[j], bulk = bulk, tmpdata = tmpdata)
                 
 

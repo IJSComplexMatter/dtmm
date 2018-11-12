@@ -190,8 +190,8 @@ def _transfer_ray_2x2_2(field, wavenumbers, in_layer, out_layer, dmat = None, be
 def propagate_2x2_effective_1(field, wavenumbers, layer_in, layer_out, effective_layer_in, 
                             effective_layer_out, beta = 0, phi = 0,
                             nsteps = 1, diffraction = True, reflection = True, 
-                            betamax = BETAMAX,  mode = +1, 
-                            refl = None, bulk = None, out = None, tmpdata = None):
+                            betamax = BETAMAX,  mode = +1,  tmpdata = None, split_diffraction = False,
+                            refl = None, bulk = None, out = None):
     d_out, epsv_out,epsa_out = effective_layer_out    
     shape = field.shape[-2:]
     
@@ -230,13 +230,29 @@ def propagate_2x2_effective_1(field, wavenumbers, layer_in, layer_out, effective
         n = len(windows)
         betas = betas.reshape((n,) + broadcast_shape)
         phis = phis.reshape((n,) + broadcast_shape)
+        
+        if split_diffraction == False:
 
-        dmats1 = first_E_diffraction_matrix(shape, wavenumbers, betas, phis,d_out/2, epsv = epsv_out, 
+            dmats1 = first_E_diffraction_matrix(shape, wavenumbers, betas, phis,d_out/2, epsv = epsv_out, 
                                         epsa =  epsa_out, mode = mode, betamax = betamax) 
-        dmats2 = second_E_diffraction_matrix(shape, wavenumbers, betas, phis,d_out/2, epsv = epsv_out, 
+            dmats2 = second_E_diffraction_matrix(shape, wavenumbers, betas, phis,d_out/2, epsv = epsv_out, 
                                         epsa =  epsa_out, mode = mode, betamax = betamax) 
-
-        for window, beta, phi, dmat1, dmat2  in zip(windows, betas, phis, dmats1, dmats2):
+            
+            idata = zip(windows, betas, phis, dmats1, dmats2)
+        else:
+            idata = zip(windows, betas, phis)
+            
+        for data  in idata:
+            if split_diffraction == False:
+                window, beta, phi, dmat1, dmat2 = data
+            else:
+                window, beta, phi = data
+                dmat1 = first_E_diffraction_matrix(shape, wavenumbers, beta, phi,d_out/2, epsv = epsv_out, 
+                                        epsa =  epsa_out, mode = mode, betamax = betamax) 
+                dmat2 = second_E_diffraction_matrix(shape, wavenumbers, beta, phi,d_out/2, epsv = epsv_out, 
+                                        epsa =  epsa_out, mode = mode, betamax = betamax) 
+                        
+            
             fpart = np.multiply(field, window, out = fpart)
             
             if refl is not None:
@@ -285,7 +301,8 @@ def propagate_2x2_effective_1(field, wavenumbers, layer_in, layer_out, effective
 
 def propagate_2x2_effective_2(field, wavenumbers, layer_in, layer_out, effective_layer_in, 
                             effective_layer_out, beta = 0, phi = 0,
-                            nsteps = 1, diffraction = True, reflection = True, 
+                            nsteps = 1, diffraction = True, split_diffraction = False,
+                            reflection = True, 
                             betamax = BETAMAX,  mode = +1, 
                             refl = None, bulk = None, out = None, tmpdata = None):
     
@@ -328,10 +345,25 @@ def propagate_2x2_effective_2(field, wavenumbers, layer_in, layer_out, effective
         betas = betas.reshape((n,) + broadcast_shape)
         phis = phis.reshape((n,) + broadcast_shape)
 
-        dmats = corrected_E_diffraction_matrix(shape, wavenumbers, betas,phis, d = d_eff,
+
+        if split_diffraction == False:
+
+            dmats = corrected_E_diffraction_matrix(shape, wavenumbers, betas,phis, d = d_eff,
                                      epsv = epsv_eff, epsa = epsa_eff, mode = mode, betamax = betamax)
             
-        for window, beta, phi, dmat  in zip(windows, betas, phis, dmats):
+            idata = zip(windows, betas, phis, dmats)
+        else:
+            idata = zip(windows, betas, phis)
+            
+
+        for data  in idata:
+            if split_diffraction == False:
+                window, beta, phi, dmat = data  
+            else:
+                window, beta, phi = data
+                dmat = corrected_E_diffraction_matrix(shape, wavenumbers, beta,phi, d = d_eff,
+                                     epsv = epsv_eff, epsa = epsa_eff, mode = mode, betamax = betamax)
+                        
             fpart = np.multiply(ffield, window, out = fpart)
             fpart_re = ifft2(fpart, out = fpart)
             
