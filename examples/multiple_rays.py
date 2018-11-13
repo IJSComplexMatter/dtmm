@@ -25,8 +25,7 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, PIXELSIZE,
                                        beta,phi, intensity,
                                        window = window, n = 1.5, focus = 30) 
 
-
-field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi,
+field_data_out = dtmm.transfer_field(field_data_in, optical_data, multiray = True,
                                      nin = 1.5,nout =1.5)
 
 viewer = dtmm.field_viewer(field_data_out, sample = 0, intensity = 2,n=1.5,

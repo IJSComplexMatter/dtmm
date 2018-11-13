@@ -2,7 +2,7 @@
 Main top level calculation functions for light propagation through optical data.
 """
 from __future__ import absolute_import, print_function, division
-
+import time
 from dtmm.conf import DTMMConfig,  BETAMAX, SMOOTH, FDTYPE
 from dtmm.wave import k0
 from dtmm.data import uniaxial_order, refind2eps, validate_optical_data
@@ -361,6 +361,7 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
     ret_bulk : bool, optional
         Whether to return bulk field instead of the transfered field (default).
     """
+    t0 = time.time()
     verbose_level = DTMMConfig.verbose
 
         
@@ -373,6 +374,15 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
                 
     if verbose_level > 0:
         print("Transferring input field.")    
+    if verbose_level > 1:
+        print("------------------------------------")
+        print(" $ calculation method: {}".format(method))  
+        print(" $ reflection mode: {}".format(reflection)) 
+        print(" $ diffraction mode: {}".format(diffraction))  
+        print(" $ number of substeps: {}".format(nstep))     
+        print(" $ input refractive index: {}".format(nin))   
+        print(" $ output refractive index: {}".format(nin)) 
+        print("------------------------------------")
  
     if split_rays == False:
         if method  == "4x4":
@@ -418,14 +428,12 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         
             
         out = field_out, wavelengths, pixelsize
+    t = time.time()-t0
     if verbose_level >1:
-        print(" * Computation done:")  
-        print("     calculation method: {}".format(method))  
-        print("     reflection mode: {}".format(reflection)) 
-        print("     diffraction mode: {}".format(diffraction))  
-        print("     number of substeps: {}".format(nstep))     
-        print("     input refractive index: {}".format(nin))   
-        print("     output refractive index: {}".format(nin))  
+        print("------------------------------------")
+        print("   Done in {} seconds!".format(t))  
+        print("------------------------------------")
+
     return out
 
         
