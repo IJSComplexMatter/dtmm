@@ -26,12 +26,19 @@ def _r2(shape):
 
 @cached_function
 def blackman(shape, out = None):
-    """Returns a blacman window of a given shape
+    """Returns a blacman window of a given shape.
     
     Parameters
     ----------
     shape : (int,int)
         A shape of the 2D window.
+    out : ndarray, optional
+        Output array.
+        
+    Returns
+    -------
+    window : ndarray
+        A Blackman window
     """
     r = _r(shape)  
     if out is None:
@@ -42,11 +49,48 @@ def blackman(shape, out = None):
     return out
 
 def gaussian(shape, waist):
+    """Gaussian amplitude window function.
+    
+    Parameters
+    ----------
+    shape : (int,int)
+        A shape of the 2D window
+    waist : float
+        Waist of the gaussian.
+       
+    Returns
+    -------
+    window : ndarray
+        Gaussian beam window
+    """
     r = _r(shape, waist)
     out = np.empty(shape, FDTYPE)
     return np.exp(-r**2, out = out)
 
-def gaussian_beam(shape, w0, k0, z = 0., n = 1):
+def gaussian_beam(shape, waist, k0, z = 0., n = 1):
+    """Returns gaussian beam window function. 
+    
+    Parameters
+    ----------
+    shape : (int,int)
+        A shape of the 2D window
+    waist : float
+        Waist of the beam 
+    k0 : float
+        Wavenumber
+    z : float, optional
+        The z-position of waist (0. by default)
+    n : float, optional
+        Refractive index (1. by default)    
+    out : ndarray, optional
+        Output array.
+       
+    Returns
+    -------
+    window : ndarray
+        Gaussian beam window
+    """
+    w0 = waist
     k = k0*n
     z0 = w0**2 *k/2.
     Rm2 = z/(z0**2+z**2)/2.
@@ -55,7 +99,7 @@ def gaussian_beam(shape, w0, k0, z = 0., n = 1):
     r = _r2(shape)
     return w0/w*np.exp(-(r/w)**2)*np.exp(1j*(k*z- psi))*np.exp(1j*(r*Rm2)**2)
     
-def aperture(shape, diameter = 1., alpha = 0.05):
+def aperture(shape, diameter = 1., smooth = 0.05, out = None):
     """Returns aperture window function. 
     
     Aperture is basically a tukey filter with a given diameter
@@ -66,15 +110,26 @@ def aperture(shape, diameter = 1., alpha = 0.05):
         A shape of the 2D window
     diameter : float
         Width of the aperture (1. for max height/width)
-    alpha : float
-        Smoothnes parameter (should be between 0. and 1.)
+    smooth : float
+        Smoothnes parameter - defines smoothness of the edge of the aperture
+        (should be between 0. and 1.; 0.05 by default)
+    out : ndarray, optional
+        Output array.
+        
+    Returns
+    -------
+    window : ndarray
+        Aperture window
     """
     r = _r(shape, scale = diameter)
-    return tukey(r,alpha)
+    return tukey(r,smooth, out = out)
 
-def tukey(r,alpha = 0.1, rmax = 1.):
+def tukey(r,alpha = 0.1, rmax = 1., out =  None):
+    if out is None:
+        out = np.ones(r.shape, FDTYPE)
+    else:
+        out[...] = 1.
     r = np.asarray(r, FDTYPE)
-    out = np.ones(r.shape, FDTYPE)
     alpha = alpha * rmax
     mask = r > rmax -alpha
     if alpha > 0.:
@@ -84,11 +139,11 @@ def tukey(r,alpha = 0.1, rmax = 1.):
     out[mask] = 0.
     return out  
 
-__all__ = ["aperture"]
+__all__ = ["aperture", "blackman", "gaussian_beam", "gaussian"]
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     plt.subplot(121)
     plt.imshow(aperture((32,32),diameter = 0.9))
     plt.subplot(122)
-    plt.imshow(blackman((32,39)))
+    plt.imshow(gaussian((32,32),0.5))

@@ -39,6 +39,7 @@ ax.set_title("diffraction = 1")
 import os
 on_rtd = os.environ.get('READTHEDOCS') == 'True'
 if on_rtd:
+    #limited memory on RTD server requires split diffraction calculation
     SPLITDIFF = True
 else:
     SPLITDIFF = False

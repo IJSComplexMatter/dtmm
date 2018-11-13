@@ -257,12 +257,46 @@ def _alphaf(beta,phi,epsv,epsa,out = None):
     return _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array,out = out)
 
 def alphaf(beta,phi,epsv,epsa,out = None):
+    """Computes alpha and field arrays (eigen values and eigen vectors arrays).
+    Broadcasting rules apply.
+    
+    Parameters
+    ----------
+    beta : float
+       The beta parameter of the field
+    phi : float
+       The phi parameter of the field
+    epsv : array-like
+       Dielectric tensor eigenvalues array.
+    epsa : array_like
+       Euler rotation angles (psi, theta, phi)
+    out : ndarray, optional
+       Output array
+       
+    Returns
+    -------
+    alpha, field arrays : (ndarray, ndarray)
+        Eigen values and eigen vectors arrays 
+    """
     rv = rotation_vector2(phi) 
     return _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array,out = out)
 
-
-
 def alphaffi(beta,phi,epsv,epsa,out = None):
+    """Computes alpha and field arrays (eigen values and eigen vectors arrays)
+    and inverse of the field array. See :func:`alphaf` for details
+    
+    Broadcasting rules apply.
+       
+    Returns
+    -------
+    alpha, field, ifield  : (ndarray, ndarray, ndarray)
+        Eigen values and eigen vectors arrays and its inverse
+        
+    This is equivalent to
+    
+    >>> alpha,field = alphaf(0,0, [2,2,2], [0.,0.,0.])
+    >>> ifield = inv(field)
+    """
     if out is not None:
         a,f,fi = out
         _alphaf(beta,phi,epsv,epsa, out = (a,f))
@@ -552,4 +586,4 @@ def transmit(fvec_in, cmat, beta = 0, phi = 0, nin = 1, nout = 1, fvec_out = Non
     return dotmv(f2,bvec,out = out)
 
 
-__all__ = ["alphaffi","phasem"]
+__all__ = ["alphaf","alphaffi","phasem"]

@@ -4,14 +4,13 @@ Main top level calculation functions for light propagation through optical data.
 from __future__ import absolute_import, print_function, division
 
 from dtmm.conf import DTMMConfig,  BETAMAX, SMOOTH, FDTYPE
-from dtmm.wave import k0,  betaxy, mean_betaphi4
-from dtmm.window import blackman
+from dtmm.wave import k0
 from dtmm.data import uniaxial_order, refind2eps, validate_optical_data
 from dtmm.tmm import E2H_mat
 from dtmm.linalg import  dotmf
 from dtmm.print_tools import print_progress
 from dtmm.diffract import diffract, projection_matrix, diffraction_alphaffi
-from dtmm.field import field2intensity
+from dtmm.field import field2intensity, mean_betaphi
 from dtmm.fft import fft2, ifft2
 from dtmm.jones import polarizer, apply_jones_matrix, jonesvec, apply_jones_matrix2
 import numpy as np
@@ -276,6 +275,7 @@ def normalize_input_field(field, wavenumbers, rfield, n=1, betamax = BETAMAX, ou
 
 def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., nout = 1.,  
            npass = 1, nstep=1, diffraction = 1, reflection = None, method = "2x2", 
+           multiray = False,
            norm = DTMM_NORM_FFT, betamax = BETAMAX, smooth = SMOOTH, split_rays = False,
            split_diffraction = False,
            eff_data = None, ret_bulk = False):
@@ -291,12 +291,14 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         Input field data tuple
     optical_data : Optical data tuple
         Optical data tuple through which input field is transfered.
-    beta : float or 1D array_like of floats
+    beta : float or 1D array_like of floats, optional
         Beta parameter of the input field. If it is a 1D array, beta[i] is the
-        beta parameter of the field_data[0][i] field array.
-    phi : float or 1D array_like of floats
+        beta parameter of the field_data[0][i] field array.f not provided, beta
+        is caluclated from input data (see also multiray option).
+    phi : float or 1D array_like of floats, optional
         Phi angle of the input light field. If it is a 1D array, phi[i] is the
-        phi parameter of the field_data[0][i] field array.
+        phi parameter of the field_data[0][i] field array. If not provided, phi
+        is caluclated from input data (see also multiray option).
     nin : float, optional
         Refractive index of the input (bottom) surface (1. by default). Used
         in combination with npass > 1 to determine reflections from input layer,
@@ -331,6 +333,10 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         == 1 and to 2 if npass > 1 and diffraction > 1. See documentation for details. 
     method : str, optional
         Specifies which method to use, either '2x2' (default) or '4x4'.
+    multiray : bool, optional
+        If specified it defines if first axis of the input data is treated as multiray data
+        or not. If beta and phi are not set, you must define this if your data
+        is multiray so that beta and phi values are correctly determined.
     norm : int, optional
         Normalization mode used when calculating multiple reflections with 
         npass > 1 and 4x4 method. Possible values are 0, 1, 2, default value is 1.
@@ -372,12 +378,12 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         if method  == "4x4":
             out = transfer_4x4(field_data, optical_data, beta = beta, 
                            phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
-                      diffraction = diffraction, reflection = reflection,norm = norm, smooth = smooth,
+                      diffraction = diffraction, reflection = reflection, multiray = multiray,norm = norm, smooth = smooth,
                       betamax = betamax, ret_bulk = ret_bulk)
         else:
             out = transfer_2x2(field_data, optical_data, beta = beta, 
                    phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
-              diffraction = diffraction,  split_diffraction = split_diffraction,reflection = reflection, betamax = betamax, ret_bulk = ret_bulk)
+              diffraction = diffraction,  multiray = multiray,split_diffraction = split_diffraction,reflection = reflection, betamax = betamax, ret_bulk = ret_bulk)
         
     else:#split input data by rays and compute ray-by-ray
         
@@ -403,12 +409,12 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
             if method  == "4x4":
                  transfer_4x4(field_data, optical_data, beta = beta, 
                        phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
-                  diffraction = diffraction, reflection = reflection,norm = norm, smooth = smooth,
+                  diffraction = diffraction, reflection = reflection,multiray = multiray,norm = norm, smooth = smooth,
                   betamax = betamax, out = out, ret_bulk = ret_bulk)
             else:
                 transfer_2x2(field_data, optical_data, beta = beta, 
                    phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
-              diffraction = diffraction, split_diffraction = split_diffraction, reflection = reflection, betamax = betamax, out = out, ret_bulk = ret_bulk)
+              diffraction = diffraction,multiray = multiray, split_diffraction = split_diffraction, reflection = reflection, betamax = betamax, out = out, ret_bulk = ret_bulk)
         
             
         out = field_out, wavelengths, pixelsize
@@ -426,7 +432,7 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
 
 def transfer_4x4(field_data, optical_data, beta = 0., 
                    phi = 0., eff_data = None, nin = 1., nout = 1., npass = 1,nstep=1,
-              diffraction = True, reflection = 1, norm = DTMM_NORM_FFT, smooth = SMOOTH,
+              diffraction = True, reflection = 1, multiray = False,norm = DTMM_NORM_FFT, smooth = SMOOTH,
               betamax = BETAMAX, ret_bulk = False, out = None):
     """Tranfers input field data through optical data. See transfer_field.
     """
@@ -466,7 +472,7 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
 
     if beta is None and phi is None:
         ray_tracing = False
-        beta, phi = field2betaphi(field_in,ks)
+        beta, phi = field2betaphi(field_in,ks, multiray)
     else:
         ray_tracing = False
     if diffraction != 1:
@@ -559,9 +565,9 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
             
             if ray_tracing == True:
                 if work_in_fft:
-                    beta, phi = field2betaphi(ifft2(field),ks)
+                    beta, phi = field2betaphi(ifft2(field),ks, multiray)
                 else:
-                    beta, phi = field2betaphi(field,ks)
+                    beta, phi = field2betaphi(field,ks, multiray)
                 beta, phi = _validate_betaphi(beta,phi,extendeddim = field_in.ndim-2)
             
             if calc_reference and i%2 == 0:
@@ -733,12 +739,9 @@ def _layers_list(optical_data, eff_data, nin, nout, nstep):
     eff_layers.append((1,(0., refind2eps([nout]*3), np.array((0.,0.,0.), dtype = FDTYPE))))
     return layers, eff_layers
 
-def field2betaphi(field_in,ks):
-    b = blackman(field_in.shape[-2:])
-    f = fft2(field_in*b) #filter it with blackman..
-    betax, betay = betaxy(field_in.shape[-2:], ks)
-    beta, phi = mean_betaphi4(f,betax,betay)
-    if field_in.ndim > 4:  #must have at least two polarization states or multi-ray input
+def field2betaphi(field_in,ks, multiray = False):
+    beta, phi = mean_betaphi(field_in, ks)
+    if field_in.ndim > 4 and multiray == True:  #must have at least two polarization states or multi-ray input
         beta = beta.mean(axis = tuple(range(1,field_in.ndim-3))) #average all, but first (multu-ray) axis
         phi = phi.mean(axis = tuple(range(1,field_in.ndim-3)))
     else:
@@ -749,7 +752,7 @@ def field2betaphi(field_in,ks):
 def transfer_2x2(field_data, optical_data, beta = None, 
                    phi = None, eff_data = None, nin = 1., 
                    nout = 1., npass = 1,nstep=1,
-              diffraction = True, reflection = True, split_diffraction = False,
+              diffraction = True, reflection = True, multiray = False, split_diffraction = False,
               betamax = BETAMAX, ret_bulk = False, out = None):
     """Tranfers input field data through optical data using the 2x2 method
     See transfer_field for documentation.
@@ -772,7 +775,7 @@ def transfer_2x2(field_data, optical_data, beta = None,
     
     if beta is None and phi is None:
         ray_tracing = False
-        beta, phi = field2betaphi(field_in,ks)
+        beta, phi = field2betaphi(field_in,ks, multiray)
     else:
         ray_tracing = False
     if diffraction != 1:
@@ -872,9 +875,9 @@ def transfer_2x2(field_data, optical_data, beta = None,
                     
             if ray_tracing == True:
                 if work_in_fft:
-                    beta, phi = field2betaphi(ifft2(field),ks)
+                    beta, phi = field2betaphi(ifft2(field),ks, multiray)
                 else:
-                    beta, phi = field2betaphi(field,ks)
+                    beta, phi = field2betaphi(field,ks, multiray)
                 beta, phi = _validate_betaphi(beta,phi,extendeddim = field_in.ndim-2)
 
             if diffraction >= 0 and diffraction < np.inf:

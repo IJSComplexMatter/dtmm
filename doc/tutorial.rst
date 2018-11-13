@@ -45,7 +45,7 @@ The `npass` argument defines number of passes (field transfers). You are advised
 In highly reflective media, the solution may not converge. You must play with the `norm` argument, which defines how the output field is modified after each even pass. 
 
 * with `norm` = 0 the back propagating part is simply removed, and the total intensity of the forward propagating part is rescaled to conserve total power flow. This method works well for weak reflections.
-* with `norm` = 1 the back propagating part is removed, and the amplitude of the fourier coefficients of the forward propagating part are modified so that power flow of each of the modes is conserved. This is how reflections should be treated in homogeneous layers (or nearly homogeneous layers). This method work well in most cases, especially when reflections come from mostly the top and bottom surfaces.
+* with `norm` = 1 the back propagating part is removed, and the amplitude of the fourier coefficients of the forward propagating part are modified so that power flow of each of the modes is conserved.  This method work well in most cases, especially when reflections come from mostly the top and bottom surfaces.
 * with `norm` = 2, during each even step, a reference non-reflecting and non-interfering wave is transferred through the stack. This reference wave is then used to normalize the forward propagating part of the output field. Because of the additional reference wave calculation this procedure is slower, but it was found to work well in any material (even cholesterics).
 
 2x2 method
@@ -71,7 +71,7 @@ Examples
 Surface reflections
 '''''''''''''''''''
 
-In this example we calculate reflection and transmission of a spatially narrow light beam (bandpassed white light 500-600 nm) that passes a two micron thick isotropic layer of high refractive index of n = 4 at an angle of beta = 0.4. Here `norm` = 1 works best. Already at three passes, the residual data is almost gone.
+In this example we calculate reflection and transmission of a spatially narrow light beam  that passes a two micron thick isotropic layer of high refractive index of n = 4 at an angle of beta = 0.4. Already at three passes, the residual data is almost gone.
 
 One clearly sees beam walking and multiple reflections and interference from both surfaces. See the `examples/reflection_isolayer.py` for details.
 
@@ -180,7 +180,7 @@ In the examples below we show difference between several diffraction arguments (
 On the betamax parameter
 ++++++++++++++++++++++++
 
-The `betamax` parameter defines the maximum value of the plane wave `beta` parameter in the diffraction step of the calculation. In air, the maximum value of beta is 1. A plane wave with beta = 1 is a plane wave traversing in the lateral direction (at 90 degree with respect to the layer normal). If beta is greater than 1 in air, the plane wave is no longer a traveling wave, but it becomes an evanescent wave and the propagation becomes unstable in the 4x4 method (when `method = "4x4"` is used in the computation). In a medium with higher refractive index, the maximum value for a traveling wave is the refractive index beta=n. Generally you should use betamax < n, where n is the lowest refractive index in the optical stack (including the input and output isotropic layers). Therefore, if you should set betamax < 1 when the input and output layers are air with n=1. Some examples:
+The `betamax` parameter defines the maximum value of the plane wave `beta` parameter in the diffraction step of the calculation. When decomposing the field in plane waves, the plane wave with the beta parameter higher than the specified betamax parameter is neglected. In air, the maximum value of beta is 1. A plane wave with beta = 1 is a plane wave traveling in the lateral direction (at 90 degree with respect to the layer normal). If beta is greater than 1 in air, the plane wave is no longer a traveling wave, but it becomes an evanescent wave and the propagation becomes unstable in the 4x4 method (when `method = "4x4"` is used in the computation). In a medium with higher refractive index, the maximum value for a traveling wave is the refractive index beta=n. Generally you should use betamax < n, where n is the lowest refractive index in the optical stack (including the input and output isotropic layers). Therefore, if you should set betamax < 1 when the input and output layers are air with n=1. Some examples:
 
 >>> dtmm.transfer_field(field, data, betamax = 0.99, method = '4x4') #safe
 >>> dtmm.transfer_field(field, data, betamax = 1,  method = '4x4') #unsafe

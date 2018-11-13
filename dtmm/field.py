@@ -10,6 +10,9 @@ from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_TAR
 from dtmm.wave import planewave
 from dtmm.diffract import diffracted_field
 from dtmm.window import aperture
+from dtmm.fft import fft2
+from dtmm.wave import betaxy
+from dtmm.window import blackman
 
 import numba as nb
 from numba import prange
@@ -339,7 +342,33 @@ spec : ndarray
 
 @nb.guvectorize([(NCDTYPE[:,:,:,:,:],NFDTYPE[:,:,:])],"(l,w,k,n,m)->(n,m,w)", target = "cpu", cache = NUMBA_CACHE)
 def field2spectersum(field, out):
-    _field2spectersum(field, out)    
+    _field2spectersum(field, out)  
+    
+    
+@nb.guvectorize([(NCDTYPE[:,:,:],NFDTYPE[:,:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:])], "(k,n,m),(n,m),(n,m)->(),()", target = NUMBA_TARGET, cache = NUMBA_CACHE)
+def _fft_betaphi(f, betax, betay, beta, phi):
+
+    _betax = 0.
+    _betay = 0.
+    _ssum = 0.
+    for i in range(f.shape[0]):
+        for j in range(f.shape[1]):
+            for k in range(f.shape[2]):
+                s = f[i,j,k].real**2 + f[i,j,k].imag**2
+                _betax += s*betax[j,k]
+                _betay += s*betay[j,k]
+                _ssum += s
+    #save results to output
+    beta[0] = (_betax**2+_betay**2)**0.5 / _ssum
+    phi[0] = np.arctan2(_betay,_betax)
+
+def mean_betaphi(field,k0):
+    """Calculates mean beta and phi of a given field."""
+    b = blackman(field.shape[-2:])
+    f = fft2(field*b) #filter it with blackman..
+    betax, betay = betaxy(field.shape[-2:], k0)
+    beta, phi = _fft_betaphi(f,betax,betay)
+    return beta, phi
 
 def validate_field_data(data):
     """Validates field data.

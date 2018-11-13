@@ -203,12 +203,20 @@ Field transfer (``dtmm.transfer``)
 .. automodule:: dtmm.transfer
    :members: 
 
+.. currentmodule:: dtmm.wave
+
+Wave tools (``dtmm.wave``)
+--------------------------
+
+.. automodule:: dtmm.wave
+   :members: 
+
 .. currentmodule:: dtmm.window
 
 Windowing (``dtmm.window``)
 ---------------------------
 
 .. automodule:: dtmm.window
-   :members: aperture, blackman
+   :members: 
 
 
