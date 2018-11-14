@@ -48,10 +48,10 @@ def _auxiliary_matrix(beta,eps,Lm):
 
 @nb.njit([(NFDTYPE,NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _alphaf_iso(beta,eps0,alpha,F):
-    n = eps0[0]**0.5
-    aout = sqrt(n**2-beta**2)
+    #n = eps0[0]**0.5
+    aout = sqrt(eps0[0]-beta**2)
     if aout != 0.:
-        gpout = n**2/aout
+        gpout = eps0[0]/aout
         gsout = -aout
         alpha[0] = aout
         alpha[1] = -aout
@@ -358,7 +358,7 @@ if _numba_0_39_or_greater:
     @nb.vectorize([NCDTYPE(NCDTYPE,NFDTYPE)],
         target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
     def _phase_mat_vec(alpha,kd):
-        return np.exp(1j*kd*(alpha.real))
+        return np.exp(1j*kd*alpha)
 
     def phasem(alpha,kd,out = None):
         kd = np.asarray(kd,FDTYPE)[...,None]
@@ -392,7 +392,15 @@ def phase_mat(alpha, kd, mode = None, out = None):
         out = phasem(alpha,kd, out = out) 
     else:
         raise ValueError("Unknown propagation mode.")
-    return out  
+    return out
+
+@nb.guvectorize([(NCDTYPE[:,:], NFDTYPE[:])],
+                    "(n,n)->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
+def poynting(fmat, out):
+    for j in range(fmat.shape[0]):
+        tmp1 = (fmat[0,j].real * fmat[1,j].real + fmat[0,j].imag * fmat[1,j].imag)
+        tmp2 = (fmat[2,j].real * fmat[3,j].real + fmat[2,j].imag * fmat[3,j].imag)
+        out[j] = tmp1-tmp2   
 
 def S_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1):
     if overwrite_fin == True:
