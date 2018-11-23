@@ -7,11 +7,11 @@ import dtmm
 import matplotlib.pyplot as plt
 import numpy as np
 
-#NA 0.1, 11x11 selection area, sharpness 0.7 
-beta,phi,intensity = dtmm.illumination_rays(0.1,11, 0.7)
+#NA 0.1, 11x11 selection area, smoothness 0.1 
+beta,phi,intensity = dtmm.illumination_rays(0.1, 7, smooth = 0.2)
 
 plt.scatter(beta*np.cos(phi), beta*np.sin(phi), c = intensity, s = 50, edgecolors= "k")
 plt.xlabel(r"$\beta_x$")
 plt.ylabel(r"$\beta_y$")
-plt.gray()
+plt.axes().set_aspect('equal', 'datalim')
 plt.show()

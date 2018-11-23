@@ -577,13 +577,12 @@ def layer_mat(kd, epsv,epsa, beta = 0,phi = 0, out = None):
     pmat = phasem(alpha,-kd)
     return dotmdm(f,pmat,fi,out = out)
 
-def stack_mat(stack,kd, beta = 0, phi = 0, out = None):
+def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, out = None):
     """Computes a stack characteristic matrix M = M_1.M_2....M_n"""
-    d,epsv,epsa = stack
     mat = None
-    n = len(d)
+    n = len(kd)
     verbose_level = DTMMConfig.verbose
-    for pi,i in enumerate(range(len(d))):
+    for pi,i in enumerate(range(n)):
         print_progress(pi,n,level = verbose_level) 
         mat = layer_mat(kd[i],epsv[i],epsa[i],beta = beta, phi = phi, out = mat)
         if pi == 0:

@@ -124,7 +124,7 @@ Field data (``dtmm.field``)
 Creation functions
 ++++++++++++++++++
 
-.. autofunction:: dtmm.field.illumination_betaphi
+.. autofunction:: dtmm.field.illumination_rays
 
 .. autofunction:: dtmm.field.illumination_data
 

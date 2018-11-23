@@ -39,7 +39,7 @@ def itranspose(vec):
     taxis.insert(-2,taxis.pop(-1))
     return vec.transpose(taxis) 
 
-def diaphragm2rays(diaphragm, betastep = 0.1, norm = True):
+def aperture2rays(diaphragm, betastep = 0.1, norm = True):
     """Takes a 2D image of a diaphragm and converts it to beta, phi, intensity"""
     shape = diaphragm.shape
 
@@ -53,13 +53,13 @@ def diaphragm2rays(diaphragm, betastep = 0.1, norm = True):
         intensity = intensity/ intensity.sum() * len(intensity)
     return np.asarray(beta[mask],FDTYPE), np.asarray(phi[mask],FDTYPE), np.asarray(intensity,FDTYPE)
 
-def illumination_diaphragm(diameter = 5., sharpness = 0.5):
+def illumination_aperture(diameter = 5., smooth = 0.1):
     n = int(round(diameter))
-    alpha = 1-min(abs(sharpness),1)
-    diaphragm = aperture((n,n), diameter/n, alpha)
-    return diaphragm
+    alpha = min(max(smooth,0),1)
+    a = aperture((n,n), diameter/n, alpha)
+    return a
   
-def illumination_rays(NA, diameter = 5., sharpness = 0.5):
+def illumination_rays(NA, diameter = 5., smooth = 0.1):
     """Returns beta, phi, intensity values for illumination.
     
     This function can be used to define beta,phi,intensiy arrays that can be used to
@@ -75,8 +75,8 @@ def illumination_rays(NA, diameter = 5., sharpness = 0.5):
     diameter : int
         Field aperture diaphragm diameter in pixels. Approximate number of rays
         is np.pi*(diameter/2)**2
-    sharpness : float, optional
-        Sharpness of diaphragm edge between 0. and 1.
+    smooth : float, optional
+        Smoothness of diaphragm edge between 0. and 1.
         
     Returns
     -------
@@ -84,39 +84,39 @@ def illumination_rays(NA, diameter = 5., sharpness = 0.5):
         Ray parameters  
     """
     betastep = 2.*NA/(diameter-1)
-    diaphragm = illumination_diaphragm(diameter, sharpness)
-    return diaphragm2rays(diaphragm, betastep = betastep, norm = True)
+    a = illumination_aperture(diameter, smooth)
+    return aperture2rays(a, betastep = betastep, norm = True)
 
-def illumination_betaphi(NA, nrays = 13):
-    """Returns beta, phi values for illumination.
-    
-    This function can be used to define beta and phi arrays that can be used to
-    construct illumination data with the :func:`illumination_data` function.
-    The resulting beta,phi parameters define directions of rays for the input 
-    light with a homogeneous angular distribution of rays - input
-    light with a given numerical aperture.
-    
-    Parameters
-    ----------
-    NA : float
-        Approximate numerical aperture of the illumination.
-    nrays : int, optional
-        Approximate number of rays. 
-        
-    Returns
-    -------
-    array, array
-        beta, phi arrays 
-        
-    """
-    radius = (nrays/np.pi)**0.5
-    shape = (1+2*int(radius),1+2*int(radius))
-    ay, ax = [np.arange(-l // 2 + 1., l // 2 + 1.) for l in shape]
-    xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
-    phi = np.arctan2(yy,xx)
-    beta = np.sqrt(xx**2 + yy**2)/radius*NA
-    mask = (beta <= NA)
-    return np.asarray(beta[mask],FDTYPE), np.asarray(phi[mask],FDTYPE)
+#def illumination_betaphi(NA, nrays = 13):
+#    """Returns beta, phi values for illumination.
+#    
+#    This function can be used to define beta and phi arrays that can be used to
+#    construct illumination data with the :func:`illumination_data` function.
+#    The resulting beta,phi parameters define directions of rays for the input 
+#    light with a homogeneous angular distribution of rays - input
+#    light with a given numerical aperture.
+#    
+#    Parameters
+#    ----------
+#    NA : float
+#        Approximate numerical aperture of the illumination.
+#    nrays : int, optional
+#        Approximate number of rays. 
+#        
+#    Returns
+#    -------
+#    array, array
+#        beta, phi arrays 
+#        
+#    """
+#    radius = (nrays/np.pi)**0.5
+#    shape = (1+2*int(radius),1+2*int(radius))
+#    ay, ax = [np.arange(-l // 2 + 1., l // 2 + 1.) for l in shape]
+#    xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
+#    phi = np.arctan2(yy,xx)
+#    beta = np.sqrt(xx**2 + yy**2)/radius*NA
+#    mask = (beta <= NA)
+#    return np.asarray(beta[mask],FDTYPE), np.asarray(phi[mask],FDTYPE)
 
 def illumination_waves(shape, k0, beta = 0., phi = 0., window = None, out = None):
     """Builds scalar illumination wave. 
@@ -551,4 +551,4 @@ def load_field(file):
             f.close()
 field2poynting = field2intensity
     
-__all__ = ["illumination_rays","load_field", "save_field", "validate_field_data","field2specter","field2intensity", "illumination_data","illumination_betaphi"]
+__all__ = ["illumination_rays","load_field", "save_field", "validate_field_data","field2specter","field2intensity", "illumination_data"]

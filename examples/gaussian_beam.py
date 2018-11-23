@@ -39,7 +39,7 @@ ks = dtmm.k0(w, p)
 epsv = dtmm.refind2eps([n]*3)
 
 power = dtmm.field2intensity(field)
-plt.subplot(131)
+plt.subplot(121)
 plt.imshow(power[0])
 plt.title("z=0")
 
@@ -47,20 +47,21 @@ waist = []
 z = np.linspace(-512,512,13)
 
 for d in z:
-    dmat = dtmm.diffract.diffraction_matrix(shape, ks, d = d, epsv = epsv, betamax = 1.)
+    dmat = dtmm.diffract.field_diffraction_matrix(shape, ks, d = d, epsv = epsv, betamax = 1.)
     out = dtmm.diffract.diffract(field,dmat)
     power = dtmm.field2intensity(out)
     y = power.flatten()
     popt,pcov = opt.curve_fit(gauss,r,y)
     waist.append(popt[0])
 
-plt.subplot(132)
+plt.subplot(122)
 plt.imshow(power[0])
 plt.title("z={}".format(d))
  
 
-plt.subplot(133)   
+plt.figure() 
 plt.plot(z,waist,"o", label = "sim")
+z= np.linspace(-512,512,100)
 plt.plot(z,beam_waist(z,w0,ks[0]*n), label = "model")
 plt.legend()
     

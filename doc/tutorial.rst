@@ -427,8 +427,7 @@ Afterwards, it is possible to set this illuminant in the field_viewer.
 
 For a standard A illuminant the example from the front page look like this:
 
-
-.. plot:: examples/custom_illuminant.py
+.. plot:: examples/viewer_custom_illuminant.py
 
    A hello world example, but this time, illumination was performed with a standard A illuminant.
 

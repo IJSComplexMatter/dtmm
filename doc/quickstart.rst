@@ -125,16 +125,22 @@ For numerical aperture of NA = 0.1 you can call
 
 .. doctest::
 
-   >>> beta, phi, intensity = dtmm.illumination_rays(0.1,4) 
+   >>> beta, phi, intensity = dtmm.illumination_rays(0.1,7, smooth = 0.2) 
 
-which constructs direction parameters and intensity (beta, phi, intensity) of input rays of numerical aperture of 0.1 and with approximate number of rays of Pi*2*2. It defines a cone of light rays, where each ray originates from a different evenly distributed angle determined from the position of the pixel in a diaphragm of a diameter specified by the second parameter (e.g. 4). Therefore in our case
+which constructs direction parameters and intensity (beta, phi, intensity) of input rays of numerical aperture of 0.1 and with approximate number of rays of Pi*3.5*3.5. It defines a cone of light rays, where each ray originates from a different evenly distributed angle determined from the position of the pixel in a diaphragm of a diameter specified by the second parameter (e.g. 7). Therefore in our case
 
 .. doctest::
 
    >>> len(beta)
-   12
+   37
  
-we have 12 rays evenly distributed in a cone of numerical aperture of 0.1. To calculate the transmitted field we now have to pass these ray parameters to the illumination_data and transfer_field functions::
+we have 37 rays evenly distributed in a cone of numerical aperture of 0.1. 
+
+.. plot:: examples/illumination_rays.py
+
+   The beta and beta values of the 37 ray parameters. The color represents the intensity of the ray. 
+
+To calculate the transmitted field we now have to pass these ray parameters to the illumination_data and transfer_field functions::
 
    >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, beta = beta, phi = phi, intensity = intensity, n = 1.5)
    >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi, nin = 1.5, nout = 1.5)

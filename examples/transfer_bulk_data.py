@@ -38,13 +38,6 @@ f,w,p  = dtmm.transfer_field(field_data_in, optical_data,  beta = 0., phi = 0., 
              method = "4x4", ret_bulk = True, npass = 4, reflection = 2, smooth = 0.1) #must be even for 4x4 method
 
 
-viewer = dtmm.field_viewer(field_data_in, bulk_data = False, n = 1, mode = "r", betamax = 0.9)
-viewer.set_parameters(sample = 0, intensity = 1,
-                polarizer = 0, focus = 0, analyzer = 0)
-
-fig,ax = viewer.plot()
-
-
 viewer_bulk = dtmm.field_viewer((f,w,p), bulk_data = True)
 viewer_bulk.set_parameters(sample = 0, intensity = 1,
                 polarizer = 0, focus = 0, analyzer = 0)
