@@ -21,7 +21,7 @@ n = [ 1.5,1.5,1.5]
 #: euler angles of the optical axes (will make effect for anisotropic)
 eps_angles = np.array([0,0.2,0.4], dtype = "float32") #in case we compiled for float32, this has to be float not duouble
 #: refractive indices if the substrate
-nout = [   1.5]*3
+nout = [   1.]*3
 #: phase retardation - layer thickness times wavenumber
 kd = 2*np.pi/wavelength * thickness * 1000. 
 #: input epsilon -air
@@ -37,8 +37,13 @@ phi = 0
 
 _phi = 0
 
-pol1 = jones.jonesvec((-np.sin(_phi),np.cos(_phi)), phi) 
-pol2 = jones.jonesvec((np.cos(_phi),np.sin(_phi)), phi) 
+pol1 = (-np.sin(_phi),np.cos(_phi))
+pol2 = (np.cos(_phi),np.sin(_phi))
+
+
+#: we must view them in rotated frame, with respect to the ray phi value.
+pol1 = jones.jonesvec(pol1, phi) 
+pol2 = jones.jonesvec(pol2, phi) 
 
 
 #build field matrices
@@ -79,11 +84,6 @@ x_polarizer = tmm.polarizer4x4(pol2, fout) #x == p polarization
 y_polarizerin = tmm.polarizer4x4(pol1, fin) #y == s polarization
 x_polarizerin = tmm.polarizer4x4(pol2, fin) #x == p polarization
 
-#y_polarizer = tmm.polarizer4x4b(fout,pol1b) #y == s polarization
-#x_polarizer = tmm.polarizer4x4b(fout,pol2b) #x == p polarization
-#
-#y_polarizerin = tmm.polarizer4x4b(fin,pol1b) #y == s polarization
-#x_polarizerin = tmm.polarizer4x4b(fin,pol2b) #x == p polarization
 
 Rss = -intensity(dotmv(y_polarizerin,rfvec))
 Rps = -intensity(dotmv(x_polarizerin,rfvec))
@@ -91,13 +91,6 @@ Tss = intensity(dotmv(y_polarizer,tfvec))
 Tps = intensity(dotmv(x_polarizer,tfvec))
 Tin1 = intensity(dotmv(x_polarizer,tfvecin))
 Tin2 = intensity(dotmv(y_polarizer,tfvecin))
-
-#Rss = -intensity(dotmv(mmat,rfvec))
-#Rps = -intensity(dotmv(mmat,rfvec))
-#Tss = intensity(dotmv(pmat,tfvec))
-#Tps = intensity(dotmv(pmat,tfvec))
-#Tin1 = intensity(dotmv(x_polarizer,tfvecin))
-#Tin2 = intensity(dotmv(y_polarizer,tfvecin))
 
 #now do the same for x polarization
 fvec = tmm.field4(fin,jones = pol2)

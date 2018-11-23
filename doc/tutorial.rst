@@ -96,6 +96,34 @@ In the example below, we simulated propagation of right-handed light with beta p
 
    Reflection and transmission properties of a cholesterol droplet.
 
+1D material
+-----------
+
+You can use the package for 1D calculation. There are two options. Either you create
+a single pixel optical data that describes your 1D material and use the functions covered
+so far, or do a standard berreman calculation by computing the transfer matrices, and the reflectance and transmittance coefficients. This is a low level approach, but for coherent  reflection calculation of complex 1D material this may be better/faster. Note that the diffractive method uses iterative algorithm to calculate coherent effects. With a standard 4x4 method in 1D case, these are done in a single step. 
+
+
+For example, you can calculate reflections off a single 2 micron thick layer of material with refractive index of 1.5. See the source code for additional detail of the example below.
+
+.. plot:: examples/tmm_reflection.py
+
+   Reflection and transmission properties of a single layer material. 
+
+
+In another example we calculate reflections offa cholesteric material. See the source code for additional details of the example below.
+
+.. plot:: examples/tmm_cholesteric.py
+
+   Reflection and transmission properties of a cholesteric LC with a reflection band at 550 nm.
+
+
+In another example we compute the transmittance through 90 degree twisted nematic configured in first minimum condition (4 micron cell, refractive index anisotropy of 0.12). Here we demonstrate and show differences between the 4x4 approach and two versions of 2x2 approach - with reflections and without.
+
+.. plot:: examples/tmm_twisted_nematic.py
+
+   Reflection and transmission properties of a twisted nematic film (with film-to-air interfaces)
+
 
 Field viewer 
 ------------

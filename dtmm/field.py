@@ -209,6 +209,7 @@ def waves2field2(waves, fmat, jones = None, phi = 0,mode = +1):
         out[...,0,:,:,:,:] = field1
         out[...,1,:,:,:,:] = field2
     else:
+        #fvec = field4(fmat, jones = jonesvec((1,0),phi), amplitude = waves, mode = mode)
         fvec = field4(fmat, jones = jonesvec(jones,phi), amplitude = waves, mode = mode)
         out = itranspose(fvec).copy()
     return out
@@ -275,14 +276,10 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
 
     nrays = len(_beta) if _beta.ndim > 0 else 1
 
-    if jones is None:
-        beta = _beta[...,None,None,None]
-        phi = _phi[...,None,None,None] 
-        intensity = _intensity[...,None,None,None,None]          
-    else:
-        beta = _beta[...,None,None]
-        phi = _phi[...,None,None]     
-        intensity = _intensity[...,None,None,None]
+    beta = _beta[...,None,None,None]
+    phi = _phi[...,None,None,None] 
+    intensity = _intensity[...,None,None,None,None]   
+    
     epsa = np.asarray((0.,0.,0.),FDTYPE)
     alpha, fmat = alphaf(beta, phi, refind2eps([n]*3), epsa)
     field = waves2field2(waves, fmat, jones = jones, phi = phi, mode = mode)

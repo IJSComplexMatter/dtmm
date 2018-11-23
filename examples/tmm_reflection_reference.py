@@ -12,7 +12,7 @@ for any type of material parameters.
 import dtmm
 import numpy as np
 
-from tmm_reflection_simple import betas, phi, eps_layer, eps_angles, eps_in, eps_out, kd
+from tmm_reflection import betas, phi, eps_layer, eps_angles, eps_in, eps_out, kd
 
 
 #build field matrices

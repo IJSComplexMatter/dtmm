@@ -448,7 +448,12 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         else:
             field_out = np.empty_like(field_in) 
 
-        nrays = len(beta)
+        nrays = len(field_in)
+        if beta is None:
+            beta = [None] * nrays
+        if phi is None:
+            phi = [None] * nrays
+        multiray = False
         for i, bp in enumerate(zip(beta,phi)):
             if verbose_level >0:
                 print("Ray {}/{}".format(i+1,nrays))

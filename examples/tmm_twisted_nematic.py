@@ -42,7 +42,7 @@ no = 1.5
 #:extraordinary
 ne = 1.62
 #: ray beta parameters; beta is nin*np.sin(theta)
-beta = 0.6
+beta = 0.
 phi = 0
 
 
@@ -187,8 +187,8 @@ if __name__ == "__main__":
     plt.plot(wavelengths,Tyx4, label = "Tyx4")
     plt.plot(wavelengths,Txx2, label = "Txx2")
     plt.plot(wavelengths,Tyx2, label = "Tyx2")  
-    plt.plot(wavelengths,Txx2r, "--", label = "Txx2r")
-    plt.plot(wavelengths,Tyx2r, "--", label = "Tyx2r")    
+    plt.plot(wavelengths,Txx2r,label = "Txx2r")
+    plt.plot(wavelengths,Tyx2r, label = "Tyx2r")    
     plt.plot(wavelengths,Rxx4+Txx4+Tyx4+Ryx4, "--", label = "T4+R4")
     plt.plot(wavelengths,Tyx2+Txx2, "--", label = "T2")
     plt.plot(wavelengths,Tyx2r+Txx2r, "--", label = "T2r")
@@ -202,8 +202,8 @@ if __name__ == "__main__":
     plt.plot(wavelengths,Tyy4, label = "Tyy4")
     plt.plot(wavelengths,Txy2, label = "Txy2")
     plt.plot(wavelengths,Tyy2, label = "Tyy2")   
-    plt.plot(wavelengths,Txy2r, "--", label = "Txy2r")
-    plt.plot(wavelengths,Tyy2r, "--", label = "Tyy2r")        
+    plt.plot(wavelengths,Txy2r, label = "Txy2r")
+    plt.plot(wavelengths,Tyy2r, label = "Tyy2r")        
     plt.plot(wavelengths,Rxy4+Txy4+Tyy4+Ryy4, "--", label = "T4+R4")
     plt.plot(wavelengths,Txy2+Tyy2, "--", label = "T2")
     plt.plot(wavelengths,Txy2r+Tyy2r, "--", label = "T2r")    

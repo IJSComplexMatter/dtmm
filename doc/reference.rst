@@ -165,8 +165,6 @@ Jones Calculus (``dtmm.jones``)
 
 .. automodule:: dtmm.jones
 
-.. autofunction:: dtmm.jones.apply_jones_matrix
-
 .. autofunction:: dtmm.jones.circular_polarizer
 
 .. autofunction:: dtmm.jones.jonesvec
@@ -175,6 +173,7 @@ Jones Calculus (``dtmm.jones``)
 
 .. autofunction:: dtmm.jones.polarizer
 
+.. autofunction:: dtmm.jones.as4x4
 
 .. currentmodule:: dtmm.linalg
 

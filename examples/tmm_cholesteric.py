@@ -1,27 +1,31 @@
 """
 A low level example on standard 4x4 berreman for calculation of reflection
-and transmission coefficient for p and s polarizations off a 
-double left- and right-hand cholesteric structure - a 100% reflection mirror
-with pitch that correspond to 540nm 
+and transmission coefficient for left- and right- handed polarizations off a 
+left-handed cholesteric structure - a reflection mirror for right-handed light
 """
 
 import dtmm
 import numpy as np
+dot = dtmm.linalg.dotmm
+dotd = dtmm.linalg.dotmd
+dotmdm = dtmm.linalg.dotmdm
+dotmv = dtmm.linalg.dotmv
+
 
 #: cholesteric pitch in nm
 pitch = 350 #350*eff_refind=350*1.55 = 540
 #:thickness of cholesteric layer in microns
-thickness = 10
+thickness = 20
 #: number of layers (should be high enough...) 
-nlayers = 1000
+nlayers = 500
 
-nwavelengths = 1000
+nwavelengths = 800
 #which wavelengths to compute
 wavelengths = np.linspace(400,700, nwavelengths)
 # input layer ref. index 
-nin = [1.55]*3
+nin = [1.5]*3
 # output refractive index
-nout = [1.55]*3
+nout = [1.5]*3
 #:ordinary refractive index of cholesteric
 no = 1.5
 #:extraordinary
@@ -52,66 +56,94 @@ eps_out = dtmm.refind2eps(nout)
 beta = 0.
 phi = 0.
 
+#stack = d,eps_layers, eps_angles
+
+#cmat = dtmm.tmm.stack_mat(stack,kd, beta = beta, phi = phi)
+
 #build field matrices
 a,f,fi = dtmm.tmm.alphaffi(beta,phi,eps_layers, eps_angles)
 aout,fout,fiout = dtmm.tmm.alphaffi(beta,phi,eps_out, eps_angles[0]) #eps_angles does nothing because eps_out is isotropic
 ain,fin,fiin = dtmm.tmm.alphaffi(beta,phi,eps_in, eps_angles[0])#eps_angles does nothing because eps_in is isotropic
 
-dot = dtmm.linalg.dotmm
-dotd = dtmm.linalg.dotmd
-dotmdm = dtmm.linalg.dotmdm
-p = dtmm.tmm.phasem(a,-kd[...,None])
-#p = np.exp(-1j*a*kd)
+#now build layer matrices
 
+#: we are propagating backward--- minus sign must be taken in the phase
+p = dtmm.tmm.phase_mat(a,-kd[...,None])
 #characteristic matrix
-mmat = dotmdm(f,p,fi)
+m = dotmdm(f,p,fi)
 
-cmat = mmat[:,0].copy()
-for i in range(nlayers-1):
-    cmat = dot(cmat, mmat[:,i+1])
+#we could have built layer matrices directly, not the ommision of negative value in front of kd:
+#m = dtmm.tmm.layer_mat(kd[...,None],eps_layers, eps_angles)
 
-m = dot(fiin,dot(cmat,fout))
+#cmat = m[:,0].copy()
+#for i in range(nlayers-1):
+#    cmat = dot(cmat, m[:,i+1])
 
-#for isotropic input and output medium case
-# this are the p- and s- amplitude reflection coefficients
-det = m[...,0,0]*m[...,2,2]-m[...,0,2]*m[...,2,0]
-rpp = (m[...,1,0]*m[...,2,2]-m[...,1,2]*m[...,2,0])/det
-rss = (m[...,0,0]*m[...,3,2]-m[...,0,2]*m[...,3,0])/det
-rps = (m[...,0,0]*m[...,1,2]-m[...,0,2]*m[...,1,0])/det
-rsp = (m[...,2,2]*m[...,3,0]-m[...,2,0]*m[...,3,2])/det
+# multiply over second axis (first axis is wavelenght)
+cmat = dtmm.linalg.multi_dot(m, axis = 1) 
 
 
-tps = -m[...,0,2]/det
-tsp = -m[...,2,0]/det
-tpp = m[...,2,2]/det
-tss = m[...,0,0]/det
-
-#you need poynting vector to calculate total reflectance and transmittance
-pin = dtmm.tmm.fmat2poynting(fin)
-pout = dtmm.tmm.fmat2poynting(fout)
+jleft = dtmm.jonesvec((1,1j), phi)
+jright = dtmm.jonesvec((1,-1j), phi)
 
 
-Rpp = np.abs(rpp)**2 *np.abs(pin[...,1]/pin[...,0])
-Rss = np.abs(rss)**2 *np.abs(pin[...,3]/pin[...,2])
-Rps = np.abs(rps)**2 *np.abs(pin[...,1]/pin[...,2])
-Rsp = np.abs(rsp)**2 *np.abs(pin[...,3]/pin[...,0])
+#field projection matrices - used to take the forward propagating or backward propagating waves
+pmat = dtmm.tmm.projection_mat(fout,mode = +1)
+mmat = dtmm.tmm.projection_mat(fin, mode = -1)
 
-Tpp = np.abs(tpp)**2 *np.abs(pout[...,0]/pin[...,0])
-Tss = np.abs(tss)**2 *np.abs(pout[...,2]/pin[...,2])
-Tsp = np.abs(tsp)**2 *np.abs(pout[...,2]/pin[...,0])
-Tps = np.abs(tps)**2 *np.abs(pout[...,0]/pin[...,2])
+fvec = dtmm.tmm.field4(fin,jones = jleft)
+fvec = np.array([fvec]*nwavelengths)
+
+tfvec = dtmm.tmm.transmit(fvec, cmat, fmatin = fin[None,...], fmatout = fout[None,...])
+rfvec = dotmv(mmat,fvec)
+#tfvec = dotmv(pmat,tfvec) #no need to do this.. there is no backpropagating waves in the output
+
+l_polarizerin = dtmm.tmm.polarizer4x4(jleft,fin) #x == s polarization
+r_polarizerin = dtmm.tmm.polarizer4x4(jright,fin) #y == p polarization
+l_polarizer = dtmm.tmm.polarizer4x4(jleft,fout) #x == s polarization
+r_polarizer = dtmm.tmm.polarizer4x4(jright,fout) #y == p polarization
+
+Rll = dtmm.tmm.intensity(dotmv(l_polarizerin,rfvec))
+Rrl = dtmm.tmm.intensity(dotmv(r_polarizerin,rfvec))
+Tll = dtmm.tmm.intensity(dotmv(l_polarizer,tfvec))
+Trl = dtmm.tmm.intensity(dotmv(r_polarizer,tfvec))
+
+
+fvec = dtmm.tmm.field4(fin,jones = jright)
+fvec = np.array([fvec]*nwavelengths)
+
+
+tfvec = dtmm.tmm.transmit(fvec, cmat, fmatin = fin[None,...], fmatout = fout[None,...])
+rfvec = dotmv(mmat,fvec)
+#tfvec = dotmv(pmat,tfvec) #no need to do this.. there is no backpropagating waves in the output
+
+Rlr = dtmm.tmm.intensity(dotmv(l_polarizerin,rfvec))
+Rrr = dtmm.tmm.intensity(dotmv(r_polarizerin,rfvec))
+Tlr = dtmm.tmm.intensity(dotmv(l_polarizer,tfvec))
+Trr = dtmm.tmm.intensity(dotmv(r_polarizer,tfvec))
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
+    
+    plt.subplot(211)
 
-    plt.plot(wavelengths,Rss+Rps, label = "Rss+Rps")
-    plt.plot(wavelengths,Rpp+Rsp, label = "Rpp+Rsp")
-    plt.plot(wavelengths,Tpp+Tsp, label = "Tpp+Tsp")
-    plt.plot(wavelengths,Tpp+Tsp, label = "Tpp+Tsp")
+    plt.plot(wavelengths,Rll, label = "Rll")
+    plt.plot(wavelengths,Rrl, label = "Rrl")
+    plt.plot(wavelengths,Tll, label = "Tll")
+    plt.plot(wavelengths,Trl, label = "Trl")
     
-    plt.plot(wavelengths,Tss+Rss+Tps+Rps, "--", label = "Tss+Rss+Tps+Rps")
-    plt.plot(wavelengths,Tpp+Rpp + Rsp + Tsp, "-.",label = "Tpp+Rpp+Tsp+Rsp")
+    plt.plot(wavelengths,Rll+Tll+Trl+Rrl, "--", label = "T+R")
     
-    plt.xlabel("beta")
+    plt.legend(loc = 5)
+
+    plt.subplot(212)
+    plt.plot(wavelengths,Rlr, label = "Rlr")
+    plt.plot(wavelengths,Rrr, label = "Rrr")
+    plt.plot(wavelengths,Tlr, label = "Tlr")
+    plt.plot(wavelengths,Trr, label = "Trr")
+       
+    plt.plot(wavelengths,Rlr+Tlr+Trr+Rrr, "--", label = "T+R")
     
-    plt.legend()
+    plt.xlabel("wavelength")
+    
+    plt.legend(loc = 5)
