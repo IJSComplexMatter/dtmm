@@ -96,8 +96,8 @@ In the example below, we simulated propagation of right-handed light with beta p
 
    Reflection and transmission properties of a cholesterol droplet.
 
-Standard TMM - 1D case
-----------------------
+Standard TMM - no diffraction
+-----------------------------
 
 You can use the package for 1D calculation. There are two options. Either you create
 a single pixel optical data that describes your 1D material and use the functions covered
@@ -123,6 +123,12 @@ In another example we compute the transmittance through 90 degree twisted nemati
 .. plot:: examples/tmm_twisted_nematic.py
 
    Reflection and transmission properties of a twisted nematic film (with film-to-air interfaces)
+
+In the examples above we used a low-level approach where we built the field matrices by ourselves. However, you can use a high level function to do that directly from the material arrays. For instance:
+
+.. plot:: examples/tmm_nematic_droplet.py
+
+   An example of extended jones calculation, berreman 4x4 with interference and with interference disabled methods to compute transmission of a white light through the nematic droplet with a planar director alignment, viewed between crossed polarizers.
 
 
 Field viewer 

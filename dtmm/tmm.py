@@ -570,21 +570,33 @@ def ffi_iso(n,beta=0.,phi = 0.):
     alpha, f, fi = alphaffi(beta,phi,epsv,epsa)    
     return f,fi
 
-def layer_mat(kd, epsv,epsa, beta = 0,phi = 0, out = None):
+def layer_mat(kd, epsv,epsa, beta = 0,phi = 0, method = "4x4", out = None):
     """Computes characteristic matrix M=F.P.Fi,
     Numpy broadcasting rules apply"""
-    alpha,f,fi = alphaffi(beta,phi,epsv,epsa)
-    pmat = phasem(alpha,-kd)
-    return dotmdm(f,pmat,fi,out = out)
+    if method == "2x2":
+        alpha,f,fi = alphaEEi(beta,phi,epsv,epsa)
+        pmat = phasem(alpha,kd)
+    else:
+        alpha,f,fi = alphaffi(beta,phi,epsv,epsa)
+        pmat = phasem(alpha,-kd)
+        if method in ("4x2","2x4"):
+            pmat[...,1::2] = 0.        
+    return dotmdm(f,pmat,fi,out = out)    
 
-def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, out = None):
-    """Computes a stack characteristic matrix M = M_1.M_2....M_n"""
+def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, method = "4x4", out = None):
+    """Computes a stack characteristic matrix M = M_1.M_2....M_n if method is
+    4x4, 4x2(2x4) and a characteristic matrix M = M_n...M_2.M_1 if method is
+    2x2.
+    """
     mat = None
     n = len(kd)
+    indices = range(n)
+    if method == "2x2":
+        indices = reversed(indices)
     verbose_level = DTMMConfig.verbose
     for pi,i in enumerate(range(n)):
         print_progress(pi,n,level = verbose_level) 
-        mat = layer_mat(kd[i],epsv[i],epsa[i],beta = beta, phi = phi, out = mat)
+        mat = layer_mat(kd[i],epsv[i],epsa[i],beta = beta, phi = phi, method = method, out = mat)
         if pi == 0:
             if out is None:
                 out = mat.copy()
@@ -594,6 +606,7 @@ def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, out = None):
             dotmm(out,mat,out)
     print_progress(n,n,level = verbose_level) 
     return out 
+
 
 def system_mat(cmat,fmatin = None, fmatout = None, fmatini = None, out = None):
     """Computes a system matrix from a characteristic matrix Fin-1.C.Fout"""
