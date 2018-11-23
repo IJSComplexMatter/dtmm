@@ -32,13 +32,25 @@ def _input_matrix(mat, shape, dtype):
     return mat
 
 def rotation_vector2(angle, out = None):
-    """Returns rotation vector (cos(angle), sin(angle)).
+    """Returns 2D rotation vector (cos(angle), sin(angle)).
     Numpy broadcasting rules apply."""
     c,s = np.cos(angle), np.sin(angle)
     if out is None:
         out = np.empty(shape = c.shape + (2,), dtype = FDTYPE)
     out[...,0] = c
     out[...,1] = s
+    return out
+
+def rotation_matrix2(angle, out = None):
+    """Returns 2D rotation matrix.
+    Numpy broadcasting rules apply."""
+    c,s = np.cos(angle), np.sin(angle)
+    if out is None:
+        out = np.empty(shape = c.shape + (2,2), dtype = FDTYPE)
+    out[...,0,0] = c
+    out[...,1,1] = c
+    out[...,0,1] = -s
+    out[...,1,0] = s    
     return out
 
 def rotation_matrix_z(angle, out = None):

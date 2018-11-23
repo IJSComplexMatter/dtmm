@@ -20,14 +20,17 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
 field_data_out = dtmm.transfer_field(field_data_in, optical_data, diffraction = 0, betamax = 1)
 
 #: visualize output field
-viewer1 = dtmm.field_viewer(field_data_out)
+# no diffraction to simulate output of standard jones method
+viewer1 = dtmm.field_viewer(field_data_out, diffraction = False) 
 viewer1.set_parameters(sample = 0, intensity = 2,
-                polarizer = 0, focus = 0, analyzer = 90)#no diffraction, so no need to refocus
+                polarizer = 0, analyzer = 90)
+fig,ax = viewer1.plot()
+ax.set_title("diffraction = 0")
+
 
 field_data_out = dtmm.transfer_field(field_data_in, optical_data, diffraction = 1, betamax = 1)
 
-fig,ax = viewer1.plot()
-ax.set_title("diffraction = 0")
+
 
 viewer2 = dtmm.field_viewer(field_data_out)
 viewer2.set_parameters(sample = 0, intensity = 2,

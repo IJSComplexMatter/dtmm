@@ -272,25 +272,6 @@ def propagate_2x2_effective_1(field, wavenumbers, layer_in, layer_out, effective
                 np.add(_refl, __refl, out = _refl)
 
 
-
-#        for window, b, p  in zip(windows, betas, phis):
-#            fpart = field * window
-#            
-#            if refl is not None:
-#                reflpart = refl * window
-#            else:
-#                reflpart = None
-#            _out, __refl = _transfer_ray_2x2_1(fpart, wavenumbers,layer_out, 
-#                                                effective_layer_in, effective_layer_out,
-#                            beta = b.reshape(beta_shape), phi = p.reshape(beta_shape), 
-#                            nsteps =  nsteps,reflection = reflection,
-#                            betamax = betamax, mode = mode, bulk = bulk,
-#                            out = out,  refl = reflpart)
-#             
-#            fout += _out
-#            if refl is not None and reflection != 0:
-#                _refl += __refl
-
     if out is not None:
         out[...] = fout
     else:
@@ -473,8 +454,6 @@ def propagate_2x2_full(field, wavenumbers, layer, input_layer = None,
                     obulk[...,::2,:,:] += w
                 
             out[...,i,:,:,:] = ofield
-                        
-
                     
         field = out
     return out, refl

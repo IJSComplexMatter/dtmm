@@ -7,9 +7,10 @@ from dtmm.conf import cached_function, BETAMAX, FDTYPE, CDTYPE
 from dtmm.wave import betaphi
 from dtmm.window import tukey
 from dtmm.data import refind2eps
-from dtmm.tmm import alphaffi, alphaf, phasem,  transmission_mat, alphaEEi, tr_mat, t_mat
+from dtmm.tmm import polarizer4x4, alphaffi, alphaf, phasem,  transmission_mat, alphaEEi, tr_mat, t_mat
 from dtmm.linalg import dotmdm, dotmf
 from dtmm.fft import fft2, ifft2
+from dtmm.jones import jonesvec
 import numpy as np
 
 
@@ -22,6 +23,8 @@ def diffraction_alphaf(shape, ks, epsv = (1.,1.,1.),
     ks = np.asarray(ks)
     ks = abs(ks)
     beta, phi = betaphi(shape,ks)
+    epsv = np.asarray(epsv, CDTYPE)
+    epsa = np.asarray(epsa, FDTYPE)
 
 
     alpha, f= alphaf(beta,phi,epsv,epsa,out = out) 
@@ -46,6 +49,23 @@ def diffraction_alphaf(shape, ks, epsv = (1.,1.,1.),
     alpha[mask0] = 0.
 
     return out
+
+
+@cached_function
+def diffraction_polarizer(shape, ks, jones = (1,0), epsv = (1.,1.,1.), 
+                            epsa = (0.,0.,0.), betamax = BETAMAX, out = None):
+    ks = np.asarray(ks)
+    ks = abs(ks)
+    epsv = np.asarray(epsv, CDTYPE)
+    epsa = np.asarray(epsa, FDTYPE)
+    beta, phi = betaphi(shape,ks)
+    alpha, f = diffraction_alphaf(shape, ks, epsv = epsv, 
+                            epsa = epsa, betamax = betamax)
+
+    beta, phi = betaphi(shape,ks)
+    jones = jonesvec(jones, phi)
+    pmat = polarizer4x4(jones, f)
+    return pmat
 
 
 @cached_function

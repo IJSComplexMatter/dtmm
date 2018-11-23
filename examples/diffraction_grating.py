@@ -49,4 +49,3 @@ viewer1.set_parameters(sample = 0, intensity = 2,
 fig,ax = viewer1.plot(fmax = 1000)
 ax.set_title("near field")
 
-

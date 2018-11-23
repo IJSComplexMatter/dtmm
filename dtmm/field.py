@@ -13,6 +13,9 @@ from dtmm.window import aperture
 from dtmm.fft import fft2
 from dtmm.wave import betaxy
 from dtmm.window import blackman
+from dtmm.tmm import field4, alphaf 
+from dtmm.data import refind2eps
+from dtmm.jones import jonesvec
 
 import numba as nb
 from numba import prange
@@ -22,43 +25,19 @@ if NUMBA_PARALLEL == False:
     
 sqrt = np.sqrt
 
+def transpose(field):
+    """transposes field from shape (..., k,n,m) to (...,n,m,k). Inverse of
+    itranspose_field"""
+    taxis = list(range(field.ndim))
+    taxis.append(taxis.pop(-3))
+    return field.transpose(taxis) 
 
-#@nb.guvectorize([(NCDTYPE[:,:,:],NFDTYPE[:,:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NCDTYPE[:,:,:],NFDTYPE[:],NFDTYPE[:])], 
-#                 "(n,i,j),(i,j),(i,j),(),(),(),(),()->(n,i,j),(),()",
-#                 target = NUMBA_TARGET, cache = NUMBA_CACHE)
-#def select_fftfield(fftfield, fftbetax, fftbetay,betax, betay, stepx,stepy, betamax, out, betaxmean, betaymean):
-#    nn, ni, nj = fftfield.shape
-#    betaxmean[0] = 0.
-#    betaymean[0] = 0.
-#    n = 0
-#    for i in range(ni):
-#        for j in range(nj):
-#            fftbetaxij = fftbetax[i,j]
-#            cx = 1. - np.abs(fftbetaxij - betax[0])/stepx[0]
-#            if cx < 0:
-#                cx = 0.           
-#            fftbetayij = fftbetay[i,j]
-#            cy = 1. - np.abs(fftbetayij - betay[0])/stepy[0]
-#            if cy < 0:
-#                cy = 0.
-#            beta = (fftbetaxij**2 + fftbetayij**2)**0.5 
-#            if beta >= betamax[0]:
-#                coeff = 0.
-#            else:
-#                coeff = cx * cy
-#            if coeff > 0.:
-#                out[:,i,j] = fftfield[:,i,j]*coeff
-#                betaxmean[0] += fftbetaxij
-#                betaymean[0] += fftbetayij
-#                n += 1
-#            else:
-#                out[:,i,j] = 0.
-#      
-#    if n != 0:
-#        betaxmean[0] /= n
-#        betaymean[0] /= n
-#    
-
+def itranspose(vec):
+    """transposes vector from shape (..., n,m,k) to (...,k,n,m). Inverse of 
+    transpose_field"""
+    taxis = list(range(vec.ndim))
+    taxis.insert(-2,taxis.pop(-1))
+    return vec.transpose(taxis) 
 
 def diaphragm2rays(diaphragm, betastep = 0.1, norm = True):
     """Takes a 2D image of a diaphragm and converts it to beta, phi, intensity"""
@@ -153,7 +132,8 @@ def illumination_waves(shape, k0, beta = 0., phi = 0., window = None, out = None
     else:
         return np.multiply(out, window, out = out)
     
-def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., jones = None, intensity = None, mode = "t", betamax = BETAMAX):
+def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., 
+                jones = None, intensity = None, mode = "t", diffraction = True, betamax = BETAMAX):
     """Converts scalar waves to vector field data."""
     beta = np.asarray(beta)
     phi = np.asarray(phi)
@@ -199,8 +179,8 @@ def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., jones = None
             fieldv[...,1,:,:] = waves*c
             fieldv[...,2,:,:] = waves*s
             fieldv[...,3,:,:] = -waves*s   
-            
-    diffracted_field(fieldv,k0, d = -focus, n = n, mode = mode, betamax = betamax, out = fieldv)
+    if diffraction == True:       
+        diffracted_field(fieldv,k0, d = -focus, n = n, mode = mode, betamax = betamax, out = fieldv)
     
     #normalize field to these intensities
     if intensity is not None:
@@ -215,9 +195,27 @@ def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., jones = None
     return fieldv
 
 
+def waves2field2(waves, fmat, jones = None, phi = 0,mode = +1):
+    """Converts scalar waves to vector field data."""
+    if jones is None:
+        fvec1 = field4(fmat, jones = jonesvec((1,0),phi), amplitude = waves, mode = mode)
+        fvec2 = field4(fmat, jones = jonesvec((0,1),phi), amplitude = waves, mode = mode)
+        field1 = itranspose(fvec1)
+        field2 = itranspose(fvec2)
+        
+        shape = list(field1.shape)
+        shape.insert(-4, 2)
+        out = np.empty(shape = shape, dtype = field1.dtype)
+        out[...,0,:,:,:,:] = field1
+        out[...,1,:,:,:,:] = field2
+    else:
+        fvec = field4(fmat, jones = jonesvec(jones,phi), amplitude = waves, mode = mode)
+        out = itranspose(fvec).copy()
+    return out
+
 def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., intensity = 1.,
                       n = 1., focus = 0., window = None, backdir = False, 
-                      jones = None, betamax = BETAMAX):
+                      jones = None, diffraction = True, betamax = BETAMAX):
     """Constructs forward (or backward) propagating input illumination field data.
     
     Parameters
@@ -248,6 +246,10 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
         If specified it has to be a valid jones vector that defines polarization
         of the light. If not given (default), the resulting field will have two
         polarization components. See documentation for details and examples.
+    diffraction : bool, optional
+        Specifies whether field is diffraction limited or not. By default, the 
+        field is filtered so that it has only propagating waves. You can disable
+        this by specifying diffraction = False.    
     betamax : float, optional
         The betamax parameter of the propagating field.
     """
@@ -259,12 +261,98 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
     wavenumbers = 2*np.pi/wavelengths * pixelsize
     if wavenumbers.ndim not in (1,):
         raise ValueError("Wavelengths should be 1D array")
+        
+    if jones is None:
+        intensity = intensity/2.
+     
     waves = illumination_waves(shape, wavenumbers, beta = beta, phi = phi, window = window)
-    intensity = ((np.abs(waves)**2).sum((-2,-1)))* np.asarray(intensity)[...,None]#sum over pixels
-    mode = "r" if backdir else "t"
-    field = waves2field(waves, wavenumbers, intensity = intensity, beta = beta, phi = phi, n = n,
-                        focus = focus, jones = jones, mode = mode, betamax = betamax)
+    #intensity = ((np.abs(waves)**2).sum((-2,-1)))* np.asarray(intensity)[...,None]#sum over pixels
+    #intensity = intensity * intensity
+    mode = -1 if backdir else +1
+    _beta = np.asarray(beta, FDTYPE)
+    _phi = np.asarray(phi, FDTYPE)
+    _intensity = np.asarray(intensity, FDTYPE)
+
+    nrays = len(_beta) if _beta.ndim > 0 else 1
+
+    if jones is None:
+        beta = _beta[...,None,None,None]
+        phi = _phi[...,None,None,None] 
+        intensity = _intensity[...,None,None,None,None]          
+    else:
+        beta = _beta[...,None,None]
+        phi = _phi[...,None,None]     
+        intensity = _intensity[...,None,None,None]
+    epsa = np.asarray((0.,0.,0.),FDTYPE)
+    alpha, fmat = alphaf(beta, phi, refind2eps([n]*3), epsa)
+    field = waves2field2(waves, fmat, jones = jones, phi = phi, mode = mode)
+    intensity1 = field2intensity(field)
+    norm = np.ones_like(intensity1)
+    norm[:,...] = (intensity/nrays)**0.5    
+    if diffraction == True:  
+        diffracted_field(field,wavenumbers, d = -focus, n = n, mode = mode, betamax = betamax, out = field)
+        intensity2 = field2intensity(field)
+        ratio = (intensity1.sum((-2,-1))/intensity2.sum((-2,-1)))**0.5
+        norm[...] = norm * ratio[...,None,None]
+            
+    np.multiply(norm[...,None,:,:], field, field)
+    
     return (field, wavelengths, pixelsize)
+
+#def illumination_dataold(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., intensity = 1.,
+#                      n = 1., focus = 0., window = None, backdir = False, 
+#                      jones = None, diffraction = True, betamax = BETAMAX):
+#    """Constructs forward (or backward) propagating input illumination field data.
+#    
+#    Parameters
+#    ----------
+#    shape : (int,int)
+#        Shape of the illumination
+#    wavelengths : array_like
+#        A list of wavelengths.
+#    pixelsize : float, optional
+#        Size of the pixel in nm.
+#    beta : float or array_like of floats, optional
+#        Beta parameter(s) of the illumination. (Default 0. - normal incidence) 
+#    phi : float or array_like of floats, optional
+#        Azimuthal angle(s) of the illumination. 
+#    n : float, optional
+#        Refractive index of the media that this illumination field is assumed to
+#        be propagating in (default 1.)
+#    focus : float, optional
+#        Focal plane of the field. By default it is set at z=0. 
+#    window : array or None, optional
+#        If None, no window function is applied. This window function
+#        is multiplied with the constructed plane waves to define field diafragm
+#        of the input light. See :func:`.window.aperture`.
+#    backdir : bool, optional
+#        Whether field is bacward propagating, instead of being forward
+#        propagating (default)
+#    jones : jones vector or None, optional
+#        If specified it has to be a valid jones vector that defines polarization
+#        of the light. If not given (default), the resulting field will have two
+#        polarization components. See documentation for details and examples.
+#    diffraction : bool, optional
+#        Specifies whether field is diffraction limited or not. By default, the 
+#        field is filtered so that it has only propagating waves. You can disable
+#        this by specifying diffraction = False.    
+#    betamax : float, optional
+#        The betamax parameter of the propagating field.
+#    """
+#    
+#    verbose_level = DTMMConfig.verbose
+#    if verbose_level > 0:
+#        print("Building illumination data.") 
+#    wavelengths = np.asarray(wavelengths)
+#    wavenumbers = 2*np.pi/wavelengths * pixelsize
+#    if wavenumbers.ndim not in (1,):
+#        raise ValueError("Wavelengths should be 1D array")
+#    waves = illumination_waves(shape, wavenumbers, beta = beta, phi = phi, window = window)
+#    intensity = ((np.abs(waves)**2).sum((-2,-1)))* np.asarray(intensity)[...,None]#sum over pixels
+#    mode = "r" if backdir else "t"
+#    field = waves2field(waves, wavenumbers, intensity = intensity, beta = beta, phi = phi, n = n,
+#                        focus = focus, jones = jones, mode = mode, betamax = betamax)
+#    return (field, wavelengths, pixelsize)
 
 
 @nb.njit([(NCDTYPE[:,:,:],NFDTYPE[:,:])], cache = NUMBA_CACHE)
@@ -464,5 +552,6 @@ def load_field(file):
     finally:
         if own_fid == True:
             f.close()
+field2poynting = field2intensity
     
 __all__ = ["illumination_rays","load_field", "save_field", "validate_field_data","field2specter","field2intensity", "illumination_data","illumination_betaphi"]

@@ -132,14 +132,14 @@ def propagate_4x4_effective_2(field, wavenumbers, layer, effective_layer, beta =
         
         if diffraction != 0:
 
-            dmatp, dmatn = corrected_Epn_diffraction_matrix(shape, wavenumbers, beta,phi, d = d_eff,
+            dmatpn = corrected_Epn_diffraction_matrix(shape, wavenumbers, beta,phi, d = d_eff,
                                  epsv = epsv_eff, epsa = epsa_eff, betamax = betamax)
         
         else:
-            dmatp, dmatn = None, None
+            dmatpn = None
 
         return _transfer_ray_4x4_2(field, wavenumbers, layer,
-                                beta = beta, phi = phi, nsteps =  nsteps, dmatpn = (dmatp,dmatn),
+                                beta = beta, phi = phi, nsteps =  nsteps, dmatpn = dmatpn,
                                 out = out, tmpdata = tmpdata)
     else:
         fout = np.zeros_like(field)
@@ -160,13 +160,10 @@ def propagate_4x4_effective_2(field, wavenumbers, layer, effective_layer, beta =
         betas = betas.reshape((n,) + broadcast_shape)
         phis = phis.reshape((n,) + broadcast_shape)
         
-        if diffraction != 0:
-            dmatps, dmatns = corrected_Epn_diffraction_matrix(field.shape[-2:], wavenumbers, betas,phis, d = d_eff,
+        dmatps, dmatns = corrected_Epn_diffraction_matrix(field.shape[-2:], wavenumbers, betas,phis, d = d_eff,
                                  epsv = epsv_eff, epsa = epsa_eff, betamax = betamax)
 
-        else:
-            dmatps = [None]*n
-            dmatns = [None]*n
+
       
         for window, b, p, dmatp, dmatn  in zip(windows, betas, phis, dmatps,dmatns):
             fpart = np.multiply(field, window, out = _out)
@@ -283,6 +280,7 @@ def propagate_4x4_effective_1(field, wavenumbers, layer, effective_layer, beta =
                     nsteps = 1, diffraction = True, 
                     betamax = BETAMAX,out = None,_reuse = False ):
     d_eff, epsv_eff, epsa_eff = effective_layer
+
     
     if diffraction == 1:
         dmat1 = first_corrected_Epn_diffraction_matrix(field.shape[-2:], wavenumbers, beta, phi,d_eff/2, epsv = epsv_eff, 
@@ -345,6 +343,8 @@ def propagate_4x4_effective_1(field, wavenumbers, layer, effective_layer, beta =
         else:
             out = fout
         return out
+    else:
+        raise ValueError("Invalid diffraction value")
 
 
 def propagate_4x4_effective_3(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,

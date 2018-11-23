@@ -6,13 +6,14 @@ import time
 from dtmm.conf import DTMMConfig,  BETAMAX, SMOOTH, FDTYPE
 from dtmm.wave import k0
 from dtmm.data import uniaxial_order, refind2eps, validate_optical_data
-from dtmm.tmm import E2H_mat
-from dtmm.linalg import  dotmf
+from dtmm.tmm import E2H_mat, projection_mat, alphaf
+from dtmm.linalg import  dotmf, dotmv
 from dtmm.print_tools import print_progress
 from dtmm.diffract import diffract, projection_matrix, diffraction_alphaffi
-from dtmm.field import field2intensity, mean_betaphi
+from dtmm.field import field2intensity, mean_betaphi, transpose
 from dtmm.fft import fft2, ifft2
-from dtmm.jones import polarizer, apply_jones_matrix, jonesvec, apply_jones_matrix2
+from dtmm.jones import jonesvec
+from dtmm.polarization import normal_polarizer
 import numpy as np
 from dtmm.denoise import denoise_field
 
@@ -89,26 +90,44 @@ def diffract_normalized_fft(field, dmat, window = None, ref = None, out = None):
 
 
 def transpose_field(field):
+    """transposes field from shape (..., k,n,m) to (...,n,m,k)"""
     taxis = list(range(field.ndim))
     taxis.append(taxis.pop(-3))
     return field.transpose(taxis) 
+
+def transpose_vec(vec):
+    """transposes vector from shape (..., n,m,k) to (...,k,n,m)"""
+    taxis = list(range(vec.ndim))
+    taxis.insert(-2,taxis.pop(-1))
+    return vec.transpose(taxis) 
+
+def transmitted_field_direct(field, beta, phi, n = 1.):
+    ev = refind2eps([n]*3)
+    ea = np.zeros_like(ev)
+    alpha, fmat = alphaf(beta,phi, ev, ea)
+    pmat = projection_mat(fmat)
+    field0 = np.empty_like(field)
+    dotmv(pmat,transpose(field), out = transpose(field0))
+    return field0
 
 def diffract_normalized_local(field, dmat, window = None, ref = None, out = None):
     f1 = fft2(field) 
     f2 = dotmf(dmat, f1 ,out = f1)
     f = ifft2(f2, out = f2)
-    pmat1 = polarizer(jonesvec(transpose_field(f[...,::2,:,:])))
+    pmat1 = normal_polarizer(jonesvec(transpose_field(f[...,::2,:,:])))
     pmat2 = -pmat1
     pmat2[...,0,0] += 1
     pmat2[...,1,1] += 1 #pmat1 + pmat2 = identity by definition
+    pmat2[...,2,2] += 1 #pmat1 + pmat2 = identity by definition
+    pmat2[...,3,3] += 1 #pmat1 + pmat2 = identity by definition
     
     if ref is not None:
-        intensity1 = field2intensity(apply_jones_matrix2(pmat1, ref))
-        ref = apply_jones_matrix2(pmat2, ref)
+        intensity1 = field2intensity(dotmf(pmat1, ref))
+        ref = dotmf(pmat2, ref)
         
     else:
-        intensity1 = field2intensity(apply_jones_matrix(pmat1, field))
-        ref = apply_jones_matrix2(pmat2, field)
+        intensity1 = field2intensity(dotmf(pmat1, field))
+        ref = dotmf(pmat2, field)
 
     intensity2 = field2intensity(f)
     
@@ -118,6 +137,7 @@ def diffract_normalized_local(field, dmat, window = None, ref = None, out = None
     if window is not None:
         out = np.multiply(out,window,out = out)
     return out 
+
 
 
 def normalize_field_total(field, i1, i2, out = None):
@@ -153,6 +173,23 @@ def diffract_normalized_total(field, dmat, window = None, ref = None, out = None
     if window is not None:
         out = np.multiply(out,window,out = out)
     return out    
+
+
+def normalize_total(field, dmat, window = None, ref = None, out = None):
+    if ref is not None:
+        i1 = total_intensity(ref)
+    else:
+        i1 = total_intensity(field)
+        
+    f2 = dotmf(dmat, field, out = out)
+    i2 = total_intensity(out)
+    
+    out = normalize_field_total(out, i1, i2, out = f2)
+    
+    if window is not None:
+        out = np.multiply(out,window,out = out)
+    return out  
+
 
 def _projected_field(field, wavenumbers, mode, n = 1, betamax = BETAMAX, norm = None, ref = None, out = None):
     eps = refind2eps([n]*3)
@@ -363,10 +400,17 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
     """
     t0 = time.time()
     verbose_level = DTMMConfig.verbose
-
+    
+    if method == "4x4" and npass > 1 and diffraction == False:
+        import warnings
+        warnings.warn("The 4x4 method with diffraction disabled is not yet supported\
+                      for input fields with beta >0. Use 2x2 method insted.")
         
+    #choose best/supported reflection mode based on other arguments
     if reflection is None:
         reflection = 0 if method == "2x2" else 1
+        if method == "4x4" and diffraction == 0:
+            reflection = 2
         if npass > 1:
             reflection = 1
             if diffraction > 1 and method == "2x2":
@@ -431,7 +475,7 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
     t = time.time()-t0
     if verbose_level >1:
         print("------------------------------------")
-        print("   Done in {} seconds!".format(t))  
+        print("   Done in {:.2f} seconds!".format(t))  
         print("------------------------------------")
 
     return out
@@ -559,9 +603,6 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
         
         for pindex, j in enumerate(indices):
             print_progress(pindex,n,level = verbose_level, suffix = suffix, prefix = prefix) 
-            
-
-                
             
             nstep, (thickness,ev,ea) = layers[j]
             output_layer = (thickness*direction,ev,ea)
@@ -815,7 +856,11 @@ def transfer_2x2(field_data, optical_data, beta = None,
     indices = list(range(n))
         
     #make sure we take only the forward propagating part of the field
-    field0 = transmitted_field(field_in, ks, n = nin, betamax = betamax)
+    if diffraction:
+        field0 = transmitted_field(field_in, ks, n = nin, betamax = betamax)
+    else:
+        field0 = transmitted_field_direct(field_in, beta, phi, n = nin)
+    
     field = field0[...,::2,:,:].copy()
     
     if npass > 1:

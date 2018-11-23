@@ -11,27 +11,31 @@ import numpy as np
 #: cholesteric pitch in nm
 pitch = 350 #350*eff_refind=350*1.55 = 540
 #:thickness of cholesteric layer in microns
-thickness = 20
+thickness = 10
 #: number of layers (should be high enough...) 
 nlayers = 1000
+
+nwavelengths = 1000
 #which wavelengths to compute
-wavelengths = np.linspace(400,700, 1000)
-# input layer ref. index - we match it to cholesteric to avoid additional reflections
-nin = [1.5]*3
+wavelengths = np.linspace(400,700, nwavelengths)
+# input layer ref. index 
+nin = [1.55]*3
 # output refractive index
-nout = [1.5]*3
+nout = [1.55]*3
 #:ordinary refractive index of cholesteric
 no = 1.5
 #:extraordinary
 ne = 1.6 
 
-#build cholesteric
-step = thickness*1000/nlayers
-phi =  2*np.pi/pitch*np.arange(nlayers)*step
+step = thickness*1000/nlayers #in nanometers
+
+ii = np.arange(nlayers)
+phi =  2*np.pi/pitch*ii*step
 eps_angles = np.zeros(shape = (nlayers,3), dtype = "float32") #in case we compiled for float32, this has to be float not duouble
 eps_angles[...,1] = np.pi/2 #theta angle - in plane director
-eps_angles[:nlayers//2,2] = phi[:nlayers//2]
-eps_angles[nlayers//2:,2] = -phi[nlayers//2:]
+eps_angles[...,2] = phi
+
+d = np.ones((nlayers,),"float32") * (thickness/nlayers)
 
 n = [no,no,ne] 
 
@@ -41,7 +45,7 @@ kd = 2*np.pi/wavelengths * step
 eps_in = dtmm.refind2eps(nin)
 #: layer epsilon
 eps_layer = dtmm.refind2eps(n)
-eps_layers = np.array([e for e in eps_layer])
+eps_layers = np.array([eps_layer]*nlayers, dtype = "complex64")
 #: substrate epsilon
 eps_out = dtmm.refind2eps(nout)
 #: ray beta parameters; beta is nin*np.sin(theta)
@@ -83,8 +87,8 @@ tpp = m[...,2,2]/det
 tss = m[...,0,0]/det
 
 #you need poynting vector to calculate total reflectance and transmittance
-pin = dtmm.tmm.poynting(fin)
-pout = dtmm.tmm.poynting(fout)
+pin = dtmm.tmm.fmat2poynting(fin)
+pout = dtmm.tmm.fmat2poynting(fout)
 
 
 Rpp = np.abs(rpp)**2 *np.abs(pin[...,1]/pin[...,0])

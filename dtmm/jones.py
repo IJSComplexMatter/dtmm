@@ -5,9 +5,14 @@ Some helper function for jones calculus.
 from dtmm.conf import CDTYPE,FDTYPE,NFDTYPE, NCDTYPE, NUMBA_TARGET, NUMBA_CACHE, NUMBA_FASTMATH
 import numba as nb
 import numpy as np
+from dtmm.rotation import rotation_matrix2
+from dtmm.linalg import dotmm, dotmv
 
-def jonesvec(pol):
-    """Returns normalized jones vector from an input length 2 vector. 
+def jonesvec(pol, phi = 0.):
+    """Returns a normalized jones vector from an input length 2 vector., Additionaly,
+    you can use this function to view the jones vactor in rotated coordinate frame, 
+    defined with a rotation angle phi. 
+    
     Numpy broadcasting rules apply.
     
     Example
@@ -17,10 +22,14 @@ def jonesvec(pol):
     array([0.70710678+0.j        , 0.        +0.70710678j])
     
     """
-    pol = np.asarray(pol)
+    pol = np.asarray(pol, CDTYPE)
     assert pol.shape[-1] == 2
     norm = (pol[...,0] * pol[...,0].conj() + pol[...,1] * pol[...,1].conj())**0.5
-    return pol/norm[...,np.newaxis]
+    pol = pol/norm[...,np.newaxis]
+    pol = np.asarray(pol, CDTYPE)
+    r = rotation_matrix2(-phi)
+    return dotmv(r, pol)
+
 
 def polarizer(jones, out = None):
     """Returns jones polarizer matrix from a jones vector describing the output
@@ -94,38 +103,69 @@ def circular_polarizer(hand, out = None):
     out[...,1,1] = 0.5   
     return out
 
-@nb.guvectorize([(NCDTYPE[:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,m),(n,k,l)->(n,k,l)", 
-                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def apply_jones_matrix(pmat, field, out):
-    """Multiplies 2x2 jones polarizer matrix with 4 x n x m field array"""
-    for i in range(field.shape[1]):
-        for j in range(field.shape[2]):
-            Ex = field[0,i,j] * pmat[0,0] + field[2,i,j] * pmat[0,1]
-            Hy = field[1,i,j] * pmat[0,0] - field[3,i,j] * pmat[0,1]
-            Ey = field[0,i,j] * pmat[1,0] + field[2,i,j] * pmat[1,1]
-            Hx = -field[1,i,j] * pmat[1,0] + field[3,i,j] * pmat[1,1]
-            out[0,i,j] = Ex
-            out[1,i,j] = Hy
-            out[2,i,j] = Ey
-            out[3,i,j] = Hx
-            
-            
-@nb.guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(k,l,m,m),(n,k,l)->(n,k,l)", 
-                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def apply_jones_matrix2(pmat, field, out):
-    """Multiplies 2x2 jones polarizer matrix with 4 x n x m field array"""
-    for i in range(field.shape[1]):
-        for j in range(field.shape[2]):
-            Ex = field[0,i,j] * pmat[i,j,0,0] + field[2,i,j] * pmat[i,j,0,1]
-            Hy = field[1,i,j] * pmat[i,j,0,0] - field[3,i,j] * pmat[i,j,0,1]
-            Ey = field[0,i,j] * pmat[i,j,1,0] + field[2,i,j] * pmat[i,j,1,1]
-            Hx = -field[1,i,j] * pmat[i,j,1,0] + field[3,i,j] * pmat[i,j,1,1]
-            out[0,i,j] = Ex
-            out[1,i,j] = Hy
-            out[2,i,j] = Ey
-            out[3,i,j] = Hx            
-            
-__all__ = ["polarizer","circular_polarizer","linear_polarizer", "apply_jones_matrix",  "apply_jones_matrix","jonesvec", ]
+#def as4x4(jonesmat, out = None):
+#    """Converts jones 2x2 matrix to field 4x4 matrix"""
+#    if out is None:
+#        shape = jonesmat.shape[:-2] + (4,4)
+#        out = np.zeros(shape, dtype = jonesmat.dtype)
+#    else:
+#        out[...] = 0.
+#    out[...,0,0] = jonesmat[...,0,0]
+#    out[...,0,2] = jonesmat[...,0,1]
+#    out[...,1,1] = jonesmat[...,0,0]
+#    out[...,1,3] = -jonesmat[...,0,1]
+#    out[...,2,0] = jonesmat[...,1,0]
+#    out[...,2,2] = jonesmat[...,1,1]
+#    out[...,3,1] = -jonesmat[...,1,0]
+#    out[...,3,3] = jonesmat[...,1,1]  
+#    return out
+
+def as4x4(jonesmat,  out = None):
+    """Converts jones 2x2 matrix to eigenfield 4x4 matrix."""
+    
+    if out is None:
+        shape = jonesmat.shape[:-2] + (4,4)
+        out = np.zeros(shape, dtype = jonesmat.dtype)
+    else:
+        out[...] = 0.
+    out[...,0::2,0::2] = jonesmat
+    out[...,1::2,1::2] = jonesmat
+
+    return out
+
+
+#@nb.guvectorize([(NCDTYPE[:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,m),(n,k,l)->(n,k,l)", 
+#                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+#def apply_jones_matrix(pmat, field, out):
+#    """Multiplies 2x2 jones polarizer matrix with 4 x n x m field array"""
+#    for i in range(field.shape[1]):
+#        for j in range(field.shape[2]):
+#            Ex = field[0,i,j] * pmat[0,0] + field[2,i,j] * pmat[0,1]
+#            Hy = field[1,i,j] * pmat[0,0] - field[3,i,j] * pmat[0,1]
+#            Ey = field[0,i,j] * pmat[1,0] + field[2,i,j] * pmat[1,1]
+#            Hx = -field[1,i,j] * pmat[1,0] + field[3,i,j] * pmat[1,1]
+#            out[0,i,j] = Ex
+#            out[1,i,j] = Hy
+#            out[2,i,j] = Ey
+#            out[3,i,j] = Hx
+#            
+#            
+#@nb.guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(k,l,m,m),(n,k,l)->(n,k,l)", 
+#                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+#def apply_jones_matrix2(pmat, field, out):
+#    """Multiplies 2x2 jones polarizer matrix with 4 x n x m field array"""
+#    for i in range(field.shape[1]):
+#        for j in range(field.shape[2]):
+#            Ex = field[0,i,j] * pmat[i,j,0,0] + field[2,i,j] * pmat[i,j,0,1]
+#            Hy = field[1,i,j] * pmat[i,j,0,0] - field[3,i,j] * pmat[i,j,0,1]
+#            Ey = field[0,i,j] * pmat[i,j,1,0] + field[2,i,j] * pmat[i,j,1,1]
+#            Hx = -field[1,i,j] * pmat[i,j,1,0] + field[3,i,j] * pmat[i,j,1,1]
+#            out[0,i,j] = Ex
+#            out[1,i,j] = Hy
+#            out[2,i,j] = Ey
+#            out[3,i,j] = Hx            
+#            
+__all__ = ["polarizer","circular_polarizer","linear_polarizer", "jonesvec", "as4x4"]
     
 if __name__ == "__main__":
     import doctest

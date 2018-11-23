@@ -29,6 +29,6 @@ field_data_out = dtmm.transfer_field(field_data_in, optical_data, multiray = Tru
                                      nin = 1.5,nout =1.5)
 
 viewer = dtmm.field_viewer(field_data_out, sample = 0, intensity = 2,n=1.5,
-                polarizer = 0, focus = -30, analyzer = 90)
+                polarizer = 0, focus = -30, analyzer = 90, polarization = "mode")
 fig, ax = viewer.plot()
 fig.show()
