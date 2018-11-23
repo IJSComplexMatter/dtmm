@@ -8,7 +8,7 @@ from dtmm.wave import eigenwave, betaphi
 from dtmm.tmm import alphaf, E2H_mat, E_mat, Eti_mat, phase_mat, Etri_mat, tr_mat
 
 from dtmm.linalg import dotmf, dotmdmf, inv, dotmd
-from dtmm.diffract import diffract, jones_tr_matrix
+from dtmm.diffract import diffract, E_tr_matrix
 from dtmm.fft import fft2, ifft2
 import numpy as np
 
@@ -26,7 +26,7 @@ def _transfer_ray_2x2_1(fft_field, wavenumbers, layer, effective_layer_in,effect
     d_out, epsv_out,epsa_out = effective_layer_out    
     
     if reflection:
-        tmat,rmat = jones_tr_matrix(shape, wavenumbers, epsv_in = epsv_in, epsa_in = epsa_in,
+        tmat,rmat = E_tr_matrix(shape, wavenumbers, epsv_in = epsv_in, epsa_in = epsa_in,
                             epsv_out = epsv_out, epsa_out = epsa_out, mode = mode, betamax = betamax)
     
     d, epsv, epsa = layer

@@ -15,7 +15,7 @@ from dtmm.fft import fft2, ifft2
 from dtmm.jones import jonesvec
 from dtmm.polarization import normal_polarizer
 import numpy as np
-from dtmm.denoise import denoise_field
+from dtmm.denoise import denoise_fftfield, denoise_field
 
 from dtmm.propagate_4x4 import propagate_4x4_full, propagate_4x4_effective_1,\
     propagate_4x4_effective_2,propagate_4x4_effective_3,propagate_4x4_effective_4
@@ -58,8 +58,6 @@ def _validate_betaphi(beta,phi, extendeddim = 0):
             phi = phi[...,None]        
     return beta, phi
 
-
-
 def normalize_field(field, intensity_in, intensity_out, out = None):
     m = intensity_out == 0.
     intensity_out[m] = 1.
@@ -71,7 +69,7 @@ def normalize_field(field, intensity_in, intensity_out, out = None):
     return np.multiply(field,fact, out = out) 
 
 
-def diffract_normalized_fft(field, dmat, window = None, ref = None, out = None):
+def project_normalized_fft(field, dmat, window = None, ref = None, out = None):
     if ref is not None:
         fref = fft2(ref, out = out)
         intensity1 = field2intensity(fref)
@@ -87,20 +85,6 @@ def diffract_normalized_fft(field, dmat, window = None, ref = None, out = None):
         out = np.multiply(out,window,out = out)
     return out  
 
-
-
-def transpose_field(field):
-    """transposes field from shape (..., k,n,m) to (...,n,m,k)"""
-    taxis = list(range(field.ndim))
-    taxis.append(taxis.pop(-3))
-    return field.transpose(taxis) 
-
-def transpose_vec(vec):
-    """transposes vector from shape (..., n,m,k) to (...,k,n,m)"""
-    taxis = list(range(vec.ndim))
-    taxis.insert(-2,taxis.pop(-1))
-    return vec.transpose(taxis) 
-
 def transmitted_field_direct(field, beta, phi, n = 1.):
     ev = refind2eps([n]*3)
     ea = np.zeros_like(ev)
@@ -110,11 +94,11 @@ def transmitted_field_direct(field, beta, phi, n = 1.):
     dotmv(pmat,transpose(field), out = transpose(field0))
     return field0
 
-def diffract_normalized_local(field, dmat, window = None, ref = None, out = None):
+def project_normalized_local(field, dmat, window = None, ref = None, out = None):
     f1 = fft2(field) 
     f2 = dotmf(dmat, f1 ,out = f1)
     f = ifft2(f2, out = f2)
-    pmat1 = normal_polarizer(jonesvec(transpose_field(f[...,::2,:,:])))
+    pmat1 = normal_polarizer(jonesvec(transpose(f[...,::2,:,:])))
     pmat2 = -pmat1
     pmat2[...,0,0] += 1
     pmat2[...,1,1] += 1 #pmat1 + pmat2 = identity by definition
@@ -138,8 +122,6 @@ def diffract_normalized_local(field, dmat, window = None, ref = None, out = None
         out = np.multiply(out,window,out = out)
     return out 
 
-
-
 def normalize_field_total(field, i1, i2, out = None):
     m = i2 == 0.
     i2[m] = 1.
@@ -157,7 +139,7 @@ def total_intensity(field):
     i = field2intensity(field)
     return i.sum(tuple(range(i.ndim))[-2:])#sum over pixels
 
-def diffract_normalized_total(field, dmat, window = None, ref = None, out = None):
+def project_normalized_total(field, dmat, window = None, ref = None, out = None):
     if ref is not None:
         i1 = total_intensity(ref)
     else:
@@ -174,7 +156,6 @@ def diffract_normalized_total(field, dmat, window = None, ref = None, out = None
         out = np.multiply(out,window,out = out)
     return out    
 
-
 def normalize_total(field, dmat, window = None, ref = None, out = None):
     if ref is not None:
         i1 = total_intensity(ref)
@@ -190,30 +171,11 @@ def normalize_total(field, dmat, window = None, ref = None, out = None):
         out = np.multiply(out,window,out = out)
     return out  
 
-
-def _projected_field(field, wavenumbers, mode, n = 1, betamax = BETAMAX, norm = None, ref = None, out = None):
+def _projected_field(field, wavenumbers, mode, n = 1, betamax = BETAMAX,  out = None):
     eps = refind2eps([n]*3)
     pmat = projection_matrix(field.shape[-2:], wavenumbers, epsv = eps, epsa = (0.,0.,0.), mode = mode, betamax = betamax)
+    return diffract(field, pmat, out = out) 
 
-    if norm is None:
-        return diffract(field, pmat, out = out) 
-    elif norm == "fft":
-        return diffract_normalized_fft(field, pmat, ref = ref,out = out)
-    elif norm == "local":
-        return diffract_normalized_local(field, pmat, ref = ref, out = out)
-    elif norm == "total":
-        return diffract_normalized_total(field, pmat, ref = ref, out = out)    
-    else:
-        raise ValueError("Unsupported normalization '{}'".format(norm))
-
-def _projected_field2(field, wavenumbers, mode, n = 1, betamax = BETAMAX, norm = None, out = None):
-    eps = refind2eps([n]*3)
-    pmat = projection_matrix(field.shape[-2:], wavenumbers, epsv = eps, epsa = (0.,0.,0.), mode = mode, betamax = betamax)
-
-    if norm is None:
-        return diffract(field, pmat, out = out) 
-    else:
-        return diffract_normalized_local(field, pmat, out = out)
     
 #def jones2H(jones,beta = 0., phi = 0., n = 1., out = None):
 #    eps = refind2eps([n]*3)
@@ -239,7 +201,7 @@ def jones2H(jones, wavenumbers, n = 1., betamax = BETAMAX, mode = +1, out = None
     return diffract(jones, D, out = out) 
 
 
-def transmitted_field(field, wavenumbers, n = 1, betamax = BETAMAX, norm = None,  ref = None, out = None):
+def transmitted_field(field, wavenumbers, n = 1, betamax = BETAMAX, out = None):
     """Computes transmitted (forward propagating) part of the field.
     
     Parameters
@@ -252,12 +214,6 @@ def transmitted_field(field, wavenumbers, n = 1, betamax = BETAMAX, norm = None,
         Refractive index of the media (1 by default)
     betamax : float, optional
         Betamax perameter used.
-    norm : str, optional
-        If provided, transmitted field is normalized according to the selected
-        mode. Possible values are ['fft', 'local', 'total']
-    ref : ndarray, optional
-        Reference field that is used to calculate normalization. If not provided,
-        reflected waves of the input field are used for calculation.
     out : ndarray, optinal
         Output array
         
@@ -267,10 +223,10 @@ def transmitted_field(field, wavenumbers, n = 1, betamax = BETAMAX, norm = None,
        Transmitted field.
     """
         
-    return _projected_field(np.asarray(field), wavenumbers, "t", n = n, 
-                            betamax = betamax, norm = norm, ref = ref, out = out) 
+    return _projected_field(np.asarray(field), wavenumbers, +1, n = n, 
+                            betamax = betamax, out = out) 
     
-def reflected_field(field, wavenumbers, n = 1, betamax = BETAMAX, norm = None, t = None, out = None):
+def reflected_field(field, wavenumbers, n = 1, betamax = BETAMAX,  out = None):
     """Computes reflected (backward propagating) part of the field.
     
     Parameters
@@ -294,21 +250,8 @@ def reflected_field(field, wavenumbers, n = 1, betamax = BETAMAX, norm = None, t
     out : ndarray
        Reflected field.
     """
-    return _projected_field2(np.asarray(field), wavenumbers, "r", n = n, betamax = betamax, norm = norm, out = out) 
+    return _projected_field(np.asarray(field), wavenumbers, -1, n = n, betamax = betamax, out = out) 
     
-
-def normalize_input_field(field, wavenumbers, rfield, n=1, betamax = BETAMAX, out = None):
-    i1 = field2intensity(rfield)
-    i1 = i1.sum(tuple(range(i1.ndim))[-2:])
-    r = reflected_field(field, wavenumbers, n = n, betamax = betamax)
-    t = field -r
-    i2 = field2intensity(t)
-    i2 = i2.sum(tuple(range(i2.ndim))[-2:])
-    fact = (i1/i2)**0.5
-    fact = fact[...,None,None,None]
-    print (fact.max(),fact.min())
-    r = r* fact
-    return np.add(rfield, r, out = out)
 
 def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., nout = 1.,  
            npass = 1, nstep=1, diffraction = 1, reflection = None, method = "2x2", 
@@ -491,7 +434,7 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
                    phi = 0., eff_data = None, nin = 1., nout = 1., npass = 1,nstep=1,
               diffraction = True, reflection = 1, multiray = False,norm = DTMM_NORM_FFT, smooth = SMOOTH,
               betamax = BETAMAX, ret_bulk = False, out = None):
-    """Tranfers input field data through optical data. See transfer_field.
+    """Transfers input field data through optical data. See transfer_field.
     """
     if reflection not in (1,2,3,4):
         raise ValueError("Invalid reflection. The 4x4 method is either reflection mode 1 or 2.")
@@ -566,7 +509,6 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
     
     field_in[...] = 0.
             
-    
     if norm == 2:
         #make sure we take only the forward propagating part of the field
         transmitted_field(field, ks, n = nin, betamax = min(betamax,nin), out = field)
@@ -588,6 +530,12 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
         field = fft2(field,out = field)
     _reuse = False
     tmpdata = {}
+    
+    #:projection matrices.. set when needed
+    if npass > 1:
+        pin_mat = projection_matrix(field.shape[-2:], ks,  epsv = refind2eps([nin]*3), mode = +1, betamax = betamax)
+        pout_mat = projection_matrix(field.shape[-2:], ks,  epsv = refind2eps([nout]*3), mode = +1, betamax = betamax)
+
     
     for i in range(npass):
         if verbose_level > 0:
@@ -679,11 +627,14 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
                         np.multiply(ref, (nin/nout)**0.5,ref)
 
                     sigma = smooth*(npass-i)/(npass)
-#                    if ref is not None:
-#                        denoise_field(ref, ks, nin, sigma, out = ref)
-#                    field = denoise_field(field, ks, nin, sigma, out = field)
                     
-                    field = transmitted_field(field, ks, n = nout, betamax = betamax, norm = norm, ref = ref, out = field)
+                    if norm == "fft":
+                        field = project_normalized_fft(field, pout_mat, ref = ref, out = field)
+                    elif norm == "local":
+                        field = project_normalized_local(field, pout_mat, ref = ref, out = field)
+                    elif norm == "total":
+                        field = project_normalized_total(field, pout_mat, ref = ref, out = field)                      
+                    
                     field = denoise_field(field, ks, nin, sigma, out = field)
                     
                 np.add(field_out, field, field_out)
@@ -698,10 +649,10 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
                      
                     sigma = smooth*(npass-i)/(npass) 
                     
-                    
-                    field = transmitted_field(field, ks, n = nin, betamax = min(nin, betamax), norm = None, ref = None, out = field)
-                    
-                    field = denoise_field(field, ks, nin, sigma, out = field)
+                    ffield = fft2(field, out = field)
+                    ffield = dotmf(pin_mat, ffield, out = ffield)                                        
+                    ffield = denoise_fftfield(ffield, ks, nin, sigma, out = ffield)
+                    field = ifft2(field, out = ffield)
                     
                     i0f = total_intensity(field)
                     fact = ((i0/i0f))
@@ -966,4 +917,4 @@ def transfer_2x2(field_data, optical_data, beta = None,
         return field_out, wavelengths, pixelsize  
     
  
-__all__ = ["transfer_field", "transmitted_field", "reflected_field"]
+__all__ = ["transfer_field", "transmitted_field", "reflected_field", "transfer_2x2", "transfer_4x4", "total_intensity"]

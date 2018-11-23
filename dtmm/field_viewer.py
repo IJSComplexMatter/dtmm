@@ -10,7 +10,7 @@ import scipy.ndimage as nd
 
 #from dtmm.project import projection_matrix, project
 from dtmm.color import load_tcmf, specter2color
-from dtmm.diffract import diffract, diffraction_matrix
+from dtmm.diffract import diffract, field_diffraction_matrix
 from dtmm.polarization import mode_polarizer, ray_polarizer, normal_polarizer
 from dtmm.field import field2specter
 from dtmm.wave import k0
@@ -22,7 +22,6 @@ from dtmm.fft import fft2, ifft2
 
 #: settable viewer parameters
 VIEWER_PARAMETERS = ("focus","analyzer", "polarizer", "sample", "intensity")
-
 
 
 def _redim(a, ndim=1):
@@ -70,7 +69,7 @@ def bulk_viewer(field_data, cmf = None, window = None, **parameters):
     return field_viewer(field_data, cmf, bulk_data = True, window = window, **parameters)
 
 def field_viewer(field_data, cmf = None, bulk_data = False, n = 1., mode = None,
-                 window = None, diffraction = True, polarization = "mode", betamax = BETAMAX, **parameters):
+                 window = None, diffraction = True, polarization = "normal", betamax = BETAMAX, **parameters):
     """Returns a FieldViewer object for optical microsope simulation
     
     Parameters
@@ -96,10 +95,10 @@ def field_viewer(field_data, cmf = None, bulk_data = False, n = 1., mode = None,
     polarization : str, optional
         Defines polarization mode. That is, how the polarization of the light is
         treated after passing the analyzer. By default, polarizer is applied
-        in fft `mode` coefficients which results in most accurate, but slower 
-        computation. You can use `normal` instead of `mode`, to speed
-        up computation, but it will be less accurate for off-axis beam with high
-        beta parameter. 
+        in real space (`mode`) which is good for normal (or mostly normal) 
+        incidence light. You can use `mode` instead of `normal` for more 
+        accurate, but slower computation. Here polarizers are applied to 
+        mode coefficients in fft space. 
     betamax : float
         Betamax parameter used in the diffraction calculation function. With this
         you can simulate finite NA of the microscope (NA = betamax).
@@ -162,7 +161,7 @@ class FieldViewer(object):
     gamma = True
     gray = False
     
-    def __init__(self,field,ks,cmf, mode = None,n = 1., polarization = "mode",
+    def __init__(self,field,ks,cmf, mode = None,n = 1., polarization = "normal",
                 window = None, diffraction = True, betamax = BETAMAX):
         self.betamax = betamax
         self.diffraction = diffraction
@@ -382,7 +381,7 @@ class FieldViewer(object):
             if self.diffraction == True or self.mode is not None:
                 #if mode is selected, we need to project the filed using diffraction
                 d = 0 if self.focus is None else self.focus
-                dmat = diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = d, 
+                dmat = field_diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = d, 
                                           epsv = self.epsv, epsa = self.epsa, 
                                           mode = self.mode, betamax = self.betamax)
                 
@@ -468,7 +467,7 @@ class FieldViewer(object):
             if self.diffraction == True or self.mode is not None:
                 #if mode is selected, we need to project the field using diffraction
                 d = 0 if self.focus is None else self.focus
-                self.dmat = diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = d, 
+                self.dmat = field_diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = d, 
                                           epsv = self.epsv, epsa = self.epsa, 
                                           mode = self.mode, betamax = self.betamax)
             else:
@@ -622,7 +621,7 @@ class BulkViewer(FieldViewer):
             if self.mode is None:
                 self.ffield = fft2(self.ifield[self.focus])
             else:
-                self.dmat = diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = 0, 
+                self.dmat = field_diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = 0, 
                                       epsv = self.epsv, epsa = self.epsa, 
                                       mode = self.mode, betamax = self.betamax)
                 self.ffield = fft2(self.ifield[self.focus])
@@ -676,7 +675,7 @@ class BulkViewer(FieldViewer):
             if self.mode is None:
                 self.ofield = self.ifield[self.focus]
             else:
-                dmat = diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = 0, 
+                dmat = field_diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = 0, 
                                       epsv = self.epsv, epsa = self.epsa, 
                                       mode = self.mode, betamax = self.betamax)
                 self.ofield = diffract(self.ifield[self.focus],dmat,window = self.window,out = self.ofield)

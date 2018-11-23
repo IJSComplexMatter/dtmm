@@ -354,7 +354,7 @@ def load_cmf(wavelengths = None, cmf = CMF,  retx = False, single_wavelength = F
     """Load XYZ Color Matching function as an array.
     
     This function loads 5nm tabulated data and re-calculates xyz array on a given range of
-    wavelength values. 
+    wavelength values.
     
     See also load_tcmf.
     
@@ -365,7 +365,7 @@ def load_cmf(wavelengths = None, cmf = CMF,  retx = False, single_wavelength = F
         (default), original data from the 5nm tabulated data is returned.
     cmf : str, optional
         Name or path to the cmf function. Can be 'CIE1931' for CIE 1931 2-deg 
-        5nm tabulated data, 'CIE1964' for CIE1964 10-deg 5nm tabulatd data, or
+        5nm tabulated data, 'CIE1964' for CIE1964 10-deg 5nm tabulated data, or
         'CIE2006-2' or 'CIE2006-10' for a proposed CIE 2006 2- or 10-deg 5nm 
         tabulated data. 
     retx : bool, optional
@@ -375,8 +375,7 @@ def load_cmf(wavelengths = None, cmf = CMF,  retx = False, single_wavelength = F
         calculated by interpolation. By default, specter is assumed to be a 
         piece-wise linear function and continuous between the specified 
         wavelengts, and data is integrated instead.
-
-        
+   
     Returns
     -------
     cmf : array

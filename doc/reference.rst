@@ -149,7 +149,6 @@ IO functions
 .. autofunction:: dtmm.field.save_field
 
 
-
 .. currentmodule:: dtmm.field_viewer
 
 Field viewer (``dtmm.field_viewer``)
@@ -164,16 +163,7 @@ Jones Calculus (``dtmm.jones``)
 -------------------------------
 
 .. automodule:: dtmm.jones
-
-.. autofunction:: dtmm.jones.circular_polarizer
-
-.. autofunction:: dtmm.jones.jonesvec
-
-.. autofunction:: dtmm.jones.linear_polarizer
-
-.. autofunction:: dtmm.jones.polarizer
-
-.. autofunction:: dtmm.jones.as4x4
+   :members:
 
 .. currentmodule:: dtmm.linalg
 
@@ -181,6 +171,7 @@ Jones Calculus (``dtmm.jones``)
 --------------------------------------------
 
 .. automodule:: dtmm.linalg
+   :members: 
 
 .. autofunction:: dtmm.linalg.dotmd
 
@@ -188,11 +179,19 @@ Jones Calculus (``dtmm.jones``)
 
 .. autofunction:: dtmm.linalg.dotmdmf
 
-.. autofunction:: dtmm.linalg.dotmf
-
 .. autofunction:: dtmm.linalg.dotmv
 
 .. autofunction:: dtmm.linalg.inv
+
+
+.. currentmodule:: dtmm.tmm
+
+Field transfer (``dtmm.tmm``)
+----------------------------------
+
+.. automodule:: dtmm.tmm
+   :members: 
+
 
 .. currentmodule:: dtmm.transfer
 

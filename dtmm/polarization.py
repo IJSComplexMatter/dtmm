@@ -37,9 +37,9 @@ def ray_polarizer(jones = (1,0), beta = 0, phi = 0, epsv = (1.,1.,1.),
                             epsa = (0.,0.,0.),):
     """Returns a ray polarizer that should be applied in real space. Good for
     beams that can be approximated with a single wave vector and with a direction of 
-    ray propagation beta and phi.
+    ray propagation beta and phi parameters.
     
-    See also mod_polarizer, which is for non-planewave field data."""
+    See also mode_polarizer, which is for non-planewave field data."""
     epsv = np.asarray(epsv, CDTYPE)
     epsa = np.asarray(epsa, FDTYPE)
     beta = np.asarray(beta, FDTYPE)
@@ -67,7 +67,7 @@ def normal_polarizer(jones = (1,0)):
     
 
 def apply_mode_polarizer(pmat,field, out = None):
-    """A convenience function. It applyies mode polarizer to field data."""
+    """Multiplies mode polarizer with field data in fft space."""
     fft = fft2(field, out = out)
     pfft = dotmf(pmat, fft ,out  = fft)
     return ifft2(fft, out = pfft)

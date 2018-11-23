@@ -3,10 +3,9 @@ Some helper function for jones calculus.
 """
 
 from dtmm.conf import CDTYPE,FDTYPE,NFDTYPE, NCDTYPE, NUMBA_TARGET, NUMBA_CACHE, NUMBA_FASTMATH
-import numba as nb
 import numpy as np
 from dtmm.rotation import rotation_matrix2
-from dtmm.linalg import dotmm, dotmv
+from dtmm.linalg import dotmv
 
 def jonesvec(pol, phi = 0.):
     """Returns a normalized jones vector from an input length 2 vector., Additionaly,

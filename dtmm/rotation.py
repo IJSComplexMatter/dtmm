@@ -1,3 +1,5 @@
+"""Rotation matrices"""
+
 from __future__ import absolute_import, print_function, division
 
 import numpy as np
@@ -187,7 +189,7 @@ def rotate_diagonal_tensor(R,diagonal,output = None):
     """Rotates a diagonal tensor, based on the rotation matrix provided
     
     >>> R = rotation_matrix((0.12,0.245,0.78))
-    >>> diag = np.array([1.3,1.4,1.5], dtype = 'complex')
+    >>> diag = np.array([1.3,1.4,1.5], dtype = CDTYPE)
     >>> tensor = rotate_diagonal_tensor(R, diag)
     >>> matrix = tensor_to_matrix(tensor)
     
@@ -244,7 +246,6 @@ def rotate_vector(R,vector, out):
     _rotate_vector(R,vector,out)
     
 
-    
 dotrv = rotate_vector
     
 def tensor_to_matrix(tensor, output = None):

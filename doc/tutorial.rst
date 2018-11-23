@@ -96,8 +96,8 @@ In the example below, we simulated propagation of right-handed light with beta p
 
    Reflection and transmission properties of a cholesterol droplet.
 
-1D material
------------
+Standard TMM - 1D case
+----------------------
 
 You can use the package for 1D calculation. There are two options. Either you create
 a single pixel optical data that describes your 1D material and use the functions covered

@@ -9,12 +9,10 @@ from __future__ import absolute_import, print_function, division
 from dtmm.conf import cached_function, BETAMAX,FDTYPE,CDTYPE
 from dtmm.tmm import alphaffi, alphaEEi, alphaf,  E_mat, phase_mat
 from dtmm.linalg import dotmdm, dotmm,  inv
-from dtmm.diffract import diffraction_alphaffi, jones_diffraction_matrix, phase_matrix, diffraction_alphaf
+from dtmm.diffract import diffraction_alphaffi, E_diffraction_matrix, phase_matrix, diffraction_alphaf
 
 import numpy as np
-from dtmm.diffract import diffraction_matrix as field_diffraction_matrix
-
-E_diffraction_matrix = jones_diffraction_matrix
+from dtmm.diffract import field_diffraction_matrix
 
 @cached_function
 def correction_matrix(beta,phi,ks, d=1., epsv = (1,1,1), epsa = (0,0,0.), out = None):

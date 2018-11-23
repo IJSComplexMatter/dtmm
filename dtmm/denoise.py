@@ -31,7 +31,7 @@ def denoise_field(field, wavenumbers, beta , smooth = 1, filter_func = exp_notch
     return ifft2(ffield, out = ffield)
 
 def denoise_fftfield(ffield, wavenumbers, beta, smooth = 1, filter_func = exp_notch_filter, out = None):
-    """Denoises fourer transformed field by attenuating modes around the selected beta parameter.
+    """Denoises fourier transformed field by attenuating modes around the selected beta parameter.
     """
     shape = ffield.shape[-2:]
     b, p = betaphi(shape,wavenumbers)

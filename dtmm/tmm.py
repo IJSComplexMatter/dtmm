@@ -6,12 +6,12 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, FDTYPE,NUDTYPE,  NUMBA_TARGET, \
-                        NUMBA_PARALLEL, NUMBA_CACHE, NUMBA_FASTMATH, cached_function,DTMMConfig
+from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, FDTYPE, NUMBA_TARGET, \
+                        NUMBA_PARALLEL, NUMBA_CACHE, NUMBA_FASTMATH, DTMMConfig
 from dtmm.rotation import  _calc_rotations_uniaxial, _calc_rotations, _rotate_diagonal_tensor
-from dtmm.linalg import _dotr2m, dotmdm, dotmm, inv, dotmv, dotmd
-from dtmm.data import _uniaxial_order, refind2eps
-from dtmm.rotation import rotation_vector2, rotation_matrix2
+from dtmm.linalg import _dotr2m, dotmdm, dotmm, inv, dotmv
+from dtmm.data import refind2eps
+from dtmm.rotation import rotation_vector2
 from dtmm.print_tools import print_progress
 
 from dtmm.jones import polarizer as polarizer2x2
@@ -282,6 +282,10 @@ def alphaf(beta,phi,epsv,epsa,out = None):
         Eigen values and eigen vectors arrays 
     """
     rv = rotation_vector2(phi) 
+    beta = np.asarray(beta, FDTYPE)
+    phi = np.asarray(phi, FDTYPE)
+    epsv = np.asarray(epsv, CDTYPE)
+    epsa = np.asarray(epsa, FDTYPE)
     return _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array,out = out)
 
 def alphaffi(beta,phi,epsv,epsa,out = None):
@@ -308,21 +312,6 @@ def alphaffi(beta,phi,epsv,epsa,out = None):
         a,f = _alphaf(beta,phi,epsv,epsa)
         fi = inv(f)
     return a,f,fi
-        
-def alphajji(beta,phi,epsv,epsa, out = None):
-    rv = rotation_vector2(phi) 
-    alpha,f = _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array)
-    a = alpha[...,::2]
-    j = f[...,::2,::2]
-    ji = inv(j)
-    if out is not None:
-        aout, jout, jiout = out
-        aout[...] = a
-        jout[...] = j
-        jiout[...] = ji
-        return out
-    else:
-        return a,j,ji
  
 def alphaE(beta,phi,epsv,epsa, mode = +1, out = None):
     alpha,f = alphaf(beta,phi,epsv,epsa)
@@ -379,6 +368,7 @@ else:
     phasem = _phase_mat_vec
 
 def phase_mat(alpha, kd, mode = None, out = None):
+    """Computes phse matrix from eigenvalue matrix alpha and wavenumber"""
     kd = np.asarray(kd, dtype = FDTYPE)
     if out is None:
         if mode is None:
@@ -405,34 +395,30 @@ def poynting(fvec, out):
     tmp1 = (fvec[0].real * fvec[1].real + fvec[0].imag * fvec[1].imag)
     tmp2 = (fvec[2].real * fvec[3].real + fvec[2].imag * fvec[3].imag)
     out[0] = tmp1-tmp2   
-    
+
+#@nb.guvectorize([(NCDTYPE[:,:], NFDTYPE[:])],
+#                    "(n,n)->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
+#def fmat2poynting(fmat, out):
+#    """Calculates a z-component of the poynting vector from the field vector"""
+#    assert fmat.shape[0] == 4 and fmat.shape[1] == 4 
+#    for i in range(4):
+#        tmp1 = (fmat[0,i].real * fmat[1,i].real + fmat[0,i].imag * fmat[1,i].imag)
+#        tmp2 = (fmat[2,i].real * fmat[3,i].real + fmat[2,i].imag * fmat[3,i].imag)
+#        out[i] = tmp1-tmp2  
+        
 def fmat2poynting(fmat, out = None):
-    axes = np.arange(fmat.ndim)
-    a,b = axes[-2], axes[-1]
-    axes[-2], axes[-1] = b, a
-    fmat = fmat.transpose(axes)
-    return poynting(fmat, out = out)
-
-@nb.guvectorize([(NCDTYPE[:,:], NFDTYPE[:])],
-                    "(n,n)->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
-def fmat2poynting(fmat, out):
     """Calculates a z-component of the poynting vector from the field vector"""
-    assert fmat.shape[0] == 4 and fmat.shape[1] == 4 
-    for i in range(4):
-        tmp1 = (fmat[0,i].real * fmat[1,i].real + fmat[0,i].imag * fmat[1,i].imag)
-        tmp2 = (fmat[2,i].real * fmat[3,i].real + fmat[2,i].imag * fmat[3,i].imag)
-        out[i] = tmp1-tmp2   
-
-def normalize_f(fmat, out = None):
-    """Normalizes field matrix so that eigemodes have equal amplitudes for
-    equal poynting vector of the mode."""
-    norm = np.abs(fmat2poynting(fmat))**0.5+0.0000001
-    return np.divide(fmat , norm[...,None,:], out = out)    
-
+    axes = list(range(fmat.ndim))
+    n = axes.pop(-2)
+    axes.append(n)
+    fmat = fmat.transpose(*axes)
+    return poynting(fmat, out = out)
+    
 @nb.guvectorize([(NCDTYPE[:,:], NCDTYPE[:,:])],
                     "(n,n)->(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
 def normalize_f(fmat, out):
-    """Calculates a z-component of the poynting vector from the field vector"""
+    """Normalizes column of field matrix so that fmat2poytning of the resulted
+    matrix returns ones"""
     assert fmat.shape[0] == 4 and fmat.shape[1] == 4 
     for i in range(4):
         tmp1 = (fmat[0,i].real * fmat[1,i].real + fmat[0,i].imag * fmat[1,i].imag)
@@ -454,35 +440,6 @@ def intensity(fvec):
     p = poynting(fvec)
     return np.abs(p)
 
-#def field4_old(fmat, jones = (1,0), amplitude = 1., mode = +1, out = None):
-#    """Build field vector form a given polarization state, amplitude and mode.
-#    numpy broadcasting rules apply."""
-#    jones = np.asarray(jones)
-#    amplitude = np.asarray(amplitude)
-#    c,s = jones[...,0], jones[...,1] 
-#    b = np.broadcast(fmat[...,0,0], c, amplitude)
-#    shape = b.shape + (4,)
-#    
-#    e = E_mat(fmat)
-#    ei = inv(e)
-#    
-#    fvec = np.zeros(shape,CDTYPE)
-#    if mode == +1:
-#        fvec[...,0] = c
-#        fvec[...,2] = s
-#    elif mode == -1:
-#        fvec[...,1] = c
-#        fvec[...,3] = s 
-#    else:
-#        raise ValueError("Unknown propagation mode.")
-#        
-#    a = dotmv(ei,fvec, out = fvec)
-#    fvec = dotmv(fmat,a, out = a)
-#    x = intensity(fvec)[...,None]
-#    a = np.asarray(amplitude)[...,None]
-#    norm = a/(x**0.5)
-#    out = np.multiply(fvec, norm ,out = fvec)  
-#    return out
 
 def projection_mat(fmat, fmati = None, mode = +1):
     if fmati is None:
@@ -667,7 +624,7 @@ def reflection_mat(smat, out = None):
     return dotmm(m1,m2, out = out)
 
 def transmit2x2(fvec_in, cmat, fmatout = None, tmatin = None, tmatout = None, fvec_out = None):
-    """Transmits field vector.
+    """Transmits field vector using 2x2 method.
     
     This functions takes a field vector that describes the input field and
     computes the output transmited field using the 2x2 characteristic matrix.
@@ -691,9 +648,8 @@ def transmit2x2(fvec_in, cmat, fmatout = None, tmatin = None, tmatout = None, fv
     hout = dotmv(e2h, eout, out = fvec_out[...,1::2])
     return fvec_out
 
-
 def transmit(fvec_in, cmat, fmatin = None, fmatout = None, fmatini = None, fmatouti = None, fvec_out = None):
-    """Transmits field vector.
+    """Transmits field vector using 4x4 method.
     
     This functions takes a field vector that describes the input field and
     computes the output transmited field and also updates the input field 
@@ -737,12 +693,6 @@ def transmit(fvec_in, cmat, fmatin = None, fmatout = None, fmatini = None, fmato
         
     dotmv(fmatin,avec,out = fvec_in)    
     return dotmv(fmatout,bvec,out = out)
-#
-#def normalize_f(fmat, out = None):
-#    """Normalizes field matrix so that eigemodes have equal amplitudes for
-#    equal poynting vector of the mode."""
-#    norm = np.abs(fmat2poynting(fmat))**0.5+0.0000001
-#    return np.divide(fmat , norm[...,None,:], out = out)    
 
 def polarizer4x4(jones, fmat, out = None):
     """Returns a polarizer matrix from a given jones vector and field matrix. 
@@ -766,153 +716,16 @@ def polarizer4x4(jones, fmat, out = None):
     >>> pol_mat = polarizer4x4(jvec, f) #x polarizer matrix
     
     """
-    #r = rotation_matrix2(phi)
     jonesmat = polarizer2x2(jones)
-    #jonesmat = dotmm(r.T,dotmm(jonesmat,r))
     fmat = normalize_f(fmat)
     fmati = inv(fmat)
     pmat = as4x4(jonesmat)    
     m = dotmm(fmat,dotmm(pmat,fmati, out = out), out = out)
     return m
-#
-#def field4d(fmat, jones = (1,0), amplitude = 1., mode = +1, out = None):
-#    """Build field vector form a given polarization state, amplitude and mode.
-#    numpy broadcasting rules apply."""
-#    jones = np.asarray(jones)
-#    amplitude = np.asarray(amplitude)
-#    c,s = jones[...,0], jones[...,1] 
-#    b = np.broadcast(fmat[...,0,0], c, amplitude)
-#    shape = b.shape + (4,)
-#    
-#    e = E_mat(fmat)
-#    ei = inv(e)
-#    fmat = dotmm(fmat, ei)
-#    fmat = normalize_fmat(fmat, out = fmat)
-#    
-#    if out is None:
-#        out = np.zeros(shape,CDTYPE)
-#    if mode == +1:
-#        out[...,0] = c
-#        out[...,2] = s
-#    elif mode == -1:
-#        out[...,1] = c
-#        out[...,3] = s 
-#    else:
-#        raise ValueError("Unknown propagation mode.")
-#        
-#
-#    return dotmv(fmat,out, out = out)
-#
-#
-#    
-#def field4b(fmat, jones = (1,0), amplitude = 1., mode = +1, out = None):
-#    """Build field vector form a given polarization state, amplitude and mode.
-#    numpy broadcasting rules apply."""
-#    jones = np.asarray(jones)
-#    amplitude = np.asarray(amplitude)
-#    c,s = jones[...,0], jones[...,1] 
-#    b = np.broadcast(fmat[...,0,0], c, amplitude)
-#    shape = b.shape + (4,)
-#    
-#    e = E_mat(fmat)
-#    ei = inv(e)
-#    
-#    fvec1 = np.zeros(shape,CDTYPE)
-#    fvec2 = np.zeros(shape,CDTYPE)
-#    if mode == +1:
-#        fvec1[...,0] = 1
-#        fvec2[...,2] = 1
-#    elif mode == -1:
-#        fvec1[...,1] = 1
-#        fvec2[...,3] = 1 
-#    else:
-#        raise ValueError("Unknown propagation mode.")
-#    def normalize(a, out = None):    
-#        fvec = dotmv(fmat,a, out = out)
-#        x = intensity(fvec)[...,None]
-#        a = np.asarray(amplitude)[...,None]
-#        norm = a/(x**0.5)
-#        out = np.multiply(fvec, norm ,out =fvec) 
-#        return out
-#    
-#    fvec1 = normalize(fvec1)
-#    fvec2 = normalize(fvec2)
-#    
-#    #
-#    pmat = polarizer4x4(fmat,jones)
-#    #fvec1 = dotmv(pmat,fvec1)
-#    #fvec2 = dotmv(pmat,fvec2)
-#    fvec1 = fvec1 * c[...,None]
-#    fvec2 = fvec2 * s[...,None]
-#        
-#    out = np.add(fvec1,fvec2, out = out)
-#    
-#
-#    
-#  
-#
-#def field4c(fmat, jones = (1,0), amplitude = 1., mode = +1, out = None):
-#    """Build field vector form a given polarization state, amplitude and mode.
-#    numpy broadcasting rules apply."""
-#    jones = np.asarray(jones)
-#    amplitude = np.asarray(amplitude)
-#    c,s = jones[...,0], jones[...,1] 
-#    b = np.broadcast(fmat[...,0,0], c, amplitude)
-#    shape = b.shape + (4,)
-#    
-#    e = E_mat(fmat)
-#    ei = inv(e)
-#    fmati = inv(fmat)
-#    
-#    fvec1 = np.zeros(shape,CDTYPE)
-#    fvec2 = np.zeros(shape,CDTYPE)
-#    if mode == +1:
-#        fvec1[...,0] = 1
-#        fvec2[...,2] = 1
-#    elif mode == -1:
-#        fvec1[...,1] = 1
-#        fvec2[...,3] = 1
-#    else:
-#        raise ValueError("Unknown propagation mode.")
-#    
-#    def normalize(fvec, out = out):
-#        a = dotmv(ei,fvec, out = out)
-#        fvec = dotmv(fmat,a, out = a)
-#        x = intensity(fvec)[...,None]
-#        norm = 1/(x**0.5)
-#        out = np.multiply(fvec, norm ,out = fvec) 
-#        out = dotmv(fmati, fvec, out = out)
-#        out = dotmv(e, out, out = out)
-#        return out
-#    
-#    fvec1 = normalize(fvec1)
-#    fvec2 = normalize(fvec2)
-#    if mode == +1:
-#        fvec1[...,0] = fvec1[...,0]*c
-#        fvec2[...,2] = fvec2[...,2]*s
-#    elif mode == -1:
-#        fvec1[...,1] = fvec1[...,1]*c
-#        fvec2[...,3] = fvec2[...,3]*s
-#        
-#    def field(fvec, out = None):
-#        a = dotmv(ei,fvec, out = out)
-#        fvec = dotmv(fmat,a, out = a)  
-#        return fvec
-#    
-#    fvec1 = field(fvec1)
-#    fvec2 = field(fvec2)
-#    
-#    out = np.add(fvec1, fvec2, out = out) 
-#
-#    x = intensity(out)[...,None]
-#    a = np.asarray(amplitude)[...,None]
-#    norm = a/(x**0.5)
-#    out = np.multiply(out, norm ,out = out)  
-#    return out    
 
 def field4(fmat, jones = (1,0),  amplitude = 1., mode = +1, out = None):
     """Build field vector form a given polarization state, amplitude and mode.
-    numpy broadcasting rules apply."""
+    Numpy broadcasting rules apply."""
     jones = np.asarray(jones)
     amplitude = np.asarray(amplitude)
     
@@ -938,4 +751,4 @@ def field4(fmat, jones = (1,0),  amplitude = 1., mode = +1, out = None):
 
     return out 
     
-__all__ = ["alphaf","alphaffi","phasem"]
+__all__ = ["alphaf","alphaffi","phasem", "phase_mat", "field4"]
