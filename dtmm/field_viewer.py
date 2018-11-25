@@ -149,7 +149,7 @@ def _float_or_none(value):
 class FieldViewer(object): 
     """Base viewer"""  
     _updated_parameters = set()
-    _focus = 0
+    _focus = None
     _polarizer = None
     _sample = None
     _analyzer = None

@@ -18,7 +18,7 @@ d, epsv, epsa = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH),
           radius = 30, profile = "x", no = 1.5, ne = 1.6, nhost = 1.5)
 #: create non-polarized input light
 
-f,w,p = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
+f,w,p = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, 
                                             pixelsize = PIXELSIZE, beta = 0., phi = 0.) 
 
 field_data_in = f,w,p
@@ -27,16 +27,16 @@ field_data_in = f,w,p
 ft = dtmm.field.transpose(f)
 
 # build kd phase values
-kd = d[:,None]*(dtmm.k0(WAVELENGTHS, PIXELSIZE))
+kd = [x*(dtmm.k0(WAVELENGTHS, PIXELSIZE))[...,None,None] for x in d]
 
-#build stack matrix... 
-cmat = dtmm.tmm.stack_mat(kd[...,None,None], epsv, epsa, method = "2x2")
+#build stack matrix and transmit... 
+cmat = dtmm.tmm.stack_mat(kd, epsv, epsa, method = "2x2")
 fout_2x2 = dtmm.tmm.transmit2x2(ft,cmat)
 
-cmat = dtmm.tmm.stack_mat(kd[...,None,None], epsv, epsa, method = "4x2")
+cmat = dtmm.tmm.stack_mat(kd, epsv, epsa, method = "4x2")
 fout_4x2 = dtmm.tmm.transmit(ft,cmat)
 
-cmat = dtmm.tmm.stack_mat(kd[...,None,None], epsv, epsa, method = "4x4")
+cmat = dtmm.tmm.stack_mat(kd, epsv, epsa, method = "4x4")
 fout_4x4 = dtmm.tmm.transmit(ft,cmat)
 
 # inverse transpose to build field data for visualization

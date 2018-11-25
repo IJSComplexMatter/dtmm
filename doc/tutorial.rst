@@ -99,36 +99,89 @@ In the example below, we simulated propagation of right-handed light with beta p
 Standard TMM - no diffraction
 -----------------------------
 
-You can use the package for 1D calculation. There are two options. Either you create
-a single pixel optical data that describes your 1D material and use the functions covered
-so far, or do a standard berreman calculation by computing the transfer matrices, and the reflectance and transmittance coefficients. This is a low level approach, but for coherent  reflection calculation of complex 1D material this may be better/faster. Note that the diffractive method uses iterative algorithm to calculate coherent effects. With a standard 4x4 method in 1D case, these are done in a single step. 
+You can use the `dtmm` package for 1D calculation. There are two options. Either you create a single pixel optical data that describes your 1D material and use the functions covered so far, or you do a standard Berreman or Jones calculation by computing the transfer matrices, and the reflectance and transmittance coefficients with functions found in :mod:`dtmm.tmm`. For coherent  reflection calculation of complex 1D material this may be better/faster than using the :func:`dtmm.transfer.transfer_field`. Note that the diffractive method uses iterative algorithm to calculate coherent effects. With a standard 4x4 method in 1D case, these are done in a single step. 
+
+In the :mod:`dtmm.tmm` module you will find low-level implementation of the TMM method, and some high level function to simplify computations and use. Here we go through the high level API, while for some details on the implementation you should read the source code of the examples below.
+
+Basics
+++++++
+
+Computation is performed in two steps. First we build a characteristic matrix of the stack, then we calculate transmitted (and reflected) field from a given field vector. Field vector now is a single 4-component vector. We will demonstrate the use on a 3D data that we were working on till now.
+
+>>> d, epsv, epsa = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
+...          radius = 30, profile = "x", no = 1.5, ne = 1.6, nhost = 1.5)
+
+>>> f,w,p = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, diffraction = False,
+...               pixelsize = PIXELSIZE, beta = 0., phi = 0.) 
 
 
-For example, you can calculate reflections off a single 2 micron thick layer of material with refractive index of 1.5. See the source code for additional detail of the example below.
+First we need to transpose the field data to field vector
+
+>>> fin = dtmm.field.transpose(f)
+
+Next we need to build phase constants (layer thickness times wavenumber)
+
+>>> kd = [x*(dtmm.k0(WAVELENGTHS, PIXELSIZE))[...,None,None] for x in d]
+
+Here we also added two axes for broadcasting. The epsv[i] and epsa[i] arrays are of shape
+(HEIGHT, WIDTH, 3), we need to add two axes of len(1) to elements kd[i] because numpy broadcasting rules apply to arguments of the :func:`dtmm.tmm.stack_mat` that is used to compute the characteristic matrix. So now you do:
+
+>>> cmat = dtmm.tmm.stack_mat(kd, epsv, epsa)
+
+which computes layer matrices Mi and multiplies them together so that the output matrix is M = Mn...M2.M1. Then you call :func:`dtmm.tmm.transmit` to compute the tranmiiited and reflected fields (the reflected field is added to input field). 
+
+>>> fout = dtmm.tmm.transmit(fin,cmat)
+
+That is it. You can now view this field with the field_viewer, but first you need to transpose it back to the original field data shape.
+
+>>> field_data = dtmm.field.itranspose(fout),w,p
+>>> viewer = dtmm.field_viewer(field_data, diffraction = False)
+
+Note the use of diffraction= False option which tells the field viewer that computed data is not diffraction-limited (and has not been calculated with the transfer_field dfunction and diffraction>0  argument). This way, data is displayed as is, without any plane-wave decomposition and filtering (by cutting non-propagating high frequency modes). 
+
+The :func:`stack_mat` takes an optional parameter `method` which can take a string value of "4x4", "2x2" or "4x2". The "4x4" is for standard Berreman - interference enabled calculation, The "4x2" method is for a 4x4 method, but with interference disabled by setting the phase matrix element to zeros for back propagating waves. This method is equivalent to method = "2x2" and reflection = 2  arguments in the :func:`dtmm.transfer.transfer_field`. The "2x2" method is for jones calculation. This method is equivalent to method = "2x2" and reflection = 0  arguments in the :func:`dtmm.transfer.transfer_field`. 
+
+Examples
+++++++++
+
+See the source code of the examples to see additional details.
+
+Nematic droplet
+'''''''''''''''
+
+An example of a nematic droplet with planar director orientation. 
+
+.. plot:: examples/tmm_nematic_droplet.py
+
+   An example of extended jones calculation, berreman 4x4 with interference and with interference disabled methods to compute transmission of a white light through the nematic droplet with a planar director alignment, viewed between crossed polarizers.
+
+
+Single layer 1D
+'''''''''''''''
+
+In this example, we calculate reflections off a single 2 micron thick layer of material with refractive index of 1.5. See the source code for additional detail of the example below.
 
 .. plot:: examples/tmm_reflection.py
 
    Reflection and transmission properties of a single layer material. 
 
+Cholesteric 1D
+''''''''''''''
 
-In another example we calculate reflections offa cholesteric material. See the source code for additional details of the example below.
+In this example we calculate reflections off a cholesteric material. See the source code for additional details of the example below.
 
 .. plot:: examples/tmm_cholesteric.py
 
    Reflection and transmission properties of a cholesteric LC with a reflection band at 550 nm.
 
+Twisted nematic 1D
+''''''''''''''''''
 
-In another example we compute the transmittance through 90 degree twisted nematic configured in first minimum condition (4 micron cell, refractive index anisotropy of 0.12). Here we demonstrate and show differences between the 4x4 approach and two versions of 2x2 approach - with reflections and without.
+In this example we compute the transmittance through 90 degree twisted nematic configured in first minimum condition (4 micron cell, refractive index anisotropy of 0.12). Here we demonstrate and show differences between the 4x4 approach and two versions of 2x2 approach - with reflections and without.
 
 .. plot:: examples/tmm_twisted_nematic.py
 
    Reflection and transmission properties of a twisted nematic film (with film-to-air interfaces)
-
-In the examples above we used a low-level approach where we built the field matrices by ourselves. However, you can use a high level function to do that directly from the material arrays. For instance:
-
-.. plot:: examples/tmm_nematic_droplet.py
-
-   An example of extended jones calculation, berreman 4x4 with interference and with interference disabled methods to compute transmission of a white light through the nematic droplet with a planar director alignment, viewed between crossed polarizers.
 
 
 Field viewer 

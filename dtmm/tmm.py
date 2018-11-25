@@ -19,6 +19,7 @@ from dtmm.jones import as4x4
 
 import numba as nb
 from numba import prange
+import time
 
 if NUMBA_PARALLEL == False:
     prange = range
@@ -571,14 +572,38 @@ def ffi_iso(n,beta=0.,phi = 0.):
     return f,fi
 
 def layer_mat(kd, epsv,epsa, beta = 0,phi = 0, method = "4x4", out = None):
-    """Computes characteristic matrix M=F.P.Fi,
-    Numpy broadcasting rules apply"""
+    """Computes characteristic matrix of a single layer M=F.P.Fi,
+    
+    Numpy broadcasting rules apply
+    
+    Parameters
+    ----------
+    kd : float
+        A sequence of phase values (layer thickness times wavenumber in vacuum).
+        len(kd) must match len(epsv) and len(epsa).
+    epsv : array_like
+        Epsilon eigenvalues.
+    epsa : array_like
+        Optical axes orientation angles (psi, theta, phi).
+    beta : float
+        Beta angle of input light.
+    phi : float
+        Phi angle of input light.
+    method : str
+        One of `4x4` (4x4 berreman), `2x2` (2x2 jones) or `4x2` (4x4 single reflections)
+    out : ndarray, optional
+    
+    Returns
+    -------
+    cmat : ndarray
+        Characteristic matrix of the layer.
+    """    
     if method == "2x2":
         alpha,f,fi = alphaEEi(beta,phi,epsv,epsa)
-        pmat = phasem(alpha,kd)
+        pmat = phase_mat(alpha,kd)
     else:
         alpha,f,fi = alphaffi(beta,phi,epsv,epsa)
-        pmat = phasem(alpha,-kd)
+        pmat = phase_mat(alpha,-kd)
         if method in ("4x2","2x4"):
             pmat[...,1::2] = 0.        
     return dotmdm(f,pmat,fi,out = out)    
@@ -587,13 +612,41 @@ def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, method = "4x4", out = None):
     """Computes a stack characteristic matrix M = M_1.M_2....M_n if method is
     4x4, 4x2(2x4) and a characteristic matrix M = M_n...M_2.M_1 if method is
     2x2.
+    
+    Note that this function calls :func:`layer_mat`, so numpy broadcasting 
+    rules apply to kd[i], epsv[i], epsa[], beta and phi. 
+    
+    Parameters
+    ----------
+    kd : array_like
+        A sequence of phase values (layer thickness times wavenumber in vacuum).
+        len(kd) must match len(epsv) and len(epsa).
+    epsv : array_like
+        A sequence of epsilon eigenvalues.
+    epsa : array_like
+        A sequence of optical axes orientation angles (psi, theta, phi).
+    beta : float
+        Beta angle of input light.
+    phi : float
+        Phi angle of input light.
+    method : str
+        One of `4x4` (4x4 berreman), `2x2` (2x2 jones) or `4x2` (4x4 single reflections)
+    out : ndarray, optional
+    
+    Returns
+    -------
+    cmat : ndarray
+        Characteristic matrix of the stack.
     """
+    t0 = time.time()
     mat = None
     n = len(kd)
     indices = range(n)
     if method == "2x2":
         indices = reversed(indices)
     verbose_level = DTMMConfig.verbose
+    if verbose_level > 1:
+        print ("Building stack matrix.")
     for pi,i in enumerate(range(n)):
         print_progress(pi,n,level = verbose_level) 
         mat = layer_mat(kd[i],epsv[i],epsa[i],beta = beta, phi = phi, method = method, out = mat)
@@ -605,6 +658,9 @@ def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, method = "4x4", out = None):
         else:
             dotmm(out,mat,out)
     print_progress(n,n,level = verbose_level) 
+    t = time.time()-t0
+    if verbose_level >1:
+        print("     Done in {:.2f} seconds!".format(t))  
     return out 
 
 
