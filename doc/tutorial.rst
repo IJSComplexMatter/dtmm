@@ -149,7 +149,7 @@ See the source code of the examples to see additional details.
 Nematic droplet
 '''''''''''''''
 
-An example of a nematic droplet with planar director orientation. 
+An example of a nematic droplet with planar director orientation, computed using 4x4 method with interference, 4x4 method without interference (single reflection) and 2x2 method with no reflections at all. All of these examples could be computed with transfer_field functions and diffraction = False argument... and the results of both methods should be identical (up to numerical precision).
 
 .. plot:: examples/tmm_nematic_droplet.py
 
