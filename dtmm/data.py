@@ -376,14 +376,16 @@ def _r3(shape):
     return xx, yy, zz
     #r = ((xx/(nx*scale))**2 + (yy/(ny*scale))**2 + (zz/(nz*scale))**2) ** 0.5 
     #return r
-    
-def sphere_mask(shape, radius, offset = (0,0,0)):
-    """Returns a bool mask array that defines a sphere.
-    
+
+
+def sphere_mask(shape, radius, offset=(0, 0, 0)):
+    """
+    Returns a bool mask array that defines a sphere.
+
     The resulting bool array will have ones (True) insede the sphere
     and zeros (False) outside of the sphere that is centered in the compute
     box center.
-    
+
     Parameters
     ----------
     shape : (int,int,int)
@@ -393,15 +395,19 @@ def sphere_mask(shape, radius, offset = (0,0,0)):
     offset: (int, int, int), optional
         Offset of the sphere from the center of the bounding box. The coordinates
         are (x,y,z).
-        
+
     Returns
     -------
     out : array
         Bool array defining the sphere.
     """
+    # 3D meshgrid result so that each component is defined over the whole domain
     xx, yy, zz = _r3(shape)
-    r = ((xx-offset[0])**2 + (yy-offset[1])**2 + (zz--offset[2])**2) ** 0.5 
+    # Calculate radius at each point
+    r = ((xx - offset[0]) ** 2 + (yy - offset[1]) ** 2 + (zz - -offset[2]) ** 2) ** 0.5
+    # Create a boolean mask. 1 inside sphere, 0 outside
     mask = (r <= radius)
+
     return mask
 
 
