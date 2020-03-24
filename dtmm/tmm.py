@@ -288,10 +288,11 @@ def _alphaf(beta, phi, epsv, epsa, out=None):
     return _alphaf_vec(beta, phi, rv, epsv, epsa, _dummy_array, out=out)
 
 
-def alphaf(beta,phi,epsv,epsa,out = None):
-    """Computes alpha and field arrays (eigen values and eigen vectors arrays).
+def alphaf(beta, phi, epsv, epsa, out=None):
+    """
+    Computes alpha and field arrays (eigen values and eigen vectors arrays).
     Broadcasting rules apply.
-    
+
     Parameters
     ----------
     beta : float
@@ -304,18 +305,23 @@ def alphaf(beta,phi,epsv,epsa,out = None):
        Euler rotation angles (psi, theta, phi)
     out : ndarray, optional
        Output array
-       
+
     Returns
     -------
     alpha, field arrays : (ndarray, ndarray)
-        Eigen values and eigen vectors arrays 
+        Eigen values and eigen vectors arrays
     """
-    rv = rotation_vector2(phi) 
+    # Convert angle to rotation vector
+    rotation_vector = rotation_vector2(phi)
+
+    # Convert values to numpy arrays
     beta = np.asarray(beta, FDTYPE)
     phi = np.asarray(phi, FDTYPE)
     epsv = np.asarray(epsv, CDTYPE)
     epsa = np.asarray(epsa, FDTYPE)
-    return _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array,out = out)
+
+    return _alphaf_vec(beta, phi, rotation_vector, epsv, epsa, _dummy_array, out=out)
+
 
 def alphaffi(beta,phi,epsv,epsa,out = None):
     """Computes alpha and field arrays (eigen values and eigen vectors arrays)
