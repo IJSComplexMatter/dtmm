@@ -21,34 +21,47 @@ import numba as nb
 from numba import prange
 import time
 
-if NUMBA_PARALLEL == False:
+if not NUMBA_PARALLEL:
     prange = range
 
 sqrt = np.sqrt
 
-@nb.njit([(NFDTYPE,NCDTYPE[:],NCDTYPE[:,:])])                                                                
-def _auxiliary_matrix(beta,eps,Lm):
-    "Computes all elements of the auxiliary matrix of shape 4x4."
+
+@nb.njit([(NFDTYPE, NCDTYPE[:], NCDTYPE[:, :])])
+def _auxiliary_matrix(beta, eps, Lm):
+    """
+    Computes all elements of the auxiliary matrix of shape 4x4.
+    Parameters
+    ----------
+    beta
+    eps
+    Lm
+
+    Returns
+    -------
+
+    """
     eps2m = 1./eps[2]
     eps4eps2m = eps[4]*eps2m
     eps5eps2m = eps[5]*eps2m
     
-    Lm[0,0] = (-beta*eps4eps2m)
-    Lm[0,1] = 1.-beta*beta*eps2m
-    Lm[0,2] = (-beta*eps5eps2m)
-    Lm[0,3] = 0.
-    Lm[1,0] = eps[0]- eps[4]*eps4eps2m
-    Lm[1,1] = Lm[0,0]
-    Lm[1,2] = eps[3]- eps[5]*eps4eps2m
-    Lm[1,3] = 0.
-    Lm[2,0] = 0.
-    Lm[2,1] = 0.
-    Lm[2,2] = 0.
-    Lm[2,3] = -1. 
-    Lm[3,0] = (-1.0*Lm[1,2])
-    Lm[3,1] = (-1.0*Lm[0,2])
-    Lm[3,2] = beta * beta + eps[5]*eps5eps2m - eps[1]  
-    Lm[3,3] = 0.  
+    Lm[0, 0] = (-beta*eps4eps2m)
+    Lm[0, 1] = 1.-beta*beta*eps2m
+    Lm[0, 2] = (-beta*eps5eps2m)
+    Lm[0, 3] = 0.
+    Lm[1, 0] = eps[0] - eps[4]*eps4eps2m
+    Lm[1, 1] = Lm[0, 0]
+    Lm[1, 2] = eps[3] - eps[5]*eps4eps2m
+    Lm[1, 3] = 0.
+    Lm[2, 0] = 0.
+    Lm[2, 1] = 0.
+    Lm[2, 2] = 0.
+    Lm[2, 3] = -1.
+    Lm[3, 0] = (-1.0*Lm[1, 2])
+    Lm[3, 1] = (-1.0*Lm[0, 2])
+    Lm[3, 2] = beta * beta + eps[5]*eps5eps2m - eps[1]
+    Lm[3, 3] = 0.
+
 
 @nb.njit([(NFDTYPE,NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _alphaf_iso(beta,eps0,alpha,F):
