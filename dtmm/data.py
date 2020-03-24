@@ -139,54 +139,64 @@ def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), nor
         mask = (s == 0.)
         s[mask] = 1.
         return np.divide(out, s[...,None], out)
-    return 
+    return
 
-def rot90_director(data,axis = "+x", out = None):
+
+def rot90_director(data, axis="+x", out=None):
     """
     Rotate a director field by 90 degrees around the specified axis.
-    
+
     Parameters
     ----------
     data: array_like
         Array specifying director field with ndim = 4.
     axis: str
         Axis around which to perform rotation. Can be in the form of
-        '[s][n]X' where the optional parameter 's' can be "+" or "-" decribing 
-        the sign of rotation. [n] is an integer describing number of rotations 
-        to perform, and 'X' is one of 'x', 'y' 'z', and defines rotation axis.
+        '[s][n]X' where the optional parameter 's' can be "+" or "-" decribing
+        the sign of rotation. [n] is an integer describing number of 90 degree
+        rotations to perform, and 'X' is one of 'x', 'y' 'z', and defines
+        rotation axis.
     out : ndarray, optional
         Output array.
-    
+
     Returns
     -------
     y : ndarray
         A rotated director field
-        
-    See Also
-    --------   
-    data.rotate_director : a general rotation for arbitrary angle.        
-    """
-    nz,ny,nx,nv = data.shape
 
-    axis_name = axis[-1]
+    See Also
+    --------
+    data.rotate_director : a general rotation for arbitrary angle.
+    """
+    # Convert numerical part of axis str into a number
     try:
         k = int(axis[:-1])
     except ValueError:
-        k = int(axis[:-1]+"1")
-    angle = np.pi/2*k
+        k = int(axis[:-1] + "1")
+
+    # Convert that number into an angle
+    angle = np.pi / 2 * k
+
+    # Grab axis name
+    axis_name = axis[-1]
+
+    # Create the rotation matrix
     if axis_name == "x":
-        r = rotation_matrix_x(angle)
-        axes = (1,0)
+        rotation_matrix = rotation_matrix_x(angle)
+        axes = (1, 0)
     elif axis_name == "y":
-        r = rotation_matrix_y(angle)
-        axes = (0,2)
+        rotation_matrix = rotation_matrix_y(angle)
+        axes = (0, 2)
     elif axis_name == "z":
-        r = rotation_matrix_z(angle)
-        axes = (2,1)
+        rotation_matrix = rotation_matrix_z(angle)
+        axes = (2, 1)
     else:
-        raise ValueError("Unknown axis type {}".format( axis_name))
-    data_rot = np.rot90(data,k = k, axes = axes)#first rotate data points
-    return rotate_vector(r,data_rot,out)#rotate vector in each voxel
+        raise ValueError("Unknown axis type {}".format(axis_name))
+
+    # Rotate the date points
+    data_rot = np.rot90(data, k=k, axes=axes)
+    # Rotate the director in each voxel then return
+    return rotate_vector(rotation_matrix, data_rot, out)
 
 
 def director2data(director, mask=None, no=1.5, ne=1.6, nhost=None,
