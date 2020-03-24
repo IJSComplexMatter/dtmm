@@ -690,25 +690,32 @@ def refind2eps(refind, out):
     """Converts three eigen (complex) refractive indices to three eigen dielectric tensor elements"""
     assert refind.shape[0] == 3
     _refind2eps(refind, out)
-   
-    
-_EPS_DECL = ["(float32,float32[:],float32[:])","(float64,float64[:],float64[:])",
-             "(float32,complex64[:],complex64[:])","(float64,complex128[:],complex128[:])"]
-@numba.njit(_EPS_DECL, cache = NUMBA_CACHE)
+
+
+_EPS_DECL = ["(float32,float32[:],float32[:])", "(float64,float64[:],float64[:])",
+             "(float32,complex64[:],complex64[:])", "(float64,complex128[:],complex128[:])"]
+
+
+@numba.njit(_EPS_DECL, cache=NUMBA_CACHE)
 def _uniaxial_order(order, eps, out):
-    m = (eps[0] + eps[1] + eps[2])/3.
-    delta = eps[2] - (eps[0] + eps[1])/2.
+    # Isotropic dielectric constant
+    m = (eps[0] + eps[1] + eps[2]) / 3.
+    # Dielectric constant anisotropy
+    delta = eps[2] - (eps[0] + eps[1]) / 2.
+    # Check order
     if order == 0.:
+        # Isotropic case
         eps1 = m
         eps3 = m
     else:
-        eps1 = m - 1./3. *order * delta
-        eps3 = m + 2./3. * order * delta
+        # Uniaxial
+        eps1 = m - 1. / 3. * order * delta
+        eps3 = m + 2. / 3. * order * delta
 
     out[0] = eps1
     out[1] = eps1
     out[2] = eps3
-    
+
     return out
 
 _EPS_DECL_VEC = ["(float32[:],float32[:],float32[:])","(float64[:],float64[:],float64[:])",
