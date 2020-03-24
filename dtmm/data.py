@@ -506,24 +506,26 @@ def cholesteric_director(shape, pitch, hand = "left"):
     for i in range(nz):
         out[i,...,0] = np.cos(phi[i])
         out[i,...,1] = np.sin(phi[i])
-    return out    
+    return out
 
-def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5):
-    """Returns nematic droplet optical_data.
-    
-    This function returns a thickness,  material_eps, angles, info tuple 
+
+def nematic_droplet_data(shape, radius, profile="r", no=1.5, ne=1.6, nhost=1.5):
+    """
+    Returns nematic droplet optical_data.
+
+    This function returns a thickness,  material_eps, angles, info tuple
     of a nematic droplet, suitable for light propagation calculation tests.
-    
+
     Parameters
     ----------
     shape : tuple
-        (nz,nx,ny) shape of the stack. First dimension is the number of layers, 
+        (nz,nx,ny) shape of the stack. First dimension is the number of layers,
         second and third are the x and y dimensions of the compute box.
     radius : float
         radius of the droplet.
     profile : str, optional
-        Director profile type. It can be a radial profile "r", or homeotropic 
-        profile with director orientation specified with the parameter "x", 
+        Director profile type. It can be a radial profile "r", or homeotropic
+        profile with director orientation specified with the parameter "x",
         "y", or "z".
     no : float, optional
         Ordinary refractive index of the material (1.5 by default)
@@ -531,14 +533,17 @@ def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost
         Extraordinary refractive index (1.6 by default)
     nhost : float, optional
         Host material refractive index (1.5 by default)
-        
+
     Returns
     -------
     out : tuple of length 3
         A (thickness, material_eps, angles) tuple of three arrays
     """
-    mask, director = nematic_droplet_director(shape, radius, profile = profile, return_mask= True)
-    return director2data(director, mask = mask, no = no, ne = ne, nhost = nhost)
+    # Create the director and droplet mask
+    mask, director = nematic_droplet_director(shape, radius, profile=profile, retmask=True)
+
+    # Turns the director into optical data
+    return director2data(director, mask=mask, no=no, ne=ne, nhost=nhost)
 
 
 def cholesteric_droplet_data(shape, radius, pitch, hand = "left", no = 1.5, ne = 1.6, nhost = 1.5):
