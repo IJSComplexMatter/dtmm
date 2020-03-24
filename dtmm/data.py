@@ -45,9 +45,7 @@ def read_director(file, shape, dtype=FDTYPE, sep="", endian=sys.byteorder, order
         Order of the director data coordinates. Any permutation of 'x', 'y' and 
         'z', e.g. 'yxz', 'zxy' ... 
     """
-    try:
-        i, j, k, c = shape
-    except:
+    if len(list(shape)) != 4:
         raise TypeError("shape must be director data shape (z,x,y,n)")
 
     # Read raw data from file
