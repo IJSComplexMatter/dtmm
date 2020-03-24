@@ -693,12 +693,14 @@ def director2order(data, out):
 @numba.guvectorize([(NF32DTYPE[:], NF32DTYPE[:]), (NF64DTYPE[:], NFDTYPE[:])], "(n)->(n)", cache=NUMBA_CACHE)
 def director2angles(data, out):
     """
-    Converts director data to angles (yaw, theta, phi)
+    Converts director data (x, y, z) to angles (yaw, theta, phi).
+
     Parameters
     ----------
     data : array
-
+        Cartesian representation of a 3-vector.
     out : array
+        Angle representation of a 3-vector.
 
     Returns
     -------
