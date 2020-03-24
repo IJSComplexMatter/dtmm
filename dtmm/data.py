@@ -399,15 +399,27 @@ def read_raw(file, shape, dtype, sep = "", endian = sys.byteorder):
 #    if n2 is None:
 #        n2 = n1
 #    return np.array([n1,n2,n3])
-    
+
+
 def _r3(shape):
-    """Returns r vector array of given shape."""
-    #nz,ny,nx = [l//2 for l in shape]
-    az, ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
-    zz,yy,xx = np.meshgrid(az,ay,ax, indexing = "ij")
+    """
+    Returns r vector array of given shape.
+    Parameters
+    ----------
+    shape : tuple
+        The size of the domain in z, y, and x.
+
+    Returns
+    -------
+    return_value : tuple
+
+    """
+    # Create evenly spaced points across domain
+    az, ay, ax = [np.arange(-length / 2. + .5, length / 2. + .5) for length in shape]
+    # Create meshgrid
+    zz, yy, xx = np.meshgrid(az, ay, ax, indexing="ij")
+
     return xx, yy, zz
-    #r = ((xx/(nx*scale))**2 + (yy/(ny*scale))**2 + (zz/(nz*scale))**2) ** 0.5 
-    #return r
 
 
 def sphere_mask(shape, radius, offset=(0, 0, 0)):
