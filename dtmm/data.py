@@ -440,7 +440,7 @@ def _r3(shape):
     Returns r vector array of given shape.
     Parameters
     ----------
-    shape : tuple
+    shape : (int, int, int)
         The size of the domain in z, y, and x.
 
     Returns
@@ -466,9 +466,9 @@ def sphere_mask(shape, radius, offset=(0, 0, 0)):
 
     Parameters
     ----------
-    shape : (int,int,int)
+    shape : (int, int, int)
         A tuple of (nlayers, height, width) defining the bounding box of the sphere.
-    radius: int
+    radius: float
         Radius of the sphere in pixels.
     offset: (int, int, int), optional
         Offset of the sphere from the center of the bounding box. The coordinates
@@ -495,7 +495,7 @@ def nematic_droplet_director(shape, radius, profile="r", return_mask=False):
 
     Parameters
     ----------
-    shape : tuple
+    shape : (int, int, int)
         (nz,nx,ny) shape of the output data box. First dimension is the
         number of layers, second and third are the x and y dimensions of the box.
     radius : float
@@ -564,7 +564,7 @@ def cholesteric_director(shape, pitch, hand = "left"):
     
     Parameters
     ----------
-    shape : tuple
+    shape : (int, int, int)
         (nz,nx,ny) shape of the output data box. First dimension is the 
         number of layers, second and third are the x and y dimensions of the box.
     pitch : float
@@ -602,7 +602,7 @@ def nematic_droplet_data(shape, radius, profile="r", no=1.5, ne=1.6, nhost=1.5):
 
     Parameters
     ----------
-    shape : tuple
+    shape : (int, int, int)
         (nz,nx,ny) shape of the stack. First dimension is the number of layers,
         second and third are the x and y dimensions of the compute box.
     radius : float
@@ -624,7 +624,7 @@ def nematic_droplet_data(shape, radius, profile="r", no=1.5, ne=1.6, nhost=1.5):
         A (thickness, material_eps, angles) tuple of three arrays
     """
     # Create the director and droplet mask
-    mask, director = nematic_droplet_director(shape, radius, profile=profile, retmask=True)
+    mask, director = nematic_droplet_director(shape, radius, profile=profile, return_mask=True)
 
     # Turns the director into optical data
     return director2data(director, mask=mask, no=no, ne=ne, nhost=nhost)
@@ -638,8 +638,8 @@ def cholesteric_droplet_data(shape, radius, pitch, hand = "left", no = 1.5, ne =
     
     Parameters
     ----------
-    shape : tuple
-        (nz,nx,ny) shape of the stack. First dimension is the number of layers, 
+    shape : (int, int, int)
+        (nz, nx, ny) shape of the stack. First dimension is the number of layers,
         second and third are the x and y dimensions of the compute box.
     radius : float
         radius of the droplet.
