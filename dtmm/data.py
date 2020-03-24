@@ -677,16 +677,37 @@ def cholesteric_droplet_data(shape, radius, pitch, hand="left", no=1.5, ne=1.6, 
     return director2data(director, mask=mask, no=no, ne=ne, nhost=nhost)
 
 
-@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->()", cache = NUMBA_CACHE)
+@numba.guvectorize([(NF32DTYPE[:], NF32DTYPE[:]), (NF64DTYPE[:], NFDTYPE[:])], "(n)->()", cache=NUMBA_CACHE)
 def director2order(data, out):
-    """Converts director data to order parameter (length of the director)"""
-    c = data.shape[0]
-    if c != 3:
+    """
+    Converts director data to scalar order parameter, S.
+    The length of the director is assumed to be S.
+
+    Parameters
+    ----------
+    data : array
+        Director in cartesian (x, y, z) representation from which to extract scalar order parameter
+    out : array
+        Scalar order parameter calculated from the input director <data>
+
+    Returns
+    -------
+
+    """
+
+    # Check that vector is a 3-vector
+    if data.shape[0] != 3:
         raise TypeError("invalid shape")
+
+    # Split vector into x, y, and z components
     x = data[0]
     y = data[1]
     z = data[2]
-    s = np.sqrt(x**2+y**2+z**2)
+
+    # Calculate the scalar order parameter, S
+    s = np.sqrt(x**2 + y**2 + z**2)
+
+    # Return
     out[0] = s
 
 
