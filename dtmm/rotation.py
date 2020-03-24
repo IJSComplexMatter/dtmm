@@ -64,10 +64,30 @@ def _output_matrix(mat, shape, dtype):
 
 
 def _input_matrix(mat, shape, dtype):
+    """
+    Ensures that the matrix is of the correct data type and checks that
+    it is of the right shape.
+
+    Parameters
+    ----------
+    mat : array
+        The matrix to check
+    shape : tuple
+        The shape that <mat> should have.
+    dtype : dtype
+        The data type that <mat> should have.
+
+    Returns
+    -------
+
+    """
+    # Ensure matrix is a numpy ndarray
     if not isinstance(mat, np.ndarray):
-        mat = np.array(mat, dtype = dtype)  
-    else:  
-        _check_matrix(mat, shape, dtype)
+        mat = np.array(mat, dtype=dtype)
+
+    # Ensure that the matrix is of the correct shape and type
+    _check_matrix(mat, shape, dtype)
+
     return mat
 
 
