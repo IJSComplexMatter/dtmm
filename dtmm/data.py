@@ -402,63 +402,77 @@ def sphere_mask(shape, radius, offset = (0,0,0)):
     xx, yy, zz = _r3(shape)
     r = ((xx-offset[0])**2 + (yy-offset[1])**2 + (zz--offset[2])**2) ** 0.5 
     mask = (r <= radius)
-    return mask   
+    return mask
 
-def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
-    """Returns nematic director data of a nematic droplet with a given radius.
-    
+
+def nematic_droplet_director(shape, radius, profile="r", return_mask=False):
+    """
+    Returns nematic director data of a nematic droplet with a given radius.
+
     Parameters
     ----------
     shape : tuple
-        (nz,nx,ny) shape of the output data box. First dimension is the 
+        (nz,nx,ny) shape of the output data box. First dimension is the
         number of layers, second and third are the x and y dimensions of the box.
     radius : float
         radius of the droplet.
     profile : str, optional
-        Director profile type. It can be a radial profile "r", or homeotropic 
+        Director profile type. It can be a radial profile "r", or homeotropic
         profile with director orientation specified with the parameter "x", "y",
         or "z", or as a director tuple e.g. (np.sin(0.2),0,np.cos(0.2)). Note that
         director length  defines order parameter (S=1 for this example).
-    retmask : bool, optional
+    return_mask : bool, optional
         Whether to output mask data as well
-        
+
     Returns
     -------
-    out : array or tuple of arrays 
+    out : array or tuple of arrays
         A director data array, or tuple of director mask and director data arrays.
     """
-    
+    # Size of the domain
     nz, ny, nx = shape
-    out = np.zeros(shape = (nz,ny,nx,3), dtype = FDTYPE)
+    # Preallocate output result
+    out = np.zeros(shape=(nz, ny, nx, 3), dtype=FDTYPE)
+    # 3D meshgrid result so that each component is defined over the whole domain
     xx, yy, zz = _r3(shape)
-    
-    r = (xx**2 + yy**2 + zz**2) ** 0.5 
+
+    # Calculate radius at each point
+    r = (xx ** 2 + yy ** 2 + zz ** 2) ** 0.5
+    # Logical mask for everything inside the droplet
     mask = (r <= radius)
-    m = np.logical_and(mask,r != 0.)
+    # Logical mask for inside the droplet, but not at the center
+    m = np.logical_and(mask, r != 0.)
+    # Radius values where mask is true
     rm = r[m]
+
+    # Create director profile
     if profile == "r":
-        out[...,0][m] = xx[m]/rm
-        out[...,1][m] = yy[m]/rm
-        out[...,2][m] = zz[m]/rm
+        # Radial anchoring
+        out[..., 0][m] = xx[m] / rm
+        out[..., 1][m] = yy[m] / rm
+        out[..., 2][m] = zz[m] / rm
     elif isinstance(profile, str):
-        index = {"x": 0,"y": 1,"z": 2}
+        # x, y, or z orientation
+        index = {"x": 0, "y": 1, "z": 2}
         try:
             i = index[profile]
-            out[...,i][m] = 1.
+            out[..., i][m] = 1.
         except KeyError:
             raise ValueError("Unsupported profile type!")
     else:
+        # Custom specified profile
         try:
-            x,y,z = profile
-            out[...,0][m] = x
-            out[...,1][m] = y
-            out[...,2][m] = z
+            x, y, z = profile
+            out[..., 0][m] = x
+            out[..., 1][m] = y
+            out[..., 2][m] = z
         except:
             raise ValueError("Unsupported profile type!")
-            
-    if retmask == True:
+
+    # Returns
+    if return_mask:
         return mask, out
-    else: 
+    else:
         return out
     
 def cholesteric_director(shape, pitch, hand = "left"):
@@ -523,7 +537,7 @@ def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost
     out : tuple of length 3
         A (thickness, material_eps, angles) tuple of three arrays
     """
-    mask, director = nematic_droplet_director(shape, radius, profile = profile, retmask = True)
+    mask, director = nematic_droplet_director(shape, radius, profile = profile, return_mask= True)
     return director2data(director, mask = mask, no = no, ne = ne, nhost = nhost)
 
 
