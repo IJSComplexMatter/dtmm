@@ -15,9 +15,27 @@ import numba as nb
 from dtmm.conf import NCDTYPE, NFDTYPE, NF32DTYPE, NF64DTYPE, \
        CDTYPE, FDTYPE, NUMBA_TARGET, NUMBA_CACHE, NUMBA_FASTMATH
 
+
 def _check_matrix(mat, shape, dtype):
+    """
+    Checks that <mat> is of the correct shape and data type.
+
+    Parameters
+    ----------
+    mat : array
+        The matrix to check
+    shape : tuple
+        The shape that <mat> should have.
+    dtype : dtype
+        The data type that <mat> should have.
+
+    Returns
+    -------
+
+    """
     if not (mat.shape == shape and mat.dtype == dtype):
         raise TypeError('Input matrix must be a numpy array of shape %s and %s dtype' % (shape, dtype))     
+
 
 def _output_matrix(mat, shape, dtype):
     if mat is None:
