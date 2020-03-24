@@ -306,10 +306,11 @@ def validate_optical_data(data, homogeneous=False):
     # Return copies
     return thickness.copy(), material.copy(), angles.copy()
 
-    
-def raw2director(data, order = "zyxn", nvec = "xyz"):
-    """Converts raw data to director array.
-    
+
+def raw2director(data, order="zyxn", nvec="xyz"):
+    """
+    Converts raw data to director array.
+
     Parameters
     ----------
     data : array
@@ -318,38 +319,41 @@ def raw2director(data, order = "zyxn", nvec = "xyz"):
         Data order. It can be any permutation of 'xyzn'. Defaults to 'zyxn'. It
         describes what are the meaning of axes in data.
     nvec : str, optional
-        Order of the director data coordinates. Any permutation of 'x', 'y' and 
-        'z', e.g. 'yxz', 'zxy'. Defaults to 'xyz'  
-        
+        Order of the director data coordinates. Any permutation of 'x', 'y' and
+        'z', e.g. 'yxz', 'zxy'. Defaults to 'xyz'
+
     Returns
     -------
     director : array
         A new array or same array (if no trasposing and data copying was made)
-        
+
     Example
     -------
-    
+
     >>> a = np.random.randn(10,11,12,3)
     >>> director = raw2director(a, "xyzn")
     """
+    # If not in zyxn order, then try to rearrange to correct order
     if order != "zyxn":
-        #if not in zxyn order, then we must transpose data
+        # If not in zxyn order, then we must transpose data
         try:
             axes = (order.find(c) for c in "zyxn")
             axes = tuple((i for i in axes if i != -1))
             data = np.transpose(data, axes)
         except:
             raise ValueError("Invalid value for 'order'. Must be a permutation of 'xyzn' characters")
-        
+
+    # If nvec not in xyz order, then try to rearrange to correct order
     if nvec != "xyz":
-        index = {"x" : 0, "y": 1, "z" : 2}
+        index = {"x": 0, "y": 1, "z": 2}
         out = np.empty_like(data)
-        for i,idn in enumerate(nvec):
+        for i, idn in enumerate(nvec):
             j = index.pop(idn)
-            out[...,j] = data[...,i]
+            out[..., j] = data[..., i]
         return out
     else:
-        return data    
+        return data
+
 
 def read_raw(file, shape, dtype, sep = "", endian = sys.byteorder):
     """Reads raw data from a binary or text file.
