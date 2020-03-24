@@ -556,9 +556,11 @@ def nematic_droplet_director(shape, radius, profile="r", return_mask=False):
         return mask, out
     else:
         return out
-    
-def cholesteric_director(shape, pitch, hand = "left"):
-    """Returns a cholesteric director data.
+
+
+def cholesteric_director(shape, pitch, hand="left"):
+    """
+    Returns a cholesteric director data.
     
     Parameters
     ----------
@@ -575,19 +577,28 @@ def cholesteric_director(shape, pitch, hand = "left"):
     out : ndarray
         A director data array
     """
+    # Size of output data box
     nz, ny, nx = shape
-    
+
+    # Calculate rotational angle at each layer
+    phi = 2*np.pi/pitch*np.arange(nz)
+
+    # Change sign based on handedness of rotation
     if hand == 'left':
-        phi =  2*np.pi/pitch*np.arange(nz)
+        pass
     elif hand == "right":
-        phi = -2*np.pi/pitch*np.arange(nz)
+        phi *= -1
     else:
         raise ValueError("Unknown handedness '{}'".format(hand))
-    out = np.zeros(shape = (nz,ny,nx,3), dtype = FDTYPE)
 
+    # Create output a
+    out = np.zeros(shape=(nz, ny, nx, 3), dtype=FDTYPE)
+
+    # Fill output
     for i in range(nz):
-        out[i,...,0] = np.cos(phi[i])
-        out[i,...,1] = np.sin(phi[i])
+        out[i, ..., 0] = np.cos(phi[i])
+        out[i, ..., 1] = np.sin(phi[i])
+
     return out
 
 
