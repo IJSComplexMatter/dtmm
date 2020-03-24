@@ -38,11 +38,30 @@ def _check_matrix(mat, shape, dtype):
 
 
 def _output_matrix(mat, shape, dtype):
+    """
+    Ensures that the output matrix <mat> exists and is of the correct data type.
+    Checks that <mat> is of the correct shape.
+
+    Parameters
+    ----------
+    mat : array
+        The matrix to check
+    shape : tuple
+        The shape that <mat> should have.
+    dtype : dtype
+        The data type that <mat> should have.
+
+    Returns
+    -------
+
+    """
     if mat is None:
-        mat = np.empty(shape, dtype = dtype)
+        mat = np.empty(shape, dtype=dtype)
     else:
-        _check_matrix(mat, shape,dtype)
+        _check_matrix(mat, shape, dtype)
+
     return mat
+
 
 def _input_matrix(mat, shape, dtype):
     if not isinstance(mat, np.ndarray):
