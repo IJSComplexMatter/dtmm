@@ -57,15 +57,16 @@ def read_director(file, shape, dtype=FDTYPE,  sep="", endian=sys.byteorder, orde
 
     return director
 
-def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), norm = True, out = None):
+
+def rotate_director(rotation_matrix, data, method="linear", fill_value=(0., 0., 0.), normalize=True, out=None):
     """
     Rotate a director field around the center of the compute box by a specified
     rotation matrix. This rotation is lossy, as datapoints are interpolated.
     The shape of the output remains the same.
-    
+
     Parameters
     ----------
-    rmat : array_like
+    rotation_matrix : array_like
         A 3x3 rotation matrix.
     data: array_like
         Array specifying director field with ndim = 4
@@ -74,72 +75,83 @@ def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), nor
     fill_value : numbers, optional
         If provided, the values (length 3 vector) to use for points outside of the
         interpolation domain. Defaults to (0.,0.,0.).
-    norm : bool,
-        Whether to normalize the length of the director to 1. after rotation 
-        (interpolation) is performed. Because of interpolation error, the length 
-        of the director changes slightly, and this options adds a constant 
+    normalize : bool,
+        Whether to normalize the length of the director to 1. after rotation
+        (interpolation) is performed. Because of interpolation error, the length
+        of the director changes slightly, and this options adds a constant
         length constraint to reduce the error.
     out : ndarray, optional
         Output array.
-        
+
     Returns
     -------
     y : ndarray
         A rotated director field
-        
-    See Also
-    --------   
-    data.rot90_director : a lossless rotation by 90 degrees.
-        
-    """
-    
-    from scipy.interpolate import RegularGridInterpolator
-    verbose_level = DTMMConfig.verbose
-    if verbose_level >0:
-        print("Rotating director.")   
-        
-    out = np.empty_like(data)
-    nz,ny,nx,nv = data.shape
-    shape = (nz,ny,nx)
-    az, ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
-    
-    fillx, filly, fillz = fill_value
-    xdir = RegularGridInterpolator((az, ay, ax), data[...,0], 
-              fill_value = fillx,bounds_error = False, method = method)
-    ydir = RegularGridInterpolator((az, ay, ax), data[...,1], 
-              fill_value = filly,bounds_error = False, method = method)
-    zdir = RegularGridInterpolator((az, ay, ax), data[...,2], 
-              fill_value = fillz,bounds_error = False, method = method)
-    zz,yy,xx = np.meshgrid(az,ay,ax, indexing = "ij", copy = False, sparse = True)
 
-    out[...,0] = xx
-    out[...,1] = yy
-    out[...,2] = zz
-    out = rotate_vector(rmat.T,out,out) #rotate coordinates
-    
-    #out2 = out.copy()
-    #out2[...,0] = out[...,2]
-    #out2[...,2] = out[...,0]
-    
-    out2 = out[...,::-1] #reverse direction instead of copying
-    
-    #interpolate new director field
-    xnew = xdir(out2) 
+    See Also
+    --------
+    data.rot90_director : a lossless rotation by 90 degrees.
+
+    """
+
+    from scipy.interpolate import RegularGridInterpolator
+
+    # Log the rotation
+    if DTMMConfig.verbose > 0:
+        print("Rotating director.")
+
+    # Preallocate output
+    out = np.empty_like(data)
+
+    # Size of each direction and number of components
+    nz, ny, nx, nv = data.shape
+
+    shape = (nz, ny, nx)
+    az, ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
+
+    fillx, filly, fillz = fill_value
+    xdir = RegularGridInterpolator((az, ay, ax), data[..., 0],
+                                   fill_value=fillx, bounds_error=False, method=method)
+    ydir = RegularGridInterpolator((az, ay, ax), data[..., 1],
+                                   fill_value=filly, bounds_error=False, method=method)
+    zdir = RegularGridInterpolator((az, ay, ax), data[..., 2],
+                                   fill_value=fillz, bounds_error=False, method=method)
+
+    zz, yy, xx = np.meshgrid(az, ay, ax, indexing="ij", copy=False, sparse=True)
+
+    out[..., 0] = xx
+    out[..., 1] = yy
+    out[..., 2] = zz
+
+    # Rotate the coordinate
+    out = rotate_vector(rotation_matrix.T, out, out)
+
+    # out2 = out.copy()
+    # out2[...,0] = out[...,2]
+    # out2[...,2] = out[...,0]
+
+    # Reverse direction instead of copying
+    out2 = out[..., ::-1]
+
+    # Interpolate new director field
+    xnew = xdir(out2)
     ynew = ydir(out2)
     znew = zdir(out2)
-    
-    out[...,0] = xnew 
-    out[...,1] = ynew
-    out[...,2] = znew
-    
-    rotate_vector(rmat,out, out) #rotate vector in each voxel
-    
-    if norm == True:
+
+    out[..., 0] = xnew
+    out[..., 1] = ynew
+    out[..., 2] = znew
+
+    # Rotate the vector in each voxel
+    rotate_vector(rotation_matrix, out, out)
+
+    if normalize:
         s = director2order(out)
         mask = (s == 0.)
         s[mask] = 1.
-        return np.divide(out, s[...,None], out)
-    return
+        return np.divide(out, s[..., None], out)
+    else:
+        return out
 
 
 def rot90_director(data, axis="+x", out=None):
