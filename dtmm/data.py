@@ -724,24 +724,49 @@ def director2angles(data, out):
     out[1] = theta
     out[2] = phi
 
-@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
+
+@numba.guvectorize([(NF32DTYPE[:], NF32DTYPE[:]), (NF64DTYPE[:], NFDTYPE[:])], "(n)->(n)", cache=NUMBA_CACHE)
 def angles2director(data, out):
-    """Converts angles data (yaw,theta,phi) to director (nx,ny,nz)"""
-    c = data.shape[0]
-    if c != 3:
+    """
+    Converts angles data (yaw, theta, phi) to director in cartesian representation (x,y,z).
+
+    This function does not take the scalar order parameter into account, it assumes a value of 1.
+
+    Parameters
+    ----------
+    data : array
+        Angle representation of a 3-vector.
+    out : array
+        Cartesian representation of a 3-vector.
+
+    Returns
+    -------
+
+    """
+
+    # Check that director is corrent shape
+    if data.shape[0] != 3:
         raise TypeError("invalid shape")
 
+    # Scalar order parameter, S
     s = 1.
+    # Separate angles
     theta = data[1]
     phi = data[2]
 
-    ct = np.cos(theta)
-    st = np.sin(theta)
-    cf = np.cos(phi)
-    sf = np.sin(phi)
-    out[0] = s*cf*st
-    out[1] = s*sf*st
-    out[2] = s*ct
+    # Calculate trigonometric values of angles
+    cos_theta = np.cos(theta)
+    sin_theta = np.sin(theta)
+    cos_phi = np.cos(phi)
+    sin_phi = np.sin(phi)
+
+    # Calculate x component
+    out[0] = s * cos_phi * sin_theta
+    # Calculate y component
+    out[1] = s * sin_phi * sin_theta
+    # Calculate z component
+    out[2] = s * cos_theta
+
 
 def expand(data, shape, xoff = None, yoff = None, zoff = None, fill_value = 0.):
     """Creates a new scalar or vector field data with an expanded volume. 
