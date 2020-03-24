@@ -388,12 +388,28 @@ def tensor_to_matrix(tensor, output=None):
     return output
 
 
-def diagional_tensor_to_matrix(tensor, output = None):
-    """Converts tensor of shape (3,) to matrix of shape (3,3)
+def diagonal_tensor_to_matrix(tensor, output=None):
     """
-    output = _output_matrix(output,(3,3),CDTYPE)
-    tensor = _input_matrix(tensor,(3,),CDTYPE)
+    Converts diagonal tensor of shape (3,) to matrix of shape (3,3).
+
+    Parameters
+    ----------
+    tensor : array
+        The diagonal tensor to represent as a matrix
+    output : array
+        The (3, 3) matrix representation of <tensor>
+
+    Returns
+    -------
+
+    """
+    # Check that output matrix exists and is good
+    output = _output_matrix(output, (3, 3), CDTYPE)
+    # Check the input matrix is good
+    tensor = _input_matrix(tensor, (3,), CDTYPE)
+    # Convert tensor to matrix
     _diagonal_tensor_to_matrix(tensor, output)
+
     return output
 
 @jit([NCDTYPE[:,:](NCDTYPE[:],NCDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
