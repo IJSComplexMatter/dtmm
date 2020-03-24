@@ -597,20 +597,38 @@ def director2order(data, out):
     s = np.sqrt(x**2+y**2+z**2)
     out[0] = s
 
-@numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
-def director2angles(data, out):
-    """Converts director data to angles (yaw, theta phi)"""
-    c = data.shape[0]
-    if c != 3:
-        raise TypeError("invalid shape")
 
+@numba.guvectorize([(NF32DTYPE[:], NF32DTYPE[:]), (NF64DTYPE[:], NFDTYPE[:])], "(n)->(n)", cache=NUMBA_CACHE)
+def director2angles(data, out):
+    """
+    Converts director data to angles (yaw, theta, phi)
+    Parameters
+    ----------
+    data : array
+
+    out : array
+
+    Returns
+    -------
+
+    """
+
+    # Ensure Shape is correct
+    if data.shape[0] != 3:
+        raise TypeError("Invalid shape")
+
+    # Extract cartesian lengths
     x = data[0]
     y = data[1]
     z = data[2]
-    phi = np.arctan2(y,x)
-    theta = np.arctan2(np.sqrt(x**2+y**2),z)
-    #s = np.sqrt(x**2+y**2+z**2)
-    out[0] = 0. #yaw = 0.
+
+    # Calculate angles
+    yaw = 0.
+    phi = np.arctan2(y, x)
+    theta = np.arctan2(np.sqrt(x ** 2 + y ** 2), z)
+
+    # Store output
+    out[0] = yaw
     out[1] = theta
     out[2] = phi
 
