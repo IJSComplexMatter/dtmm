@@ -13,7 +13,7 @@ from dtmm.conf import FDTYPE, CDTYPE, NFDTYPE, NCDTYPE, NUMBA_CACHE,\
 from dtmm.rotation import rotation_matrix_x, rotation_matrix_y, rotation_matrix_z, rotate_vector
 
 
-def read_director(file, shape, dtype=FDTYPE,  sep="", endian=sys.byteorder, order="zyxn", nvec="xyz"):
+def read_director(file, shape, dtype=FDTYPE, sep="", endian=sys.byteorder, order="zyxn", nvec="xyz"):
     """
     Reads raw director data from a binary or text file.
     
@@ -52,6 +52,7 @@ def read_director(file, shape, dtype=FDTYPE,  sep="", endian=sys.byteorder, orde
 
     # Read raw data from file
     data = read_raw(file, shape, dtype, sep=sep, endian=endian)
+
     # Covert raw data into director representation
     director = raw2director(data, order, nvec)
 
