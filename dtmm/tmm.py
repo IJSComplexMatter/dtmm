@@ -31,11 +31,15 @@ sqrt = np.sqrt
 def _auxiliary_matrix(beta, eps, Lm):
     """
     Computes all elements of the auxiliary matrix of shape 4x4.
+
     Parameters
     ----------
-    beta
-    eps
-    Lm
+    beta :
+
+    eps :
+
+    Lm :
+        4x4 auxiliary matrix
 
     Returns
     -------
@@ -63,10 +67,26 @@ def _auxiliary_matrix(beta, eps, Lm):
     Lm[3, 3] = 0.
 
 
-@nb.njit([(NFDTYPE,NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def _alphaf_iso(beta,eps0,alpha,F):
-    #n = eps0[0]**0.5
-    aout = sqrt(eps0[0]-beta**2)
+@nb.njit([(NFDTYPE, NCDTYPE[:], NCDTYPE[:], NCDTYPE[:, :])], cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)
+def _alphaf_iso(beta, eps0, alpha, F):
+    """
+
+    Parameters
+    ----------
+    beta :
+
+    eps0 :
+
+    alpha :
+
+    F :
+
+
+    Returns
+    -------
+
+    """
+    aout = sqrt(eps0[0] - beta ** 2)
     if aout != 0.:
         gpout = eps0[0]/aout
         gsout = -aout
@@ -74,54 +94,54 @@ def _alphaf_iso(beta,eps0,alpha,F):
         alpha[1] = -aout
         alpha[2] = aout
         alpha[3] = -aout 
-        F[0,0] = 0.5 
-        F[0,1] = 0.5
-        F[0,2] = 0.
-        F[0,3] = 0.
-        F[1,0] = 0.5 * gpout 
-        F[1,1] = -0.5 * gpout 
-        F[1,2] = 0.
-        F[1,3] = 0.
-        F[2,0] = 0.
-        F[2,1] = 0.
-        F[2,2] = 0.5 
-        F[2,3] = 0.5
-        F[3,0] = 0.
-        F[3,1] = 0.
-        F[3,2] = 0.5 * gsout 
-        F[3,3] = -0.5 * gsout 
+        F[0, 0] = 0.5
+        F[0, 1] = 0.5
+        F[0, 2] = 0.
+        F[0, 3] = 0.
+        F[1, 0] = 0.5 * gpout
+        F[1, 1] = -0.5 * gpout
+        F[1, 2] = 0.
+        F[1, 3] = 0.
+        F[2, 0] = 0.
+        F[2, 1] = 0.
+        F[2, 2] = 0.5
+        F[2, 3] = 0.5
+        F[3, 0] = 0.
+        F[3, 1] = 0.
+        F[3, 2] = 0.5 * gsout
+        F[3, 3] = -0.5 * gsout
     else:
-        
-        F[...]=0.
+        F[...] = 0.
         alpha[...] = 0.
 
-@nb.njit([(NFDTYPE,NCDTYPE[:],NFDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def _alphaf_uniaxial(beta,eps0,R,alpha,F): 
 
-    #uniaxial case
-    ct = R[2,2]
-    st = -R[2,0] 
+@nb.njit([(NFDTYPE, NCDTYPE[:], NFDTYPE[:, :], NCDTYPE[:], NCDTYPE[:, :])], cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)
+def _alphaf_uniaxial(beta, eps0, R, alpha, F):
+
+    # Uniaxial case
+    ct = R[2, 2]
+    st = -R[2, 0]
     st2 = st * st
     ct2 = ct * ct
     
-    sf = -R[0,1]
-    cf = R[1,1]
+    sf = -R[0, 1]
+    cf = R[1, 1]
 
     eps11 = eps0[0]
 
-    
-    delta = eps0[2] -  eps11
-    if beta == 0.: #same as calculation for beta !=0, except faster... no multiplying with zeros
-        ev02 =  eps11 
+    delta = eps0[2] - eps11
+    # Check value of beta. Calculations are the same, but checking allows for speedup
+    if beta == 0.:
+        # Same calculation for beta !=0, except faster since not multiplying with zeros
+        ev02 = eps11
         evs = sqrt(ev02)
         u = eps11 + delta * ct2
         w = eps11 * (ev02 + delta)
         sq = sqrt(u*w)/u
         evpp = sq
         evpm = -sq
-        
-    else: #can also be used for beta=0... just slower
-        ev02 =  eps11 - beta * beta
+    else:
+        ev02 = eps11 - beta * beta
         evs = sqrt(ev02)
         
         u = eps11 + delta * ct2
@@ -134,44 +154,41 @@ def _alphaf_uniaxial(beta,eps0,R,alpha,F):
         
         evpp = -v + sq
         evpm = -v - sq
-        
 
     alpha[0] = evpp
     alpha[1] = evpm
     alpha[2] = evs
     alpha[3] = -evs    
 
-
     if beta == 0.:
-
         eps11sf = eps11 * sf
         evssf = evs*sf
         evscf = evs*cf
         eps11cf = eps11*cf
         
-        F[0,2] = evssf
-        F[1,2] = eps11sf
-        F[2,2] = -evscf
-        F[3,2] = eps11cf
+        F[0, 2] = evssf
+        F[1, 2] = eps11sf
+        F[2, 2] = -evscf
+        F[3, 2] = eps11cf
         
-        F[0,3] = -evssf
-        F[1,3] = eps11sf 
-        F[2,3] = evscf 
-        F[3,3] = eps11cf
+        F[0, 3] = -evssf
+        F[1, 3] = eps11sf
+        F[2, 3] = evscf
+        F[3, 3] = eps11cf
         
-        F[0,0] = cf
-        F[1,0] = evpp *cf
-        F[2,0] = sf
-        F[3,0] = -evpp *sf 
+        F[0, 0] = cf
+        F[1, 0] = evpp *cf
+        F[2, 0] = sf
+        F[3, 0] = -evpp *sf
         
-        F[0,1] = cf
-        F[1,1] = evpm *cf
-        F[2,1] = sf
-        F[3,1] = -evpm *sf    
+        F[0, 1] = cf
+        F[1, 1] = evpm *cf
+        F[2, 1] = sf
+        F[3, 1] = -evpm *sf
         
     else:
-        sfst = (R[1,2])
-        cfst = (R[0,2])                   
+        sfst = (R[1, 2])
+        cfst = (R[0, 2])
                                     
         ctbeta = ct * beta
         ctbetaeps11 = ctbeta / eps11
@@ -182,46 +199,70 @@ def _alphaf_uniaxial(beta,eps0,R,alpha,F):
         ev02cfst = ev02*cfst
         ev02cfsteps11 = ev02cfst/eps11
       
-        F[0,2] = -evssfst 
-        F[1,2] = -eps11sfst
-        F[2,2] = evscfst - ctbeta
-        F[3,2] = evsctbeta - ev02cfst
+        F[0, 2] = -evssfst
+        F[1, 2] = -eps11sfst
+        F[2, 2] = evscfst - ctbeta
+        F[3, 2] = evsctbeta - ev02cfst
   
-        F[0,3] = -evssfst
-        F[1,3] = eps11sfst
-        F[2,3] = evscfst + ctbeta
-        F[3,3] = ev02cfst + evsctbeta
+        F[0, 3] = -evssfst
+        F[1, 3] = eps11sfst
+        F[2, 3] = evscfst + ctbeta
+        F[3, 3] = ev02cfst + evsctbeta
         
-        F[0,0] = -evpp*ctbetaeps11 + ev02cfsteps11
-        F[1,0] = evpp *cfst - ctbeta
-        F[2,0] = sfst
-        F[3,0] = -evpp *sfst
+        F[0, 0] = -evpp*ctbetaeps11 + ev02cfsteps11
+        F[1, 0] = evpp *cfst - ctbeta
+        F[2, 0] = sfst
+        F[3, 0] = -evpp *sfst
         
-        F[0,1] = -evpm*ctbetaeps11 + ev02cfsteps11
-        F[1,1] = evpm *cfst - ctbeta
-        F[2,1] = sfst
-        F[3,1] = -evpm *sfst 
+        F[0, 1] = -evpm*ctbetaeps11 + ev02cfsteps11
+        F[1, 1] = evpm *cfst - ctbeta
+        F[2, 1] = sfst
+        F[3, 1] = -evpm *sfst
         
-    #normalize base vectors
+    # Normalize base vectors
     for j in range(4):
         tmp = 0.
         for i in range(4):
-            tmp += F[i,j].real * F[i,j].real + F[i,j].imag * F[i,j].imag
+            tmp += F[i, j].real * F[i, j].real + F[i, j].imag * F[i, j].imag
         
         tmp = tmp ** 0.5
-        F[0,j] = F[0,j]/tmp 
-        F[1,j] = F[1,j]/tmp 
-        F[2,j] = F[2,j]/tmp 
-        F[3,j] = F[3,j]/tmp 
+        F[0, j] = F[0, j] / tmp
+        F[1, j] = F[1, j] / tmp
+        F[2, j] = F[2, j] / tmp
+        F[3, j] = F[3, j] / tmp
 
-@nb.njit([NFDTYPE(NCDTYPE[:])], cache = NUMBA_CACHE)
+
+@nb.njit([NFDTYPE(NCDTYPE[:])], cache=NUMBA_CACHE)
 def _power(field):
+    """
+
+    Parameters
+    ----------
+    field
+
+    Returns
+    -------
+
+    """
     tmp1 = (field[0].real * field[1].real + field[0].imag * field[1].imag)
     tmp2 = (field[2].real * field[3].real + field[2].imag * field[3].imag)
-    return tmp1-tmp2 
+    return tmp1 - tmp2
 
 @nb.njit([(NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE)
 def _copy_sorted(alpha,fmat, out_alpha, out_fmat):
+    """
+
+    Parameters
+    ----------
+    alpha
+    fmat
+    out_alpha
+    out_fmat
+
+    Returns
+    -------
+
+    """
     i = 0
     j = 1
     for k in range(4):
@@ -234,58 +275,92 @@ def _copy_sorted(alpha,fmat, out_alpha, out_fmat):
             out_alpha[j] = alpha[k]
             out_fmat[:,j] = fmat[:,k] 
             j = j + 2
-            
-@nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NCDTYPE[:],NFDTYPE[:],NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:])],
-                 "(),(),(m),(l),(k),(n)->(n),(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def _alphaf_vec(beta,phi,rv,epsv,epsa,dummy,alpha,F):
-    #F is a 4x4 matrix... we can use 3x3 part for Rotation matrix and F[3] for eps  temporary data
-    
-    #isotropic case
-    if (epsv[0] == epsv[1] and epsv[1]==epsv[2]):
-        eps = F[3] 
-        #_uniaxial_order(0.,epsv,eps) #store caluclated eps values in Fi[3]
-        _alphaf_iso(beta[0],epsv,alpha,F)
-        _dotr2m(rv,F,F)
-    #uniaxial
-    elif (epsv[0] == epsv[1]):
+
+
+@nb.guvectorize([(NFDTYPE[:], NFDTYPE[:], NFDTYPE[:], NCDTYPE[:], NFDTYPE[:], NCDTYPE[:], NCDTYPE[:], NCDTYPE[:, :])],
+                "(),(),(m),(l),(k),(n)->(n),(n,n)", target=NUMBA_TARGET, cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)
+def _alphaf_vec(beta, phi, rotation_vector, epsv, epsa, dummy, alpha, F):
+    """
+
+    Parameters
+    ----------
+    beta :
+        beta is nin*np.sin(theta)
+    phi :
+
+    rotation_vector : array
+        Vector representing a rotation
+    epsv :
+
+    epsa :
+
+    dummy :
+
+    alpha :
+
+    F :
+
+
+    Returns
+    -------
+
+    """
+    # F is a 4x4 matrix... we can use 3x3 part for Rotation matrix and F[3] for eps  temporary data
+
+    if epsv[0] == epsv[1] and epsv[1] == epsv[2]:
+        # Isotropic case
+        _alphaf_iso(beta[0], epsv, alpha, F)
+        _dotr2m(rotation_vector, F, F)
+
+    elif epsv[0] == epsv[1]:
+        # Uniaxial case
         R = F.real
-        eps = F[3] 
-        #_uniaxial_order(1.,epsv,eps)
-        _calc_rotations_uniaxial(phi[0],epsa,R) #store rotation matrix in Fi.real[0:3,0:3]
-        _alphaf_uniaxial(beta[0],epsv,R,alpha,F)
-        _dotr2m(rv,F,F)
-    else:#biaxial case
-        R = F.real 
-        eps = F.ravel() #reuse F memory (eps is length 6 1D array)
-        _calc_rotations(phi[0],epsa,R) #store rotation matrix in Fi.real[0:3,0:3]
-        _rotate_diagonal_tensor(R,epsv,eps)
-        _auxiliary_matrix(beta[0],eps,F) #calculate Lm matrix and put it to F
-        alpha0,F0 = np.linalg.eig(F)
-        _copy_sorted(alpha0,F0,alpha,F)#copy data and sort it
-        _dotr2m(rv,F,F)
-        
-#dummy arrays for gufuncs    
-_dummy_array = np.empty((4,),CDTYPE)
-_dummy_array2 = np.empty((9,),CDTYPE)
-    
+        _calc_rotations_uniaxial(phi[0], epsa, R)  # store rotation matrix in Fi.real[0:3,0:3]
+        _alphaf_uniaxial(beta[0], epsv, R, alpha, F)
+        _dotr2m(rotation_vector, F, F)
+    else:
+        # Biaxial case
+        R = F.real
+        # Reuse F memory (eps is length 6 1D array)
+        eps = F.ravel()  #
+        _calc_rotations(phi[0], epsa, R)  # store rotation matrix in Fi.real[0:3,0:3]
+        _rotate_diagonal_tensor(R, epsv, eps)
+
+        # Calculate Lm matrix and put it to F
+        _auxiliary_matrix(beta[0], eps, F)
+        alpha0, F0 = np.linalg.eig(F)
+        _copy_sorted(alpha0, F0, alpha, F)  # copy data and sort it
+        _dotr2m(rotation_vector, F, F)
+
+
+# Dummy arrays for gufuncs
+_dummy_array = np.empty((4,), CDTYPE)
+_dummy_array2 = np.empty((9,), CDTYPE)
+
 
 def _alphaf(beta, phi, epsv, epsa, out=None):
     """
 
     Parameters
     ----------
-    beta
-    phi
-    epsv
-    epsa
-    out
+    beta :
+
+    phi :
+
+    epsv :
+
+    epsa :
+
+    out :
+
 
     Returns
     -------
 
     """
-    rv = rotation_vector2(phi)
-    return _alphaf_vec(beta, phi, rv, epsv, epsa, _dummy_array, out=out)
+    rotation_matrix = rotation_vector2(phi)
+    return _alphaf_vec(beta, phi, rotation_matrix,
+                       epsv, epsa, _dummy_array, out=out)
 
 
 def alphaf(beta, phi, epsv, epsa, out=None):
@@ -323,8 +398,9 @@ def alphaf(beta, phi, epsv, epsa, out=None):
     return _alphaf_vec(beta, phi, rotation_vector, epsv, epsa, _dummy_array, out=out)
 
 
-def alphaffi(beta,phi,epsv,epsa,out = None):
-    """Computes alpha and field arrays (eigen values and eigen vectors arrays)
+def alphaffi(beta, phi, epsv, epsa, out=None):
+    """
+    Computes alpha and field arrays (eigen values and eigen vectors arrays)
     and inverse of the field array. See :func:`alphaf` for details
     
     Broadcasting rules apply.
@@ -334,27 +410,49 @@ def alphaffi(beta,phi,epsv,epsa,out = None):
     alpha, field, ifield  : (ndarray, ndarray, ndarray)
         Eigen values and eigen vectors arrays and its inverse
         
-    This is equivalent to
+    This is equivalent to:
     
-    >>> alpha,field = alphaf(0,0, [2,2,2], [0.,0.,0.])
+    >>> alpha,field = alphaf(0, 0, [2,2,2], [0.,0.,0.])
     >>> ifield = inv(field)
     """
     if out is not None:
-        a,f,fi = out
-        _alphaf(beta,phi,epsv,epsa, out = (a,f))
-        inv(f,fi)
+        a, f, fi = out
+        _alphaf(beta, phi, epsv, epsa, out=(a, f))
+        inv(f, fi)
     else:
-        a,f = _alphaf(beta,phi,epsv,epsa)
+        a, f = _alphaf(beta, phi, epsv, epsa)
         fi = inv(f)
-    return a,f,fi
- 
-def alphaE(beta,phi,epsv,epsa, mode = +1, out = None):
-    alpha,f = alphaf(beta,phi,epsv,epsa)
-    e = E_mat(f,mode = mode, copy = False)
+    return a, f, fi
+
+
+def alphaE(beta, phi, epsv, epsa, mode=+1, out=None):
+    """
+
+    Parameters
+    ----------
+    beta :
+
+    phi :
+
+    epsv :
+
+    epsa :
+
+    mode :
+
+    out :
+
+
+    Returns
+    -------
+
+    """
+    alpha, f = alphaf(beta, phi, epsv, epsa)
+    e = E_mat(f, mode=mode, copy=False)
     if mode == 1:
-        alpha = alpha[...,::2]
+        alpha = alpha[..., ::2]
     else:
-        alpha = alpha[...,1::2]
+        alpha = alpha[..., 1::2]
     if out is not None:
         out[0][...] = alpha
         out[1][...] = e
@@ -362,45 +460,48 @@ def alphaE(beta,phi,epsv,epsa, mode = +1, out = None):
         out = alpha.copy(), e.copy()
     return out
 
-def alphaEEi(beta,phi,epsv,epsa, mode = +1, out = None):
+
+def alphaEEi(beta, phi, epsv, epsa, mode=+1, out=None):
     if out is None:
-        alpha,E = alphaE(beta,phi,epsv,epsa, mode = mode)
+        alpha, E = alphaE(beta, phi, epsv, epsa, mode=mode)
         return alpha, E, inv(E)
     else:
         alpha, E, Ei = out
-        alpha, E = alphaE(beta,phi,epsv,epsa, mode = mode, out = (alpha, E))
-        Ei = inv(E,out = Ei)
+        alpha, E = alphaE(beta, phi, epsv, epsa, mode=mode, out=(alpha, E))
+        Ei = inv(E, out=Ei)
         return alpha, E, Ei 
+
 
 _numba_0_39_or_greater = False    
 
 try:        
-    major, minor, patch = map(int,nb.__version__.split("."))
-    if major == 0 and minor >=39:
+    major, minor, patch = map(int, nb.__version__.split("."))
+    if major == 0 and minor >= 39:
         _numba_0_39_or_greater = True
 except:
     pass
 
 if _numba_0_39_or_greater:
-    @nb.vectorize([NCDTYPE(NCDTYPE,NFDTYPE)],
-        target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
-    def _phase_mat_vec(alpha,kd):
+    @nb.vectorize([NCDTYPE(NCDTYPE, NFDTYPE)],
+        target=NUMBA_TARGET, cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)
+    def _phase_mat_vec(alpha, kd):
         return np.exp(1j*kd*alpha)
 
-    def phasem(alpha,kd,out = None):
-        kd = np.asarray(kd,FDTYPE)[...,None]
-        out = _phase_mat_vec(alpha,kd,out)
+    def phasem(alpha, kd, out=None):
+        kd = np.asarray(kd, FDTYPE)[...,None]
+        out = _phase_mat_vec(alpha, kd, out)
         #if out.shape[-1] == 4:
         #    out[...,1::2]=0.
         return out
 else:
     @nb.guvectorize([(NCDTYPE[:],NFDTYPE[:], NCDTYPE[:])],
-                    "(n),()->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
+                    "(n),()->(n)", target=NUMBA_TARGET, cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)
     def _phase_mat_vec(alpha,kd,out):
         for i in range(alpha.shape[0]):
             out[i] = np.exp(1j*kd[0]*(alpha[i]))
                     
     phasem = _phase_mat_vec
+
 
 def phase_mat(alpha, kd, mode = None, out = None):
     """Computes phse matrix from eigenvalue matrix alpha and wavenumber"""
@@ -422,14 +523,15 @@ def phase_mat(alpha, kd, mode = None, out = None):
         raise ValueError("Unknown propagation mode.")
     return out 
 
+
 @nb.guvectorize([(NCDTYPE[:], NFDTYPE[:])],
-                    "(n)->()", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
+                "(n)->()", target=NUMBA_TARGET, cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)
 def poynting(fvec, out):
     """Calculates a z-component of the poynting vector from the field vector"""
     assert fvec.shape[0] == 4
     tmp1 = (fvec[0].real * fvec[1].real + fvec[0].imag * fvec[1].imag)
     tmp2 = (fvec[2].real * fvec[3].real + fvec[2].imag * fvec[3].imag)
-    out[0] = tmp1-tmp2   
+    out[0] = tmp1 - tmp2
 
 #@nb.guvectorize([(NCDTYPE[:,:], NFDTYPE[:])],
 #                    "(n,n)->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
@@ -440,7 +542,8 @@ def poynting(fvec, out):
 #        tmp1 = (fmat[0,i].real * fmat[1,i].real + fmat[0,i].imag * fmat[1,i].imag)
 #        tmp2 = (fmat[2,i].real * fmat[3,i].real + fmat[2,i].imag * fmat[3,i].imag)
 #        out[i] = tmp1-tmp2  
-        
+
+
 def fmat2poynting(fmat, out = None):
     """Calculates a z-component of the poynting vector from the field vector"""
     axes = list(range(fmat.ndim))
@@ -448,7 +551,8 @@ def fmat2poynting(fmat, out = None):
     axes.append(n)
     fmat = fmat.transpose(*axes)
     return poynting(fmat, out = out)
-    
+
+
 @nb.guvectorize([(NCDTYPE[:,:], NCDTYPE[:,:])],
                     "(n,n)->(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
 def normalize_f(fmat, out):
@@ -487,7 +591,8 @@ def projection_mat(fmat, fmati = None, mode = +1):
     else:
         raise ValueError("Unknown propagation mode.")     
     return dotmdm(fmat,diag,fmati)    
-    
+
+
 def S_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1):
     if overwrite_fin == True:
         out = fin
@@ -502,7 +607,8 @@ def S_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1):
         return S[...,1::2,1::2],S[...,0::2,1::2]
     else:
         raise ValueError("Unknown propagation mode.")  
-        
+
+
 def transmission_mat(fin, fout, fini = None, mode = +1,out = None):
     A,B = S_mat(fin, fout, fini = fini, mode = mode)
     if mode == +1:
@@ -531,6 +637,7 @@ def transmission_mat(fin, fout, fini = None, mode = +1,out = None):
 #    A1pi = inv(A1p)
 #    return dotmm(dotmm(dotmm(A1m,B,out = Ai),Ai, out = Ai),A1pi, out = Ai)
 
+
 def tr_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None):
     if overwrite_fin == True:
         er = E_mat(fin, mode = mode * (-1), copy = True)
@@ -540,10 +647,12 @@ def tr_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None)
     eti,eri = Etri_mat(fin, fout, fini = fini, overwrite_fin = overwrite_fin, mode = mode, out = out)
     return dotmm(et,eti, out = eti), dotmm(er,eri, out = eri)
 
+
 def t_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None):
     eti = Eti_mat(fin, fout, fini = fini, overwrite_fin = overwrite_fin, mode = mode, out = out)
     et = E_mat(fout, mode = mode, copy = False)
     return dotmm(et,eti, out = eti)
+
 
 def E_mat(fmat, mode = None, copy = True):
     if mode == +1:
@@ -561,12 +670,14 @@ def E_mat(fmat, mode = None, copy = True):
         raise ValueError("Unknown propagation mode.")
     return e.copy() if copy else e  
 
+
 def Eti_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None):
     A = E_mat(fin, mode = mode, copy = False) 
     Ai = inv(A, out = out)
     St,Sr = S_mat(fin, fout, fini = fini, overwrite_fin = overwrite_fin, mode = mode)
     Sti = inv(St, out = St)
     return dotmm(Sti,Ai, out = Ai)
+
 
 def Etri_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None):
     out1, out2 = out if out is not None else (None, None)
@@ -576,7 +687,8 @@ def Etri_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = Non
     Sti = inv(St, out = St)
     ei = dotmm(Sti,Ai,out = Ai)
     return ei, dotmm(Sr,ei, out = out2)
-    
+
+
 def E2H_mat(fmat, mode = +1, out = None):  
     if mode == +1:
         A = fmat[...,::2,::2]
@@ -589,6 +701,7 @@ def E2H_mat(fmat, mode = +1, out = None):
     Ai = inv(A, out = out)
     return dotmm(B,Ai, out = Ai)  
 
+
 def f_iso(n,beta=0.,phi = 0.):
     """Returns field matrix for isotropic layer of a given refractive index
     and beta, phi parameters"""
@@ -597,6 +710,7 @@ def f_iso(n,beta=0.,phi = 0.):
     alpha, f = alphaf(beta,phi,epsv,epsa)    
     return f
 
+
 def ffi_iso(n,beta=0.,phi = 0.):
     """Returns field matrix and inverse of the field matrix for isotropic layer 
     of a given refractive index and beta, phi parameters"""
@@ -604,6 +718,7 @@ def ffi_iso(n,beta=0.,phi = 0.):
     epsa = np.zeros(shape = (3,),dtype= FDTYPE)
     alpha, f, fi = alphaffi(beta,phi,epsv,epsa)    
     return f,fi
+
 
 def layer_mat(kd, epsv,epsa, beta = 0,phi = 0, method = "4x4", out = None):
     """Computes characteristic matrix of a single layer M=F.P.Fi,
@@ -641,6 +756,7 @@ def layer_mat(kd, epsv,epsa, beta = 0,phi = 0, method = "4x4", out = None):
         if method in ("4x2","2x4"):
             pmat[...,1::2] = 0.        
     return dotmdm(f,pmat,fi,out = out)    
+
 
 def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, method = "4x4", out = None):
     """Computes a stack characteristic matrix M = M_1.M_2....M_n if method is
@@ -709,6 +825,7 @@ def system_mat(cmat,fmatin = None, fmatout = None, fmatini = None, out = None):
     out = dotmm(fmatini,cmat,out = out)
     return dotmm(out,fmatout,out = out)    
 
+
 def reflection_mat(smat, out = None):
     """Computes a 4x4 reflection matrix.
     """
@@ -724,6 +841,7 @@ def reflection_mat(smat, out = None):
     m2[...,:,3] = smat[...,:,3]
     m1 = inv(m1)
     return dotmm(m1,m2, out = out)
+
 
 def transmit2x2(fvec_in, cmat, fmatout = None, tmatin = None, tmatout = None, fvec_out = None):
     """Transmits field vector using 2x2 method.
@@ -749,6 +867,7 @@ def transmit2x2(fvec_in, cmat, fmatout = None, tmatin = None, tmatout = None, fv
     e2h = E2H_mat(fmatout, mode = +1)
     hout = dotmv(e2h, eout, out = fvec_out[...,1::2])
     return fvec_out
+
 
 def transmit(fvec_in, cmat, fmatin = None, fmatout = None, fmatini = None, fmatouti = None, fvec_out = None):
     """Transmits field vector using 4x4 method.
@@ -796,6 +915,7 @@ def transmit(fvec_in, cmat, fmatin = None, fmatout = None, fmatini = None, fmato
     dotmv(fmatin,avec,out = fvec_in)    
     return dotmv(fmatout,bvec,out = out)
 
+
 def polarizer4x4(jones, fmat, out = None):
     """Returns a polarizer matrix from a given jones vector and field matrix. 
     
@@ -825,6 +945,7 @@ def polarizer4x4(jones, fmat, out = None):
     m = dotmm(fmat,dotmm(pmat,fmati, out = out), out = out)
     return m
 
+
 def field4(fmat, jones = (1,0),  amplitude = 1., mode = +1, out = None):
     """Build field vector form a given polarization state, amplitude and mode.
     Numpy broadcasting rules apply."""
@@ -851,6 +972,7 @@ def field4(fmat, jones = (1,0),  amplitude = 1., mode = +1, out = None):
     a = np.asarray(amplitude)[...,None]
     out = np.multiply(fvec, a ,out = fvec) 
 
-    return out 
-    
+    return out
+
+
 __all__ = ["alphaf","alphaffi","phasem", "phase_mat", "field4"]
