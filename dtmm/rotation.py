@@ -365,12 +365,12 @@ dotrv = rotate_vector
 
 def tensor_to_matrix(tensor, output=None):
     """
-    Converts tensor of shape (6,) to matrix of shape (3,3).
+    Converts a symmetric tensor of shape (6,) to matrix of shape (3,3).
 
     Parameters
     ----------
     tensor : array
-        A (6,)
+        The symmetric tensor to represent as a matrix
     output : array
         The (3, 3) matrix representation of <tensor>
 
@@ -384,7 +384,7 @@ def tensor_to_matrix(tensor, output=None):
     tensor = _input_matrix(tensor, (6,), CDTYPE)
     # Convert tensor to matrix
     _tensor_to_matrix(tensor, output)
-    # Return
+
     return output
 
 
