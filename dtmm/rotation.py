@@ -331,15 +331,33 @@ def _rotate_vector(rotation_matrix, vector, out):
     out[1] = out1
     out[2] = out2
 
-@nb.guvectorize([(NF32DTYPE[:,:],NF32DTYPE[:],NF32DTYPE[:]),
-                 (NF64DTYPE[:,:],NF64DTYPE[:],NFDTYPE[:]),],"(n,n),(n)->(n)", cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH, target = NUMBA_TARGET)
-def rotate_vector(R,vector, out):
-    """rotate_vector(R,vector)
-    
-    Calculates out = R.vector of a vector"""
+
+@nb.guvectorize([(NF32DTYPE[:, :], NF32DTYPE[:], NF32DTYPE[:]),
+                 (NF64DTYPE[:, :], NF64DTYPE[:], NFDTYPE[:]), ], "(n,n),(n)->(n)", cache=NUMBA_CACHE,
+                fastmath=NUMBA_FASTMATH, target=NUMBA_TARGET)
+def rotate_vector(rotation_matrix, vector, out):
+    """
+    Rotates vector <vector> using rotation matrix <rotation_matrix>
+    rotate_vector(R, vector)
+
+    Calculates out = R.vector of a vector
+
+    Parameters
+    ----------
+    rotation_matrix
+    vector
+    out
+
+    Returns
+    -------
+
+    """
+    # Ensure size is correct size
     if len(vector) != 3:
-        raise ValueError("Invalid input data shape")    
-    _rotate_vector(R,vector,out)
+        raise ValueError("Invalid input data shape")
+
+    # Perform rotation
+    _rotate_vector(rotation_matrix, vector, out)
     
 
 dotrv = rotate_vector
