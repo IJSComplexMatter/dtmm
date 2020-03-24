@@ -187,44 +187,55 @@ def rot90_director(data,axis = "+x", out = None):
         raise ValueError("Unknown axis type {}".format( axis_name))
     data_rot = np.rot90(data,k = k, axes = axes)#first rotate data points
     return rotate_vector(r,data_rot,out)#rotate vector in each voxel
-    
-    
-def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
-                  thickness = None):
-    """Builds optical data from director data. Director length is treated as
+
+
+def director2data(director, mask=None, no=1.5, ne=1.6, nhost=None,
+                  thickness=None):
+    """
+    Builds optical data from director data. Director length is treated as
     an order parameter. Order parameter of S=1 means that refractive indices
-    `no` and `ne` are set as the material parameters. With S!=1, a 
+    `no` and `ne` are set as the material parameters. With S!=1, a
     :func:`uniaxial_order` is used to calculate actual material parameters.
-    
+
     Parameters
     ----------
     director : ndarray
         A 4D array describing the director
     mask : ndarray, optional
-        If provided, this mask must be a 3D bolean mask that define voxels where
-        nematic is present. This mask is used to define the nematic part of the sample. 
-        Volume not defined by the mask is treated as a host material. If mask is 
+        If provided, this mask must be a 3D boolean mask that define voxels where
+        nematic is present. This mask is used to define the nematic part of the sample.
+        Volume not defined by the mask is treated as a host material. If mask is
         not provided, all data points are treated as a director.
     no : float
         Ordinary refractive index
     ne : float
-        Extraordinary refractive index 
+        Extraordinary refractive index
     nhost : float
-        Host refracitve index (if mask is provided)
+        Host refractive index (if mask is provided)
     thickness : ndarray
         Thickness of layers (in pixels). If not provided, this defaults to ones.
-        
+
     """
-    material = np.empty(shape = director.shape, dtype = FDTYPE)
-    material[...] = refind2eps([no,no,ne])[None,...] 
-    material = uniaxial_order(director2order(director), material, out = material)
-    
+    # Preallocate director
+    material = np.empty(shape=director.shape, dtype=FDTYPE)
+    # Convert indices of refraction into 3 dielectric constants at every point in space
+    # [None,...] converts the (3,) array into a (1, 3) array
+    material[...] = refind2eps([no, no, ne])[None, ...]
+    # Adjusts dielectric constants to take into account uniaxial order
+    material = uniaxial_order(director2order(director), material, out=material)
+
+    # If mask is present, set everything outside the mask to the host dielectric constant
     if mask is not None:
-        material[np.logical_not(mask),:] = refind2eps([nhost,nhost,nhost])[None,...] 
-        
+        material[np.logical_not(mask), :] = refind2eps([nhost, nhost, nhost])[None, ...]
+
+    # Generates default thickness if one is not provided
     if thickness is None:
-        thickness = np.ones(shape = (material.shape[0],))
-    return  thickness, material, director2angles(director)
+        thickness = np.ones(shape=(material.shape[0],))
+
+    # Convert the representation of the director from x,y,z lengths into angles
+    angles = director2angles(director)
+
+    return thickness, material, angles
 
 
 def validate_optical_data(data, homogeneous=False):
