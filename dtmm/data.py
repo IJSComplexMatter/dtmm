@@ -9,14 +9,15 @@ import numba
 import sys
 
 from dtmm.conf import FDTYPE, CDTYPE, NFDTYPE, NCDTYPE, NUMBA_CACHE,\
-NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE, DTMMConfig
-from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector
+    NF32DTYPE, NF64DTYPE, NC128DTYPE, NC64DTYPE, DTMMConfig
+from dtmm.rotation import rotation_matrix_x, rotation_matrix_y, rotation_matrix_z, rotate_vector
 
 
-def read_director(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
-    """Reads raw director data from a binary or text file. 
+def read_director(file, shape, dtype=FDTYPE,  sep="", endian=sys.byteorder, order="zyxn", nvec="xyz"):
+    """
+    Reads raw director data from a binary or text file.
     
-    A convinient way to read director data from file. 
+    A convenient way to read director data from file.
     
     Parameters
     ----------
@@ -45,11 +46,16 @@ def read_director(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder
         'z', e.g. 'yxz', 'zxy' ... 
     """
     try:
-        i,j,k,c = shape
+        i, j, k, c = shape
     except:
         raise TypeError("shape must be director data shape (z,x,y,n)")
-    data = read_raw(file, shape, dtype, sep = sep, endian = endian)
-    return raw2director(data, order, nvec)
+
+    # Read raw data from file
+    data = read_raw(file, shape, dtype, sep=sep, endian=endian)
+    # Covert raw data into director representation
+    director = raw2director(data, order, nvec)
+
+    return director
 
 def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), norm = True, out = None):
     """
