@@ -299,14 +299,34 @@ def _rotate_diagonal_tensor(R,diagonal,out):
     out[5] = diagonal[0]*R[1,0]*R[2,0] + diagonal[1]*R[1,1]*R[2,1] + diagonal[2]*R[1,2]*R[2,2]
     return out
 
-@jit([(NF32DTYPE[:,:],NF32DTYPE[:],NF32DTYPE[:]),
-      (NF64DTYPE[:,:],NF64DTYPE[:],NFDTYPE[:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def _rotate_vector(R,vector,out):
-    
-    out0 = vector[0]*R[0,0] + vector[1]*R[0,1] + vector[2]*R[0,2]
-    out1 = vector[0]*R[1,0] + vector[1]*R[1,1] + vector[2]*R[1,2]
-    out2 = vector[0]*R[2,0] + vector[1]*R[2,1] + vector[2]*R[2,2]
-    
+
+@jit([(NF32DTYPE[:, :], NF32DTYPE[:], NF32DTYPE[:]),
+      (NF64DTYPE[:, :], NF64DTYPE[:], NFDTYPE[:])], nopython=True, cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)
+def _rotate_vector(rotation_matrix, vector, out):
+    """
+    Rotates vector <vector> using rotation matrix <rotation_matrix>
+
+    Parameters
+    ----------
+    rotation_matrix : array
+        3x3 rotation matrix
+    vector : array
+        Input 3-vector to rotate
+    out : array
+        Output rotated 3-vector
+
+    Returns
+    -------
+
+    """
+    # Rotate x values
+    out0 = vector[0] * rotation_matrix[0, 0] + vector[1] * rotation_matrix[0, 1] + vector[2] * rotation_matrix[0, 2]
+    # Rotate y values
+    out1 = vector[0] * rotation_matrix[1, 0] + vector[1] * rotation_matrix[1, 1] + vector[2] * rotation_matrix[1, 2]
+    # Rotate z values
+    out2 = vector[0] * rotation_matrix[2, 0] + vector[1] * rotation_matrix[2, 1] + vector[2] * rotation_matrix[2, 2]
+
+    # Set outputs, return by reference
     out[0] = out0
     out[1] = out1
     out[2] = out2
