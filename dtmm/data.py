@@ -639,8 +639,9 @@ def nematic_droplet_data(shape, radius, profile="r", no=1.5, ne=1.6, nhost=1.5):
     return director2data(director, mask=mask, no=no, ne=ne, nhost=nhost)
 
 
-def cholesteric_droplet_data(shape, radius, pitch, hand = "left", no = 1.5, ne = 1.6, nhost = 1.5):
-    """Returns cholesteric droplet optical_data.
+def cholesteric_droplet_data(shape, radius, pitch, hand="left", no=1.5, ne=1.6, nhost=1.5):
+    """
+    Returns cholesteric droplet optical_data.
     
     This function returns a thickness,  material_eps, angles, info tuple 
     of a cholesteric droplet, suitable for light propagation calculation tests.
@@ -668,9 +669,13 @@ def cholesteric_droplet_data(shape, radius, pitch, hand = "left", no = 1.5, ne =
     out : tuple of length 3
         A (thickness, material_eps, angles) tuple of three arrays
     """
-    director = cholesteric_director(shape, pitch, hand = hand)
+    # Calculate director
+    director = cholesteric_director(shape, pitch, hand=hand)
+    # Calcualte spherical mask
     mask = sphere_mask(shape, radius)
-    return director2data(director, mask = mask, no = no, ne = ne, nhost = nhost)    
+    # Combine mask and directed to obtain final data, then return
+    return director2data(director, mask=mask, no=no, ne=ne, nhost=nhost)
+
 
 @numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->()", cache = NUMBA_CACHE)
 def director2order(data, out):
