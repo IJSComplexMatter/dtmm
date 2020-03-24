@@ -269,9 +269,24 @@ _dummy_array = np.empty((4,),CDTYPE)
 _dummy_array2 = np.empty((9,),CDTYPE)
     
 
-def _alphaf(beta,phi,epsv,epsa,out = None):
-    rv = rotation_vector2(phi) 
-    return _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array, out = out)
+def _alphaf(beta, phi, epsv, epsa, out=None):
+    """
+
+    Parameters
+    ----------
+    beta
+    phi
+    epsv
+    epsa
+    out
+
+    Returns
+    -------
+
+    """
+    rv = rotation_vector2(phi)
+    return _alphaf_vec(beta, phi, rv, epsv, epsa, _dummy_array, out=out)
+
 
 def alphaf(beta,phi,epsv,epsa,out = None):
     """Computes alpha and field arrays (eigen values and eigen vectors arrays).
