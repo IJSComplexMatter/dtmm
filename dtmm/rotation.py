@@ -33,14 +33,33 @@ def _input_matrix(mat, shape, dtype):
         _check_matrix(mat, shape, dtype)
     return mat
 
-def rotation_vector2(angle, out = None):
-    """Returns 2D rotation vector (cos(angle), sin(angle)).
-    Numpy broadcasting rules apply."""
-    c,s = np.cos(angle), np.sin(angle)
+
+def rotation_vector2(angle, out=None):
+    """
+    Coverts the provided angle into a rotation vector
+
+    Parameters
+    ----------
+    angle : array
+         Array containing the angle of rotation at different points in space
+    out : array
+        Rotation, represented as a 2D vector at every point in space
+
+    Returns
+    -------
+
+    """
+    # calculate rotations from angle
+    c, s = np.cos(angle), np.sin(angle)
+
+    # Create <out> if not provided
     if out is None:
-        out = np.empty(shape = c.shape + (2,), dtype = FDTYPE)
-    out[...,0] = c
-    out[...,1] = s
+        out = np.empty(shape=c.shape + (2,), dtype=FDTYPE)
+
+    # Store values
+    out[..., 0] = c
+    out[..., 1] = s
+
     return out
 
 def rotation_matrix2(angle, out = None):
