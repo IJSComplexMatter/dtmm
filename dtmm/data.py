@@ -226,56 +226,84 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
         thickness = np.ones(shape = (material.shape[0],))
     return  thickness, material, director2angles(director)
 
-        
-def validate_optical_data(data, homogeneous = False):
-    """Validates optical data.
-    
+
+def validate_optical_data(data, homogeneous=False):
+    """
+    Validates optical data.
+
     This function inspects validity of the optical data, and makes proper data
-    conversions to match the optical data format. In case data is not valid and 
-    it cannot be converted to a valid data it raises an exception (ValueError). 
-    
+    conversions to match the optical data format. In case data is not valid and
+    it cannot be converted to a valid data it raises an exception (ValueError).
+
     Parameters
     ----------
     data : tuple of optical data
         A valid optical data tuple.
     homogeneous : bool, optional
-        Whether data is for a homogenous layer. (Inhomogeneous by defult)
-    
+        Whether data is for a homogenous layer. (Inhomogeneous by default)
+
     Returns
     -------
     data : tuple
-        Validated optical data tuple. 
+        Validated optical data tuple.
     """
+    # Split data tuple into it's parts
     thickness, material, angles = data
-    thickness = np.asarray(thickness, dtype = FDTYPE)
+    # Convert thickness into numpy array
+    thickness = np.asarray(thickness, dtype=FDTYPE)
+
+    # Check thickness dimension
     if thickness.ndim == 0:
-        thickness = thickness[None] #make it 1D
+        # If (n,) convert to (1,n)
+        thickness = thickness[None]
     elif thickness.ndim != 1:
-        raise ValueError("Thickess dimension should be 1.")
+        # If dimension is not (n,) or (1,n), return error
+        raise ValueError("Thickness dimension should be 1.")
+
+    # Number of layers
     n = len(thickness)
+
+    # Covert material to numpy array
     material = np.asarray(material)
+
+    # Convert material array to correct type
     if np.issubdtype(material.dtype, np.complexfloating):
-        material = np.asarray(material, dtype = CDTYPE)
+        # Complex
+        material = np.asarray(material, dtype=CDTYPE)
     else:
-        material = np.asarray(material, dtype = FDTYPE)
-    if (material.ndim == 1 and homogeneous) or (material.ndim==3 and not homogeneous):
-        material = np.broadcast_to(material, (n,)+material.shape)# np.asarray([material for i in range(n)], dtype = material.dtype)
+        # Real
+        material = np.asarray(material, dtype=FDTYPE)
+
+    if (material.ndim == 1 and homogeneous) or (material.ndim == 3 and not homogeneous):
+        material = np.broadcast_to(material, (n,) + material.shape)
+        # np.asarray([material for i in range(n)], dtype = material.dtype)
+
+    # Ensure material is the same length as thickness
     if len(material) != n:
         raise ValueError("Material length should match thickness length")
+
     if (material.ndim != 2 and homogeneous) or (material.ndim != 4 and not homogeneous):
         raise ValueError("Invalid dimensions of the material.")
-    angles = np.asarray(angles, dtype = FDTYPE)
-    if (angles.ndim == 1 and homogeneous) or (angles.ndim==3 and not homogeneous):
-        angles = np.broadcast_to(angles, (n,)+angles.shape)
-        #angles = np.asarray([angles for i in range(n)], dtype = angles.dtype)
+
+    # Convert angles to numpy array
+    angles = np.asarray(angles, dtype=FDTYPE)
+
+    if (angles.ndim == 1 and homogeneous) or (angles.ndim == 3 and not homogeneous):
+        angles = np.broadcast_to(angles, (n,) + angles.shape)
+        # angles = np.asarray([angles for i in range(n)], dtype = angles.dtype)
+
+    # Ensure angles is of correct length
     if len(angles) != n:
         raise ValueError("Angles length should match thickness length")
-    if (angles.ndim != 2 and homogeneous) or (angles.ndim!=4 and not homogeneous):
+
+    if (angles.ndim != 2 and homogeneous) or (angles.ndim != 4 and not homogeneous):
         raise ValueError("Invalid dimensions of the angles.")
 
+    # Ensure material and angles have correct shape
     if material.shape != angles.shape:
         raise ValueError("Incompatible shapes for angles and material")
- 
+
+    # Return copies
     return thickness.copy(), material.copy(), angles.copy()
 
     
