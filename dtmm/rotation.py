@@ -361,14 +361,32 @@ def rotate_vector(rotation_matrix, vector, out):
     
 
 dotrv = rotate_vector
-    
-def tensor_to_matrix(tensor, output = None):
-    """Converts tensor of shape (6,) to matrix of shape (3,3)
+
+
+def tensor_to_matrix(tensor, output=None):
     """
-    output = _output_matrix(output,(3,3),CDTYPE)
-    tensor = _input_matrix(tensor,(6,),CDTYPE)
+    Converts tensor of shape (6,) to matrix of shape (3,3).
+
+    Parameters
+    ----------
+    tensor : array
+        A (6,)
+    output : array
+        The (3, 3) matrix representation of <tensor>
+
+    Returns
+    -------
+
+    """
+    # Check that output matrix exists and is good
+    output = _output_matrix(output, (3, 3), CDTYPE)
+    # Check the input matrix is good
+    tensor = _input_matrix(tensor, (6,), CDTYPE)
+    # Convert tensor to matrix
     _tensor_to_matrix(tensor, output)
+    # Return
     return output
+
 
 def diagional_tensor_to_matrix(tensor, output = None):
     """Converts tensor of shape (3,) to matrix of shape (3,3)
