@@ -366,14 +366,7 @@ def raw2director(data, order="zyxn", nvec="xyz"):
     >>> director = raw2director(a, "xyzn")
     """
     # If not in zyxn order, then try to rearrange to correct order
-    if order != "zyxn":
-        # If not in zxyn order, then we must transpose data
-        try:
-            axes = (order.find(c) for c in "zyxn")
-            axes = tuple((i for i in axes if i != -1))
-            data = np.transpose(data, axes)
-        except:
-            raise ValueError("Invalid value for 'order'. Must be a permutation of 'xyzn' characters")
+    data = _reorder(data, order, "zyxn")
 
     # If nvec not in xyz order, then try to rearrange to correct order
     if nvec != "xyz":
@@ -431,6 +424,33 @@ def read_raw(file, shape, dtype, sep = "", endian = sys.byteorder):
 #    if n2 is None:
 #        n2 = n1
 #    return np.array([n1,n2,n3])
+
+
+def _reorder(data, order, possible_order):
+    """
+
+    Parameters
+    ----------
+    data
+    oder
+    possible_order
+
+    Returns
+    -------
+
+    """
+    # If not in <possible_order> order, then try to rearrange to correct order
+    if order != possible_order:
+        # If not in zxyn order, then we must transpose data
+        try:
+            axes = (order.find(c) for c in possible_order)
+            axes = tuple((i for i in axes if i != -1))
+            return np.transpose(data, axes)
+        except:
+            raise ValueError("Invalid value for 'order'. "
+                             "Must be a permutation of '{}' characters".format(possible_order))
+    else:
+        return data
 
 
 def _r3(shape):
