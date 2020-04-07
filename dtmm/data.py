@@ -43,7 +43,12 @@ def read_director(file, shape, dtype=FDTYPE, sep="", endian=sys.byteorder, order
         describes what are the meaning of axes in data.
     nvec : str, optional
         Order of the director data coordinates. Any permutation of 'x', 'y' and 
-        'z', e.g. 'yxz', 'zxy' ... 
+        'z', e.g. 'yxz', 'zxy' ...
+
+    Returns
+    -------
+    director : np.ndarray
+        The director field in order <order>
     """
     if len(list(shape)) != 4:
         raise TypeError("shape must be director data shape (z,x,y,n)")
@@ -84,7 +89,7 @@ def rotate_director(rotation_matrix, data, method="linear", fill_value=(0., 0., 
 
     Returns
     -------
-    y : ndarray
+    y : np.ndarray
         A rotated director field
 
     See Also
@@ -236,6 +241,10 @@ def director2data(director, mask=None, no=1.5, ne=1.6, nhost=None,
     thickness : ndarray
         Thickness of layers (in pixels). If not provided, this defaults to ones.
 
+    Returns
+    -------
+    output : tuple[np.ndarray]
+
     """
     # Preallocate director
     material = np.empty(shape=director.shape, dtype=FDTYPE)
@@ -357,7 +366,7 @@ def raw2director(data, order="zyxn", nvec="xyz"):
     Returns
     -------
     director : array
-        A new array or same array (if no trasposing and data copying was made)
+        A new array or same array (if no transposing and data copying was made)
 
     Example
     -------
@@ -428,14 +437,21 @@ def read_raw(file, shape, dtype, sep = "", endian = sys.byteorder):
 
 def _reorder(data, order, possible_order):
     """
+    Helper function to reorder data based on a passed order and the possible order string
 
     Parameters
     ----------
-    data
-    oder
-    possible_order
+    data : array
+
+    order : str
+
+    possible_order: str
+
 
     Returns
+    ----------
+    data : array
+        A new array or same array (if no transposing and data copying was made)
     -------
 
     """
