@@ -528,10 +528,14 @@ class FieldViewer(object):
         specter = self.calculate_specter(recalc,**params)
         if recalc or "intensity" in self._updated_parameters:
             if self.intensity is not None:
-                if self.mode == "r":
-                    norm = -1./self.intensity
+                if self.intensity != 0.0:
+                    if self.mode == "r":
+                        norm = -1./self.intensity
+                    else:
+                        norm = 1./self.intensity
                 else:
-                    norm = 1./self.intensity
+                    norm = 0.0
+
                 self.image = specter2color(specter,self.cmf, norm = norm, gamma = self.gamma, gray = self.gray) 
             else:
                 if self.mode == "r":
