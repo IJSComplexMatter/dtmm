@@ -827,7 +827,7 @@ def angles2director(data, out):
     out[2] = s * cos_theta
 
 
-def expand(data, shape, xoff=None, yoff=None, zoff=None, fill_value=0.):
+def expand(data, shape, x_off=None, y_off=None, z_off=None, fill_value=0.):
     """
     Creates a new scalar or vector field data with an expanded volume.
     Missing data points are filled with fill_value. Output data shape
@@ -839,35 +839,43 @@ def expand(data, shape, xoff=None, yoff=None, zoff=None, fill_value=0.):
        Input vector or scalar field data
     shape : array_like
        A scalar or length 3 vector that defines the volume of the output data
-    xoff : int, optional
+    x_off : int, optional
        Data offset value in the x direction. If provided, original data is 
        copied to new data starting at this offset value. If not provided, data 
        is copied symmetrically (default).
-    yoff : int, optional
+    y_off : int, optional
        Data offset value in the x direction. 
-    zoff : int, optional
+    z_off : int, optional
        Data offset value in the z direction.     
     fill_value : array_like
        A length 3 vector of default values for the border volume data points.
        
     Returns
     -------
-    y : array_like
+    out : array_like
        Expanded output data
     """
+    # Ensure data is numpy array
     data = np.asarray(data)
-    nz,nx,ny = shape
+    # size of data in z, x, and y dimension
+    # TODO: This seems confusing for the user. Standard order is "zyxn", not "zxyn" for director.
+    nz, nx, ny = shape
+
     if nz >= data.shape[0] and ny >= data.shape[1] and nx >= data.shape[2]:
-        out = np.empty(shape = shape + data.shape[3:], dtype = data.dtype)
-        out[...,:] = fill_value
-        if xoff is None:
-            xoff = (shape[1] - data.shape[1])//2
-        if yoff is None:
-            yoff = (shape[2] - data.shape[2])//2
-        if zoff is None:
-            zoff = (shape[0] - data.shape[0])//2
-    
-        out[zoff:data.shape[0]+zoff,yoff:data.shape[1]+yoff,xoff:data.shape[2]+xoff,...] = data
+        # Preallocate output
+        out = np.empty(shape=shape + data.shape[3:], dtype=data.dtype)
+        # Fill in with default value
+        out[..., :] = fill_value
+
+        # Set default values for any offset values not provided
+        if x_off is None:
+            x_off = (shape[1] - data.shape[1]) // 2
+        if y_off is None:
+            y_off = (shape[2] - data.shape[2]) // 2
+        if z_off is None:
+            z_off = (shape[0] - data.shape[0]) // 2
+
+        out[z_off:data.shape[0] + z_off, y_off:data.shape[1] + y_off, x_off:data.shape[2] + x_off, ...] = data
         return out 
     else:
         raise ValueError("Requested shape {} is not larger than original data's shape".format(shape))
