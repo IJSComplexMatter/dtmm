@@ -281,7 +281,7 @@ def validate_optical_data(data, homogeneous=False):
     data : tuple of optical data
         A valid optical data tuple.
     homogeneous : bool, optional
-        Whether data is for a homogenous layer. (Inhomogeneous by default)
+        Whether data is for a homogeneous layer. (Inhomogeneous by default)
 
     Returns
     -------
@@ -647,7 +647,7 @@ def nematic_droplet_data(shape, radius, profile="r", no=1.5, ne=1.6, nhost=1.5):
 
     Parameters
     ----------
-    shape : (int, int, int)
+    shape : tuple[int]
         (nz,nx,ny) shape of the stack. First dimension is the number of layers,
         second and third are the x and y dimensions of the compute box.
     radius : float
@@ -665,7 +665,7 @@ def nematic_droplet_data(shape, radius, profile="r", no=1.5, ne=1.6, nhost=1.5):
 
     Returns
     -------
-    out : tuple of length 3
+    out : tuple[np.ndarray]
         A (thickness, material_eps, angles) tuple of three arrays
     """
     # Create the director and droplet mask
@@ -684,7 +684,7 @@ def cholesteric_droplet_data(shape, radius, pitch, hand="left", no=1.5, ne=1.6, 
     
     Parameters
     ----------
-    shape : (int, int, int)
+    shape : tuple[int]
         (nz, nx, ny) shape of the stack. First dimension is the number of layers,
         second and third are the x and y dimensions of the compute box.
     radius : float
@@ -702,12 +702,12 @@ def cholesteric_droplet_data(shape, radius, pitch, hand="left", no=1.5, ne=1.6, 
         
     Returns
     -------
-    out : tuple of length 3
+    out : tuple[np.ndarray]
         A (thickness, material_eps, angles) tuple of three arrays
     """
     # Calculate director
     director = cholesteric_director(shape, pitch, hand=hand)
-    # Calcualte spherical mask
+    # Calculate spherical mask
     mask = sphere_mask(shape, radius)
     # Combine mask and directed to obtain final data, then return
     return director2data(director, mask=mask, no=no, ne=ne, nhost=nhost)
@@ -803,7 +803,7 @@ def angles2director(data, out):
 
     """
 
-    # Check that director is corrent shape
+    # Check that director is correct shape
     if data.shape[0] != 3:
         raise TypeError("invalid shape")
 
@@ -827,8 +827,9 @@ def angles2director(data, out):
     out[2] = s * cos_theta
 
 
-def expand(data, shape, xoff = None, yoff = None, zoff = None, fill_value = 0.):
-    """Creates a new scalar or vector field data with an expanded volume. 
+def expand(data, shape, xoff=None, yoff=None, zoff=None, fill_value=0.):
+    """
+    Creates a new scalar or vector field data with an expanded volume.
     Missing data points are filled with fill_value. Output data shape
     must be larger than the original data.
     
@@ -842,17 +843,17 @@ def expand(data, shape, xoff = None, yoff = None, zoff = None, fill_value = 0.):
        Data offset value in the x direction. If provided, original data is 
        copied to new data starting at this offset value. If not provided, data 
        is copied symmetrically (default).
-    yoff, int, optional
+    yoff : int, optional
        Data offset value in the x direction. 
-    zoff, int, optional
+    zoff : int, optional
        Data offset value in the z direction.     
-    fill_value: array_like
+    fill_value : array_like
        A length 3 vector of default values for the border volume data points.
        
     Returns
     -------
     y : array_like
-       Expanded ouput data
+       Expanded output data
     """
     data = np.asarray(data)
     nz,nx,ny = shape
@@ -871,13 +872,19 @@ def expand(data, shape, xoff = None, yoff = None, zoff = None, fill_value = 0.):
     else:
         raise ValueError("Requested shape {} is not larger than original data's shape".format(shape))
 
-_REFIND_DECL = [(NF32DTYPE[:],NF32DTYPE[:]), (NF64DTYPE[:],NFDTYPE[:]),(NC64DTYPE[:],NC64DTYPE[:]), (NC128DTYPE[:],NCDTYPE[:])]
+
+_REFIND_DECL = [(NF32DTYPE[:], NF32DTYPE[:]),
+                (NF64DTYPE[:], NFDTYPE[:]),
+                (NC64DTYPE[:], NC64DTYPE[:]),
+                (NC128DTYPE[:], NCDTYPE[:])]
+
 
 @numba.njit(_REFIND_DECL, cache = NUMBA_CACHE)  
 def _refind2eps(refind, out):
     out[0] = refind[0]**2
     out[1] = refind[1]**2
     out[2] = refind[2]**2
+
 
 @numba.guvectorize(_REFIND_DECL,"(n)->(n)", cache = NUMBA_CACHE)  
 def refind2eps(refind, out):
@@ -912,8 +919,11 @@ def _uniaxial_order(order, eps, out):
 
     return out
 
+
 _EPS_DECL_VEC = ["(float32[:],float32[:],float32[:])","(float64[:],float64[:],float64[:])",
              "(float32[:],complex64[:],complex64[:])","(float64[:],complex128[:],complex128[:])"]
+
+
 @numba.guvectorize(_EPS_DECL_VEC ,"(),(n)->(n)", cache = NUMBA_CACHE)
 def uniaxial_order(order, eps, out):
     """
@@ -929,14 +939,16 @@ def uniaxial_order(order, eps, out):
     """
     assert eps.shape[0] == 3
     _uniaxial_order(order[0], eps, out)
-    
-MAGIC = b"dtms" #legth 4 magic number for file ID
+
+# length 4 magic number for file ID
+MAGIC = b"dtms"
 VERSION = b"\x00"
 
 """
-IOs fucntions
+IOs functions
 -------------
 """
+
 
 def save_stack(file, optical_data):
     """Saves optical data to a binary file in ``.dtms`` format.
@@ -1027,7 +1039,8 @@ def load_stack(file):
 #    """
 #    assert eps.shape[0] == 3
 #    _uniaxial_order(0., eps, out)
-    
+
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
