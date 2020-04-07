@@ -879,17 +879,40 @@ _REFIND_DECL = [(NF32DTYPE[:], NF32DTYPE[:]),
                 (NC128DTYPE[:], NCDTYPE[:])]
 
 
-@numba.njit(_REFIND_DECL, cache = NUMBA_CACHE)  
+@numba.njit(_REFIND_DECL, cache=NUMBA_CACHE)
 def _refind2eps(refind, out):
+    """
+    Helper function for refind2eps() in order to work in parallel.
+
+    Parameters
+    ----------
+    refind : array_like
+        complex refractive indices
+    out : array_like
+        dielectric tensor elements
+
+    """
+    # Convert from index of refraction value to dielectric value
     out[0] = refind[0]**2
     out[1] = refind[1]**2
     out[2] = refind[2]**2
 
 
-@numba.guvectorize(_REFIND_DECL,"(n)->(n)", cache = NUMBA_CACHE)  
+@numba.guvectorize(_REFIND_DECL, "(n)->(n)", cache=NUMBA_CACHE)
 def refind2eps(refind, out):
-    """Converts three eigen (complex) refractive indices to three eigen dielectric tensor elements"""
+    """
+    Converts three eigen (complex) refractive indices to three eigen dielectric tensor elements
+
+    Parameters
+    ----------
+    refind : array_like
+        complex refractive indices
+    out : array_like
+        dielectric tensor elements
+    """
+
     assert refind.shape[0] == 3
+
     _refind2eps(refind, out)
 
 
