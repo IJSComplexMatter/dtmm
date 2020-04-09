@@ -43,12 +43,14 @@ def _redim(a, ndim=1):
         new_shape = (np.multiply.reduce(old_shape[0:n+1]),) + old_shape[n+1:]
     return a.reshape(new_shape)
 
-def bulk_viewer(field_data, cmf = None, window = None, **parameters):
-    """Returns a FieldViewer object for optical microsope simulation
+
+def bulk_viewer(field_data, cmf=None, window=None, **parameters):
+    """
+    Returns a FieldViewer object for optical microscope simulation
     
     Parameters
     ----------
-    field_data : field data tuple
+    field_data : tuple[np.ndarray]
         Input field data
     cmf : str, ndarray or None, optional
         Color matching function (table). If provided as an array, it must match 
@@ -62,11 +64,11 @@ def bulk_viewer(field_data, cmf = None, window = None, **parameters):
         
     Returns
     -------
-    out : viewer
+    out : BulkViewer
         A :class:`BulkViewer` viewer object 
     
     """    
-    return field_viewer(field_data, cmf, bulk_data = True, window = window, **parameters)
+    return field_viewer(field_data, cmf, bulk_data=True, window=window, **parameters)
 
 def field_viewer(field_data, cmf = None, bulk_data = False, n = 1., mode = None,
                  window = None, diffraction = True, polarization = "normal", betamax = BETAMAX, **parameters):
