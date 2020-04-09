@@ -161,6 +161,19 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None,
 
 
 def _float_or_none(value):
+    """
+    Helper function to convert the passed value to a float and return it, or return None.
+
+    Parameters
+    ----------
+    value : SupportsFloat, _SupportsIndex, str, bytes, bytearray
+        A value which can be represented as a float, or None.
+
+    Returns
+    -------
+    value: float, optional
+        The passed value represented as a float, or None if it does not exist.
+    """
     return float(value) if value is not None else None
  
 
