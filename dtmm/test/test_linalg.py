@@ -3,12 +3,27 @@ import numpy as np
 import dtmm.linalg as linalg
 
 
-def dm(d):
-    """transforms to diagonal matrix from a vector"""
-    dm = np.zeros(d.shape + (d.shape[-1],), d.dtype)
+def vector2diagonal_matrix(vector):
+    """
+    Transforms a vector to a diagonal matrix.
+    Parameters
+    ----------
+    vector : array
+        Vector to turn into a diagonal matrix.
+
+    Returns
+    -------
+    diagonal_matrix: array
+        The diagonal matrix created from vector
+    """
+    # Create the diagonal matrix and set all values to 0
+    diagonal_matrix = np.zeros(vector.shape + (vector.shape[-1],), vector.dtype)
+    # Add vector elements along the diagonal
     for i in range(4):
-        dm[...,i,i] = d[...,i]    
-    return dm
+        diagonal_matrix[..., i, i] = vector[..., i]
+
+    return diagonal_matrix
+
 
 class TestLinalg2(unittest.TestCase):
     
@@ -40,20 +55,20 @@ class TestLinalg2(unittest.TestCase):
   
     def test_dotmdmf(self):
         out = linalg.dotmdmf(self.a,self.d,self.b,self.f)
-        matrices = [self.a,dm(self.d),self.b, self.f]
+        matrices = [self.a, vector2diagonal_matrix(self.d), self.b, self.f]
         self.compare_results(out,matrices)
         
     def test_dotmdmf2(self):
         kd = 2.3
         e = np.exp(1j*kd*self.d)
         out = linalg.dotmdmf(self.a,e,self.b,self.f)
-        matrices = [self.a,dm(e),self.b, self.f]
+        matrices = [self.a, vector2diagonal_matrix(e), self.b, self.f]
         self.compare_results(out,matrices)        
 
     def test_ftransmit(self):
         kd = 2.3
         out = linalg.ftransmit(kd,self.a,self.d.real,self.b,self.f)
-        matrices = [self.a,dm(np.exp(1j*kd*self.d.real)),self.b,self.f]
+        matrices = [self.a, vector2diagonal_matrix(np.exp(1j * kd * self.d.real)), self.b, self.f]
         self.compare_results(out,matrices)
 
     def test_btransmit(self):

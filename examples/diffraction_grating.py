@@ -3,6 +3,9 @@
 import dtmm
 import numpy as np
 import matplotlib.pyplot as plt
+# Change matplotlib backend to an interactive one
+import matplotlib
+matplotlib.use("TkAgg")
 
 #: pixel size in nm
 PIXELSIZE = 100
@@ -10,7 +13,6 @@ PIXELSIZE = 100
 NLAYERS, HEIGHT, WIDTH = 10, 1024,1024
 #: illumination wavelengths in nm
 WAVELENGTHS = np.linspace(380,780,9)
-WAVELENGTHS = [600]
 #: dummy data..
 d, e, a = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
           radius = 3000, profile = "x", no = 1.5, ne = 1.5, nhost = 1.5)
@@ -46,6 +48,6 @@ viewer1 = dtmm.field_viewer((f,w,p), betamax = 1)
 viewer1.set_parameters(sample = 0, intensity = 2,
                 polarizer = None, focus = 0, analyzer = 0)
 
-fig,ax = viewer1.plot(fmax = 1000)
+fig, ax = viewer1.plot(fmax = 1000)
 ax.set_title("near field")
-
+fig.show()

@@ -1,5 +1,5 @@
 """
-Numba optimized linear algebra functions for 4x4 matrices and 2x2 martrices.
+Numba optimized linear algebra functions for 4x4 matrices and 2x2 matrices.
 """
 
 from __future__ import absolute_import, print_function, division
@@ -7,25 +7,43 @@ from dtmm.conf import NCDTYPE, NFDTYPE, NUMBA_TARGET,NUMBA_PARALLEL, NUMBA_CACHE
 from numba import njit, prange, guvectorize
 import numpy as np
 
-if NUMBA_PARALLEL == False:
+if not NUMBA_PARALLEL:
     prange = range
 
 
-@njit([(NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def _inv2x2(src,dst):
-    a = src[0,0]
-    b = src[0,1]
-    c = src[1,0]
-    d = src[1,1]
-    det = a*d-b*c
+@njit([(NCDTYPE[:, :], NCDTYPE[:, :])], cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)
+def _inv2x2(src, dst):
+    """
+
+    Parameters
+    ----------
+    src : array
+        (2, 2) input array to invert
+    dst : array
+        (2, 2) output array to store the invert input array
+
+    Returns
+    -------
+
+    """
+    # Extract individual elements
+    a = src[0, 0]
+    b = src[0, 1]
+    c = src[1, 0]
+    d = src[1, 1]
+
+    # Calculate determinant
+    det = a * d - b * c
     if det == 0.:
-        det = 0.#np.nan
+        det = 0.
     else:
-        det = 1./det
-    dst[0,0] = d*det
-    dst[0,1] = -b*det
-    dst[1,0] = -c*det
-    dst[1,1] = a*det
+        det = 1. / det
+
+    # Calcualte inverse
+    dst[0, 0] =  d * det
+    dst[0, 1] = -b * det
+    dst[1, 0] = -c * det
+    dst[1, 1] =  a * det
 
 @njit([NCDTYPE[:,:](NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _inv4x4(src,dst):
