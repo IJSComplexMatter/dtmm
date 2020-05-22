@@ -65,17 +65,17 @@ class TestLinalg2(unittest.TestCase):
         matrices = [self.a, vector2diagonal_matrix(e), self.b, self.f]
         self.compare_results(out,matrices)        
 
-    def test_ftransmit(self):
-        kd = 2.3
-        out = linalg.ftransmit(kd,self.a,self.d.real,self.b,self.f)
-        matrices = [self.a, vector2diagonal_matrix(np.exp(1j * kd * self.d.real)), self.b, self.f]
-        self.compare_results(out,matrices)
+#    def test_ftransmit(self):
+#        kd = 2.3
+#        out = linalg.ftransmit(kd,self.a,self.d.real,self.b,self.f)
+#        matrices = [self.a, vector2diagonal_matrix(np.exp(1j * kd * self.d.real)), self.b, self.f]
+#        self.compare_results(out,matrices)
 
-    def test_btransmit(self):
-        kd = 2.3
-        out = linalg.btransmit(kd,self.a,self.d,self.b,self.f)
-        out2 = linalg.ftransmit(-kd,self.a,self.d,self.b,self.f)
-        self.assertTrue(np.allclose(out,out2)) 
+#    def test_btransmit(self):
+#        kd = 2.3
+#        out = linalg.btransmit(kd,self.a,self.d,self.b,self.f)
+#        out2 = linalg.ftransmit(-kd,self.a,self.d,self.b,self.f)
+#        self.assertTrue(np.allclose(out,out2)) 
 
                 
 if __name__ == "__main__":
