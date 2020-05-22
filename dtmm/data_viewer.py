@@ -142,7 +142,11 @@ def plot_material(data, eps = None, center = False, xlim = None,
     if ax is  None:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.set_aspect('equal')
+        try:
+            #this does not work in recent versions of matplotlib
+            ax.set_aspect('equal')
+        except NotImplementedError:
+            pass
     xx, yy, zz = _r3(material.shape[0:-1], center)
     
     #mmin, mmax  = material.min(), material.max()
@@ -200,7 +204,11 @@ def plot_director(director, fig = None, center = False, xlim = None,
     if ax is  None:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        ax.set_aspect('equal')
+        try:
+            ax.set_aspect('equal')
+        except NotImplementedError:
+            #for some reason nev versions of matplotlib wont allow you to set aspect
+            pass
     # Make the grid
     xx, yy, zz = _r3(director.shape[0:3], center)
     mask = _mask(xx,yy,zz,xlim,ylim,zlim)
@@ -210,7 +218,7 @@ def plot_director(director, fig = None, center = False, xlim = None,
     v = director[...,1][mask]
     w = director[...,2][mask]
 
-    ax.quiver(xx[mask], yy[mask], zz[mask], u, v, w, arrow_length_ratio = 0.3 ,pivot = "middle")#, length=0.1, normalize=True)
+    ax.quiver(xx[mask], yy[mask], zz[mask], u, v, w, length = 1., arrow_length_ratio = 0.3 ,pivot = "middle")#, length=0.1, normalize=True)
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')    

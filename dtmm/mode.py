@@ -121,10 +121,33 @@ def betaxy2betaphi(bx,by):
     return beta, phi
 
 @cached_result
-def fft_mask(shape, k0, n, betax_off = 0., betay_off = 0., betamax = BETAMAX):
+def fft_mask_full(shape, k0, n, betax_off = 0., betay_off = 0., betamax = BETAMAX):
     
     betax, betay = fft_betaxy(shape, k0)
     windows = fft_windows(betax, betay, n, betax_off = betax_off, betay_off = betay_off, betamax = betamax)
     bxm, bym = fft_betaxy_mean(betax, betay, windows)
 
     return windows, betaxy2betaphi(bxm,bym)
+
+@cached_result
+def fft_mask(shape, k0, n, betax_off = 0., betay_off = 0., betamax = BETAMAX):
+    windows, (bs,ps) = fft_mask_full(shape, k0, n, betax_off, betay_off, betamax)
+    zero = np.asarray([np.alltrue(w == 0.) for w in windows])
+    nonzero = np.logical_not(zero)
+    
+    return windows[nonzero], (bs[nonzero], ps[nonzero])
+    
+    
+if __name__ == "__main__":
+    w,bp = fft_mask_full((64,1), (1,), 3, betax_off = 0.)
+    import matplotlib.pyplot as plt
+    fig,axes = plt.subplots(3,3)
+    for i in range(3):
+        for j in range(3):
+            n = i + 3*j
+            axes[i,j].imshow(np.fft.fftshift(w[n,0,0]))
+            axes[i,j].axis('off')
+
+    plt.show()
+    
+    

@@ -68,7 +68,7 @@ pmat = tmm.projection_mat(fout,mode = +1)
 mmat = tmm.projection_mat(fin, mode = -1)
 pmatin = tmm.projection_mat(fin,mode = +1)
 #: build EM field 4-vector (Ex, Hy, Ey, Hx) of a given polarization
-fvec = tmm.field4(fin,jones = pol1)
+fvec = tmm.fvec(fin,jones = pol1)
 fvec = dotmv(pmatin,fvec)
 
 #: transmit the field and update fvec with reflected waves
@@ -93,7 +93,7 @@ Tin1 = intensity(dotmv(x_polarizer,tfvecin))
 Tin2 = intensity(dotmv(y_polarizer,tfvecin))
 
 #now do the same for x polarization
-fvec = tmm.field4(fin,jones = pol2)
+fvec = tmm.fvec(fin,jones = pol2)
 tfvec = tmm.transmit(fvec, cmat, fmatin = fin, fmatout = fout)
 rfvec = dotmv(mmat,fvec)
 #tfvec = dotmv(pmat,tfvec)

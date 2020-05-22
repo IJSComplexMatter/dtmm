@@ -1,7 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Field denoising
+Field denoising functions.
 """
 
 import numpy as np

@@ -21,7 +21,7 @@ from dtmm.linalg import dotmf, dotmm
 from dtmm.fft import fft2, ifft2
 
 #: settable viewer parameters
-VIEWER_PARAMETERS = ("focus","analyzer", "polarizer", "sample", "intensity")
+VIEWER_PARAMETERS = ("focus","analyzer", "polarizer", "sample", "intensity", "cols","rows")
 
 
 def _redim(a, ndim=1):
@@ -149,6 +149,8 @@ def _float_or_none(value):
 class FieldViewer(object): 
     """Base viewer"""  
     _updated_parameters = set()
+    _rows = 1
+    _cols = 1
     _focus = None
     _polarizer = None
     _sample = None
@@ -204,6 +206,24 @@ class FieldViewer(object):
             raise ValueError("Cannot set focus of a non-diffractive field.")
 
     @property
+    def cols(self):
+        return self._cols
+    
+    @cols.setter    
+    def cols(self, cols):
+        self._cols = max(1,int(cols))
+        self._updated_parameters.add("cols")   
+
+    @property
+    def rows(self):
+        return self._rows
+    
+    @rows.setter    
+    def rows(self, rows):
+        self._rows = max(1,int(rows))
+        self._updated_parameters.add("rows")   
+
+    @property
     def sample(self):
         """Sample rotation angle."""
         return self._sample
@@ -257,7 +277,7 @@ class FieldViewer(object):
         """Returns viewer parameters as dict"""
         return {name : getattr(self,name) for name in VIEWER_PARAMETERS}
         
-    def plot(self, ax = None, show_sliders = True, **kwargs):
+    def plot(self, fig = None,ax = None, sliders = None, show_sliders = True, **kwargs):
         """Plots field intensity profile. You can set any of the below listed
         arguments. Additionaly, you can set any argument that imshow of
         matplotlib uses (e.g. 'interpolation = "sinc"').
@@ -285,12 +305,20 @@ class FieldViewer(object):
         amax : float, optional
             Maximum value for analyzer angle.  
         """
-
-        self.fig = plt.figure() if ax is None else ax.figure
+        if fig is None:
+            if ax is None:
+                self.fig = plt.figure() 
+            else:
+                self.fig = ax.figure
+        else:
+            self.fig = fig
+                
         self.ax = self.fig.add_subplot(111) if ax is None else ax
         
         plt.subplots_adjust(bottom=0.25)  
         self.calculate_image()
+        
+        self.sliders = {} if sliders is None else sliders
         
         if show_sliders:
 
@@ -320,26 +348,32 @@ class FieldViewer(object):
                     [0.25, 0.05, 0.65, 0.03],
                     [0.25, 0.02, 0.65, 0.03]]
             
+            
             if self.intensity is not None:
-                self.axintensity = plt.axes(axes.pop())
-                self._sintensity = Slider(self.axintensity, "intensity",kwargs.pop("imin",0),kwargs.pop("imax",max(10,self.intensity)),valinit = self.intensity, valfmt='%.1f')
-                self._ids5 = self._sintensity.on_changed(update_intensity)
+                if self.sliders.get("intensity") is None:
+                    self.axintensity = self.fig.add_axes(axes.pop())
+                    self.sliders["intensity"] = Slider(self.axintensity, "intensity",kwargs.pop("imin",0),kwargs.pop("imax",max(10,self.intensity)),valinit = self.intensity, valfmt='%.1f')
+                self._ids5 = self.sliders["intensity"].on_changed(update_intensity)
             if self.polarizer is not None:
-                self.axpolarizer = plt.axes(axes.pop())
-                self._spolarizer = Slider(self.axpolarizer, "polarizer",kwargs.pop("pmin",0),kwargs.pop("pmax",90),valinit = self.polarizer, valfmt='%.1f')
-                self._ids4 = self._spolarizer.on_changed(update_polarizer)    
+                if self.sliders.get("polarizer") is None:
+                    self.axpolarizer = self.fig.add_axes(axes.pop())
+                    self.sliders["polarizer"] = Slider(self.axpolarizer, "polarizer",kwargs.pop("pmin",0),kwargs.pop("pmax",90),valinit = self.polarizer, valfmt='%.1f')
+                self._ids4 = self.sliders["polarizer"].on_changed(update_polarizer)    
             if self.sample is not None:
-                self.axsample = plt.axes(axes.pop())
-                self._ssample = Slider(self.axsample, "sample",kwargs.pop("smin",-180),kwargs.pop("smax",180),valinit = self.sample, valfmt='%.1f')
-                self._ids3 = self._ssample.on_changed(update_sample)    
+                if self.sliders.get("sample") is None:
+                    self.axsample = self.fig.add_axes(axes.pop())
+                    self.sliders["sample"] = Slider(self.axsample, "sample",kwargs.pop("smin",-180),kwargs.pop("smax",180),valinit = self.sample, valfmt='%.1f')
+                self._ids3 = self.sliders["sample"].on_changed(update_sample)    
             if self.analyzer is not None:
-                self.axanalyzer = plt.axes(axes.pop())
-                self._sanalyzer = Slider(self.axanalyzer, "analyzer",kwargs.pop("amin",0),kwargs.pop("amax",90),valinit = self.analyzer, valfmt='%.1f')
-                self._ids2 = self._sanalyzer.on_changed(update_analyzer)
-            if self.focus is not None:    
-                self.axfocus = plt.axes(axes.pop())
-                self._sfocus = Slider(self.axfocus, "focus",kwargs.pop("fmin",self._default_fmin),kwargs.pop("fmax",self._default_fmax),valinit = self.focus, valfmt='%.1f')
-                self._ids1 = self._sfocus.on_changed(update_focus)
+                if self.sliders.get("analyzer") is None:
+                    self.axanalyzer = self.fig.add_axes(axes.pop())
+                    self.sliders["analyzer"] = Slider(self.axanalyzer, "analyzer",kwargs.pop("amin",0),kwargs.pop("amax",90),valinit = self.analyzer, valfmt='%.1f')
+                self._ids2 = self.sliders["analyzer"].on_changed(update_analyzer)
+            if self.focus is not None:  
+                if self.sliders.get("focus") is None:      
+                    self.axfocus = self.fig.add_axes(axes.pop())
+                    self.sliders["focus"] = Slider(self.axfocus, "focus",kwargs.pop("fmin",self._default_fmin),kwargs.pop("fmax",self._default_fmax),valinit = self.focus, valfmt='%.1f')
+                self._ids1 = self.sliders["focus"].on_changed(update_focus)
             
         self.axim = self.ax.imshow(self.image, origin = kwargs.pop("origin","lower"), **kwargs)
         
@@ -538,6 +572,10 @@ class FieldViewer(object):
                     self.image = specter2color(specter,self.cmf, norm = -1., gamma = self.gamma, gray = self.gray) 
                 else:
                     self.image = specter2color(specter,self.cmf, gamma = self.gamma, gray = self.gray) 
+            
+            self.image = np.hstack(tuple((self.image for i in range (self.cols))))
+            self.image = np.vstack(tuple((self.image for i in range (self.rows))))
+            
             if self.sample != 0 and self.sample is not None:
                 self.image = nd.rotate(self.image, self.sample, reshape = False, order = 1) 
         self._updated_parameters.clear()
@@ -563,6 +601,10 @@ class FieldViewer(object):
         """Triggers plot redraw"""
         self.calculate_image()
         self.axim.set_data(self.image)
+        #for key, slider in self.sliders.items():
+        #    slider.set_active(False)
+        #    slider.set_val(getattr(self,key))
+        #    slider.set_active(True)
         self.fig.canvas.draw_idle()  
    
     def show(self):

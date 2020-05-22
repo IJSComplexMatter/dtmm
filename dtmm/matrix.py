@@ -10,7 +10,7 @@ from dtmm.conf import cached_function, BETAMAX,FDTYPE,CDTYPE
 from dtmm.tmm import alphaffi, alphaEEi, alphaf,  E_mat, phase_mat
 from dtmm.linalg import dotmdm, dotmm,  inv
 from dtmm.diffract import diffraction_alphaffi, E_diffraction_matrix, phase_matrix, diffraction_alphaf
-
+from dtmm.mode import fft_mask
 import numpy as np
 from dtmm.diffract import field_diffraction_matrix
 
@@ -66,6 +66,22 @@ def corrected_Epn_diffraction_matrix(shape, ks, beta,phi, d=1.,
     en = corrected_E_diffraction_matrix(shape, ks, beta,phi, d= d,
                                  epsv = epsv, epsa = epsa, mode = -1, betamax = betamax)
     return ep, en
+
+
+@cached_function
+def corrected_Epn_diffraction_matrix2(shape, ks, beta,phi, d=1.,
+                                 epsv = (1,1,1), epsa = (0,0,0.), betamax = BETAMAX, out = None):
+    ep = corrected_E_diffraction_matrix(shape, ks, beta,phi, d= d,
+                                 epsv = epsv, epsa = epsa, mode = +1, betamax = betamax)
+    en = corrected_E_diffraction_matrix(shape, ks, beta,phi, d= d,
+                                 epsv = epsv, epsa = epsa, mode = -1, betamax = betamax)
+    
+    shape = ep.shape[:-2] + (4,4)
+    out = np.zeros(shape = shape, dtype = ep.dtype)
+    out[...,::2,::2] = ep
+    out[...,1::2,1::2] = en
+    return out
+
     
 @cached_function
 def corrected_field_diffraction_matrix(shape, ks, beta,phi, d=1.,
@@ -124,15 +140,36 @@ def Epn_correction_matrix(beta,phi,ks, d=1., epsv = (1,1,1), epsa = (0,0,0.), ou
 
 @cached_function
 def first_corrected_Epn_diffraction_matrix(shape, ks, beta,phi, d=1.,
-                                 epsv = (1,1,1), epsa = (0,0,0.), betamax = BETAMAX, out = None):
+                                 epsv = (1,1,1), epsa = (0,0,0.), window = None, betamax = BETAMAX):
+    
     dmat = first_Epn_diffraction_matrix(shape, ks, d, epsv, epsa, betamax = betamax)
-    cmat = Epn_correction_matrix(beta, phi, ks, d, epsv, epsa)
-    return dotmm(cmat,dmat, out = None)
+    
+    if window is not None:
+        cmats = Epn_correction_matrix(beta, phi, ks, d, epsv, epsa)
+        out = np.zeros_like(dmat)
+        for w, cmat in zip(window,cmats):
+            out += dotmm(cmat,w* dmat)
+        return out
+            
+    else:
+        
+        cmat = Epn_correction_matrix(beta, phi, ks, d, epsv, epsa)
+        return dotmm(cmat,dmat)
 
 @cached_function
 def second_corrected_Epn_diffraction_matrix(shape, ks, beta,phi, d=1.,
-                                 epsv = (1,1,1), epsa = (0,0,0.), betamax = BETAMAX, out = None):
+                                 epsv = (1,1,1), epsa = (0,0,0.), window = None, betamax = BETAMAX):
     dmat = second_Epn_diffraction_matrix(shape, ks, d, epsv, epsa, betamax = betamax)
-    cmat = Epn_correction_matrix(beta, phi, ks, d, epsv, epsa)
-    return dotmm(dmat, cmat, out = None)
+    
+    if window is not None:
+        cmats = Epn_correction_matrix(beta, phi, ks, d, epsv, epsa)
+        out = np.zeros_like(dmat)
+        for w, cmat in zip(window,cmats):
+            out += dotmm(w * dmat,cmat)
+        return out
+            
+    else:
+            
+        cmat = Epn_correction_matrix(beta, phi, ks, d, epsv, epsa)
+        return dotmm(dmat, cmat, out = None)
 

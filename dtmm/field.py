@@ -7,13 +7,14 @@ from __future__ import absolute_import, print_function, division
 import numpy as np
 
 from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_TARGET, NUMBA_CACHE, BETAMAX , DTMMConfig
-from dtmm.wave import planewave
+from dtmm.wave import planewave, betaphi, wave2eigenwave
 from dtmm.diffract import diffracted_field
 from dtmm.window import aperture
-from dtmm.fft import fft2
-from dtmm.wave import betaxy
+from dtmm.fft import fft2, ifft2, fft, ifft
+from dtmm.wave import betaxy, eigenmask, eigenmask1
 from dtmm.window import blackman
-from dtmm.tmm import field4, alphaf 
+from dtmm.tmm import alphaf 
+from dtmm.tmm import fvec as field4
 from dtmm.data import refind2eps
 from dtmm.jones import jonesvec
 
@@ -25,19 +26,196 @@ if NUMBA_PARALLEL == False:
     
 sqrt = np.sqrt
 
-def transpose(field):
-    """transposes field from shape (..., k,n,m) to (...,n,m,k). Inverse of
-    itranspose_field"""
-    taxis = list(range(field.ndim))
-    taxis.append(taxis.pop(-3))
-    return field.transpose(taxis) 
+def field2fvec(field):
+    """transposes field array from shape (..., k,n,m) to (...,n,m,k)."""
+    return np.moveaxis(field,-3,-1)
+    #taxis = list(range(field.ndim))
+    #taxis.append(taxis.pop(-3))
+    #return field.transpose(taxis) 
 
-def itranspose(vec):
-    """transposes vector from shape (..., n,m,k) to (...,k,n,m). Inverse of 
-    transpose_field"""
-    taxis = list(range(vec.ndim))
-    taxis.insert(-2,taxis.pop(-1))
-    return vec.transpose(taxis) 
+def fvec2field(vec):
+    """transposes vector from shape (..., n,m,k) to (...,k,n,m)"""
+    return np.moveaxis(vec,-1,-3)
+    #taxis = list(range(vec.ndim))
+    #taxis.insert(-2,taxis.pop(-1))
+    #return vec.transpose(taxis) 
+
+def _field2modes(field, k0, betamax = BETAMAX):
+    f = fft2(field)
+    mask = eigenmask(f.shape[-2:], k0, betamax)
+    f = f[mask]
+    return np.moveaxis(f,-2,-1)
+
+def field2modes(field, k0, betamax = BETAMAX):
+    """Converts field array to modes array.
+    
+    Parameters
+    ----------
+    field : ndarray or tuple of ndarrays
+        Input field array (or tuple of input fields for each wavenumber)
+    k0 : float or a sequence of floats
+        Defines the wavenumber. Fol multi-wavelength data, this must be a
+        sequence of wawenumbers
+    betamax : float, optional
+        The beta cutoff parameter.
+        
+    Returns
+    -------
+    mask, modes : ndarray, ndarray or ndarray, tuple of ndarrays
+        For a single-wavelength data it returns the mask array specifying
+        the mode indices and modes coefficients array. For multi-wavelength data
+        the modes is a tuple of ndarrays for each of the wavelengths.
+            
+    """
+    if isinstance(field, tuple):
+        out = tuple((field2modes(field[i], k0[i], betamax ) for i in range(len(field))))
+        mask = tuple(o[0] for o in out)
+        modes = tuple(o[1] for o in out)
+        return mask, modes
+    
+    f = fft2(field)
+    k0 = np.asarray(k0)
+    mask = eigenmask(f.shape[-2:], k0, betamax)
+    if k0.ndim == 0:
+        return mask, np.moveaxis(f[...,mask],-2,-1)
+    else:
+        return mask, tuple((np.moveaxis(f[...,i,:,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
+
+def ffield2modes(ffield, k0, betamax = BETAMAX):
+
+    k0 = np.asarray(k0)
+    mask = eigenmask(ffield.shape[-2:], k0, betamax)
+    if k0.ndim == 0:
+        return mask, np.moveaxis(ffield[...,mask],-2,-1)
+    else:
+        return mask, tuple((np.moveaxis(ffield[...,i,:,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
+    
+
+
+def field2modes1(field, k0, betamax = BETAMAX):
+    """Converts field array to modes array.
+    
+    Parameters
+    ----------
+    field : ndarray or tuple of ndarrays
+        Input field array (or tuple of input fields for each wavenumber)
+    k0 : float or a sequence of floats
+        Defines the wavenumber. Fol multi-wavelength data, this must be a
+        sequence of wawenumbers
+    betamax : float, optional
+        The beta cutoff parameter.
+        
+    Returns
+    -------
+    mask, modes : ndarray, ndarray or ndarray, tuple of ndarrays
+        For a single-wavelength data it returns the mask array specifying
+        the mode indices and modes coefficients array. For multi-wavelength data
+        the modes is a tuple of ndarrays for each of the wavelengths.
+            
+    """
+    if isinstance(field, tuple):
+        out = tuple((field2modes1(field[i], k0[i], betamax ) for i in range(len(field))))
+        mask = tuple(o[0] for o in out)
+        modes = tuple(o[1] for o in out)
+        return mask, modes
+    
+    f = fft(field)
+    k0 = np.asarray(k0)
+    mask = eigenmask1(f.shape[-1], k0, betamax)
+    if k0.ndim == 0:
+        return mask, np.moveaxis(f[...,mask],-2,-1)
+    else:
+        return mask, tuple((np.moveaxis(f[...,i,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
+    
+    
+def modes2ffield(mask, modes, out = None):
+    """Inverse of ffield2modes. Takes the output of ffield2modes and recunstructs
+    the field array.
+    
+    Parameters
+    ----------
+    mask : ndarray
+        Mask array, as returned by field2modes
+    modes : ndarray or tuple of ndarrays
+        Modes array or a tuple of modes array (in case of multi-wavelength data).
+    """
+    if isinstance(mask, tuple):
+        if out is None:
+            out = (None,)* len(mask)
+        return tuple((modes2ffield(mask[i], modes[i], out = out[i]) for i in range(len(mask))))
+
+    shape = mask.shape[-2:]
+    if mask.ndim == 2:
+        shape = modes.shape[:-2] + (4,) + shape
+        if out is None:
+            out = np.zeros(shape =shape, dtype = CDTYPE )
+        else:
+            out[...] = 0.
+        modes = np.moveaxis(modes,-1,-2)
+        out[...,mask] = modes
+    else:
+        shape = modes[0].shape[:-2] + (len(mask),4,) + shape
+        if out is None:
+            out = np.zeros(shape =shape, dtype = CDTYPE )
+        else:
+            out[...] = 0.
+        for i,(mode, m) in enumerate(zip(modes,mask)):
+            mode = np.moveaxis(mode,-1,-2)
+            o = out[...,i,:,:,:]
+            o[...,m] = mode
+            #print(o[...,m].shape)
+            #print(mode.shape)
+       
+    return out
+
+def modes2field(mask, modes, out = None):
+    """Inverse of field2modes. Takes the output of field2modes and recunstructs
+    the field array.
+    
+    Parameters
+    ----------
+    mask : ndarray
+        Mask array, as returned by field2modes
+    modes : ndarray or tuple of ndarrays
+        Modes array or a tuple of modes array (in case of multi-wavelength data).
+    """
+    out = modes2ffield(mask, modes, out = out)
+    return ifft2(out, out)
+
+def modes2field1(mask, modes):
+    """Inverse of field2modes. Takes the output of field2modes and recunstructs
+    the field array.
+    
+    Parameters
+    ----------
+    mask : ndarray
+        Mask array, as returned by field2modes
+    modes : ndarray or tuple of ndarrays
+        Modes array or a tuple of modes array (in case of multi-wavelength data).
+    """
+    if isinstance(mask, tuple):
+        return tuple((modes2field1(mask[i], modes[i]) for i in range(len(mask))))
+
+    shape = mask.shape[-1:]
+    if mask.ndim == 1:
+        shape = modes.shape[:-2] + (4,) + shape
+        out = np.zeros(shape =shape, dtype = CDTYPE )
+
+        modes = np.moveaxis(modes,-1,-2)
+        out[...,mask] = modes
+        return ifft(out, overwrite_x = True)
+    else:
+        shape = modes[0].shape[:-2] + (len(mask),4,) + shape
+        out = np.zeros(shape =shape, dtype = CDTYPE )
+
+        for i,(mode, m) in enumerate(zip(modes,mask)):
+            mode = np.moveaxis(mode,-1,-2)
+            o = out[...,i,:,:]
+            o[...,m] = mode
+            #print(o[...,m].shape)
+            #print(mode.shape)
+       
+        return ifft(out, overwrite_x = True)
 
 def aperture2rays(diaphragm, betastep = 0.1, norm = True):
     """Takes a 2D image of a diaphragm and converts it to beta, phi, intensity"""
@@ -87,6 +265,28 @@ def illumination_rays(NA, diameter = 5., smooth = 0.1):
     a = illumination_aperture(diameter, smooth)
     return aperture2rays(a, betastep = betastep, norm = True)
 
+
+def illumination_eigenrays(shape, k0, NA = 0.2, scale = (1,1)):
+    scale = np.asarray(scale, dtype = int)
+    if scale.ndim == 0:
+        scale = (scale, scale)
+    elif scale.ndim != 1 or len(scale) != 2:
+        raise ValueError("Unknown scale parameter!")
+    b,p = betaphi(shape,k0)
+    bs = b[...,::scale[0],::scale[1]]
+    ps = p[...,::scale[0],::scale[1]]
+    
+    mask = bs <= NA
+    
+    if bs.ndim == 3:
+        bs = tuple((b[m] for b,m in zip(bs,mask)))
+        ps = tuple((ps[m] for m in mask))
+        intensity = tuple((1./m.sum() for m in mask))
+        return bs, ps, intensity
+    else:
+        return bs[mask], ps[mask], 1./mask.sum()
+
+
 #def illumination_betaphi(NA, nrays = 13):
 #    """Returns beta, phi values for illumination.
 #    
@@ -122,8 +322,12 @@ def illumination_waves(shape, k0, beta = 0., phi = 0., window = None, out = None
     """Builds scalar illumination wave. 
     """
     k0 = np.asarray(k0)
-    beta = np.asarray(beta)[...,np.newaxis]
-    phi = np.asarray(phi)[...,np.newaxis]
+    beta = np.asarray(beta)
+    phi = np.asarray(phi)
+    if beta.ndim < 1 :#and k0.ndim == 1:
+        beta = beta[...,np.newaxis]
+    if phi.ndim < 1 :#and k0.ndim == 1:
+        phi = phi[...,np.newaxis]        
     if not k0.ndim in (0,1):
         raise ValueError("k0, must be an array with dimesion 1")
     out = planewave(shape, k0, beta, phi, out)
@@ -131,6 +335,32 @@ def illumination_waves(shape, k0, beta = 0., phi = 0., window = None, out = None
         return out
     else:
         return np.multiply(out, window, out = out)
+
+def illumination_eigenwaves(shape, k0, beta = 0., phi = 0., out = None):
+    """Builds scalar illumination wave. 
+    """
+    k0 = np.asarray(k0)
+    beta = np.asarray(beta)
+    phi = np.asarray(phi)
+    if beta.ndim < 1 :#and k0.ndim == 1:
+        beta = beta[...,np.newaxis]
+    if phi.ndim < 1 :#and k0.ndim == 1:
+        phi = phi[...,np.newaxis]        
+    if not k0.ndim in (0,1):
+        raise ValueError("k0, must be an array with dimesion 1")
+    out = planewave(shape, k0, beta, phi, out)
+
+
+def field2betaphi(field_in,ks, multiray = False):
+    beta, phi = mean_betaphi(field_in, ks)
+    if field_in.ndim > 4 and multiray == True:  #must have at least two polarization states or multi-ray input
+        beta = beta.mean(axis = tuple(range(1,field_in.ndim-3))) #average all, but first (multu-ray) axis
+        phi = phi.mean(axis = tuple(range(1,field_in.ndim-3)))
+    else:
+        beta = beta.mean() #mean over all axes - single ray case
+        phi = phi.mean()
+    return beta, phi
+
     
 def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0., 
                 jones = None, intensity = None, mode = "t", diffraction = True, betamax = BETAMAX):
@@ -200,8 +430,8 @@ def waves2field2(waves, fmat, jones = None, phi = 0,mode = +1):
     if jones is None:
         fvec1 = field4(fmat, jones = jonesvec((1,0),phi), amplitude = waves, mode = mode)
         fvec2 = field4(fmat, jones = jonesvec((0,1),phi), amplitude = waves, mode = mode)
-        field1 = itranspose(fvec1)
-        field2 = itranspose(fvec2)
+        field1 = fvec2field(fvec1)
+        field2 = fvec2field(fvec2)
         
         shape = list(field1.shape)
         shape.insert(-4, 2)
@@ -209,10 +439,11 @@ def waves2field2(waves, fmat, jones = None, phi = 0,mode = +1):
         out[...,0,:,:,:,:] = field1
         out[...,1,:,:,:,:] = field2
     else:
-        #fvec = field4(fmat, jones = jonesvec((1,0),phi), amplitude = waves, mode = mode)
         fvec = field4(fmat, jones = jonesvec(jones,phi), amplitude = waves, mode = mode)
-        out = itranspose(fvec).copy()
+        out = fvec2field(fvec).copy()
     return out
+
+
 
 def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., intensity = 1.,
                       n = 1., focus = 0., window = None, backdir = False, 
@@ -266,7 +497,6 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
     if jones is None:
         intensity = intensity/2.
      
-    waves = illumination_waves(shape, wavenumbers, beta = beta, phi = phi, window = window)
     #intensity = ((np.abs(waves)**2).sum((-2,-1)))* np.asarray(intensity)[...,None]#sum over pixels
     #intensity = intensity * intensity
     mode = -1 if backdir else +1
@@ -275,9 +505,29 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
     _intensity = np.asarray(intensity, FDTYPE)
 
     nrays = len(_beta) if _beta.ndim > 0 else 1
-
-    beta = _beta[...,None,None,None]
-    phi = _phi[...,None,None,None] 
+    
+    if _beta.ndim == 1:
+        beta = _beta[:,None]
+    else:
+        beta = _beta
+    if _phi.ndim == 1:
+        phi = _phi[:,None]
+    else:
+        phi = _phi
+        
+    waves = illumination_waves(shape, wavenumbers, beta = beta, phi = phi, window = window)
+ 
+    if window is None:
+        waves = wave2eigenwave(waves)
+     
+    if _beta.ndim == 1:
+        beta = _beta[:,None,None,None]
+    else:
+        beta = _beta[...,None,None]
+    if _phi.ndim == 1:
+        phi = _phi[:,None,None,None] 
+    else:
+        phi = _phi[...,None,None] 
     intensity = _intensity[...,None,None,None,None]   
     
     epsa = np.asarray((0.,0.,0.),FDTYPE)

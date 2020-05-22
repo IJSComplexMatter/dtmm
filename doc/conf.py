@@ -107,6 +107,8 @@ extensions = [
 
 import os 
 
+numfig = True
+
 plot_working_directory = "examples"#os.path.abspath("../examples")
 
 imgmath_image_format = "svg"

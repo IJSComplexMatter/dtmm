@@ -23,10 +23,10 @@ class TestData(unittest.TestCase):
         d = np.asarray(d, dtype = conf.FDTYPE) #in case we are in single precision cast here
         for s,r,a in zip(rot90str,rotmat,angles):
             d90 = data.rot90_director(d,s)
-            rotm = r(a)
+            rotm = r(-a)
             dR = data.rotate_director(rotm, d)#should be same, no interpolation needed
         
-            self.assertTrue(np.allclose(d90,dR)) 
+            self.assertTrue(np.allclose(d90,dR,atol =1e-5)) 
 
 
         

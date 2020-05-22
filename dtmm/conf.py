@@ -72,6 +72,19 @@ def _readconfig(func, section, name, default):
         return func(section, name)
     except:
         return default
+    
+    
+def is_module_installed(name):
+    """Checks whether module with name 'name' is istalled or not"""
+    try:
+        __import__(name)
+        return True
+    except ImportError:
+        return False    
+        
+NUMBA_INSTALLED = is_module_installed("numba")
+MKL_FFT_INSTALLED = is_module_installed("mkl_fft")
+SCIPY_INSTALLED = is_module_installed("scipy")
 
 BETAMAX = _readconfig(config.getfloat, "core", "betamax", 0.8)
 SMOOTH = _readconfig(config.getfloat, "core", "smooth", 0.1)
@@ -88,10 +101,35 @@ else:
     NUMBA_PARALLEL = False
 
 NUMBA_CACHE = False   
+
+_numba_0_39_or_greater = False
+_numba_0_45_or_greater = False
+try: 
+    import numba as nb
+    major, minor = nb.__version__.split(".")[0:2]
+    if int(major) == 0 and int(minor) >=45:
+        _numba_0_45_or_greater = True
+    if int(major) == 0 and int(minor) >=39:
+        _numba_0_39_or_greater = True
+except:
+    print("Could not determine numba version you are using, assuming < 0.39")
+
+
 if read_environ_variable("DTMM_NUMBA_CACHE",
             default = _readconfig(config.getboolean, "numba", "cache", True)):
     if NUMBA_PARALLEL == False:
-        NUMBA_CACHE = True    
+        NUMBA_CACHE = True  
+    else:
+        try: 
+            import numba as nb
+            major, minor = nb.__version__.split(".")[0:2]
+            if int(major) == 0 and int(minor) >=45:
+                NUMBA_CACHE = True 
+            else:
+                NUMBA_CACHE = False
+                warnings.warn("Numba caching was disabled because version of numba < 0.45 cannot use caching with parallelization enabled!")
+        except:
+            NUMBA_CACHE = False
 
 if read_environ_variable("DTMM_FASTMATH",
         default = _readconfig(config.getboolean, "numba", "fastmath", False)):        
@@ -99,17 +137,7 @@ if read_environ_variable("DTMM_FASTMATH",
 else:
     NUMBA_FASTMATH = False
 
-def is_module_installed(name):
-    """Checks whether module with name 'name' is istalled or not"""
-    try:
-        __import__(name)
-        return True
-    except ImportError:
-        return False    
-        
-NUMBA_INSTALLED = is_module_installed("numba")
-MKL_FFT_INSTALLED = is_module_installed("mkl_fft")
-SCIPY_INSTALLED = is_module_installed("scipy")
+
 
 #reference to all cashed functions - for automatic cache clearing with clear_cache.
 _cache = set()

@@ -6,7 +6,7 @@ from __future__ import absolute_import, print_function, division
 from dtmm.conf import BETAMAX
 from dtmm.wave import eigenwave, betaphi
 from dtmm.tmm import alphaffi, phasem,  alphaf,  E_mat
-from dtmm.linalg import dotmf, dotmdmf, inv
+from dtmm.linalg import dotmf, dotmdmf, inv, dotmdm,dotmf
 from dtmm.diffract import diffract
 from dtmm.fft import fft2, ifft2
 import numpy as np
@@ -100,6 +100,37 @@ def _transfer_ray_4x4_1(field, wavenumbers, layer, dmat1, dmat2, beta = 0, phi=0
                   
     return field
 
+def _transfer_ray_4x4_1_windows(windows, field, wavenumbers, layer, dmat1, dmat2, betas, phis,
+                    nsteps = 1, out = None,
+                    betamax = BETAMAX):
+        
+    d, epsv, epsa = layer
+
+    kd = wavenumbers*d 
+    
+    if out is None:
+        out = np.zeros_like(field)
+
+    for j in range(nsteps):
+        field = dotmf(dmat1,field)
+        for window, beta, phi in zip(windows, betas, phis):
+            alpha, f = alphaf(beta,phi,epsv,epsa)
+            p = phasem(alpha,kd[...,None,None])
+            
+            e = E_mat(f, mode = None)
+            ei = inv(e)
+            
+            f = field * window
+            
+            
+            f = ifft2(f, out = f)
+            f = dotmdmf(e,p,ei,f, out = f)  
+            f = fft2(field, out = f)
+            out += f
+            
+        out = dotmf(dmat2,out, out = out)
+                  
+    return out
 
 def _transfer_ray_4x4_3(field, wavenumbers, layer, dmat1, dmat2, beta = 0, phi=0,
                     nsteps = 1, 
@@ -206,14 +237,8 @@ def propagate_4x4_effective_4(field, wavenumbers, layer, effective_layer, beta =
     d_eff, epsv_eff, epsa_eff = effective_layer
     
     if diffraction <= 1:
-        
-        if diffraction != 0:
-            dmat = corrected_field_diffraction_matrix(field.shape[-2:], wavenumbers, beta,phi, d=d_eff,
-                                 epsv = epsv_eff, epsa = epsa_eff, betamax = betamax)
-
-        else:
-            dmat = None
-        
+        dmat = corrected_field_diffraction_matrix(field.shape[-2:], wavenumbers, beta,phi, d=d_eff,
+                                 epsv = epsv_eff, epsa = epsa_eff, betamax = betamax) if diffraction != 0 else None
         return _transfer_ray_4x4_4(field, wavenumbers, layer,
                                 beta = beta, phi = phi, nsteps =  nsteps, dmat = dmat,
                                 out = out)
@@ -251,6 +276,8 @@ def propagate_4x4_effective_4(field, wavenumbers, layer, effective_layer, beta =
                                 dmat = dmat)                       
             fout = np.add(fout, _out, out = fout)
 
+
+
         
 #        for window, b, p  in zip(windows, betas, phis):
 #            fpart = field * window
@@ -275,6 +302,76 @@ def propagate_4x4_effective_4(field, wavenumbers, layer, effective_layer, beta =
         else:
             out = fout
         return out
+
+def propagate_4x4_effective_1(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,
+                    nsteps = 1, diffraction = True, 
+                    betamax = BETAMAX,out = None,_reuse = False ):
+    d_eff, epsv_eff, epsa_eff = effective_layer
+
+    
+    if diffraction == 1:
+        dmat1 = first_corrected_Epn_diffraction_matrix(field.shape[-2:], wavenumbers, beta, phi,d_eff/2, epsv = epsv_eff, 
+                                        epsa =  epsa_eff,betamax = betamax) 
+        dmat2 = second_corrected_Epn_diffraction_matrix(field.shape[-2:], wavenumbers, beta, phi,d_eff/2, epsv = epsv_eff, 
+                                        epsa =  epsa_eff,betamax = betamax) 
+        return _transfer_ray_4x4_1(field, wavenumbers, layer,dmat1, dmat2, 
+                                beta = beta, phi = phi, nsteps =  nsteps, 
+                                betamax = betamax,  out = out)
+    elif diffraction > 1:
+        fout = np.zeros_like(field)
+        _out = None
+
+        try: 
+            broadcast_shape = beta.shape
+            beta = beta[...,0]
+            phi = phi[...,0]
+        except IndexError:
+            broadcast_shape = ()
+            
+        windows, (betas, phis) = fft_mask(field.shape, wavenumbers, int(diffraction), 
+                 betax_off = beta*np.cos(phi), betay_off = beta*np.sin(phi), betamax = betamax)    
+
+        n = len(windows)
+        betas = betas.reshape((n,) + broadcast_shape)
+        phis = phis.reshape((n,) + broadcast_shape)
+
+        dmats1 = first_corrected_Epn_diffraction_matrix(field.shape[-2:], wavenumbers, betas, phis,d_eff/2, epsv = epsv_eff, 
+                                        epsa =  epsa_eff,betamax = betamax) 
+        dmats2 = second_corrected_Epn_diffraction_matrix(field.shape[-2:], wavenumbers, betas, phis,d_eff/2, epsv = epsv_eff, 
+                                        epsa =  epsa_eff,betamax = betamax) 
+
+        for window, beta, phi, dmat1, dmat2  in zip(windows, betas, phis, dmats1, dmats2):
+            fpart = np.multiply(field, window, out = _out)
+            
+            _out =  _transfer_ray_4x4_1(fpart, wavenumbers, layer, dmat1,dmat2,
+                                beta = beta, phi = phi, nsteps =  nsteps,
+                                betamax = betamax, out = _out)                       
+            fout = np.add(fout, _out, out = fout)
+
+
+#        for window, b, p  in zip(windows, betas, phis):
+#            fpart = np.multiply(field, window, out = _out)
+#            
+#            beta = b.reshape(broadcast_shape)
+#            phi = p.reshape(broadcast_shape)
+#
+#            dmat1 = second_field_diffraction_matrix(field.shape[-2:], wavenumbers, beta, phi,d_eff/2, epsv = epsv_eff, 
+#                                            epsa =  epsa_eff,betamax = betamax) 
+#            dmat2 = first_field_diffraction_matrix(field.shape[-2:], wavenumbers, beta, phi,d_eff/2, epsv = epsv_eff, 
+#                                            epsa =  epsa_eff,betamax = betamax) 
+#
+#            _out =  _transfer_ray_4x4_1(fpart, wavenumbers, layer, dmat1,dmat2,
+#                                beta = beta, phi = phi, nsteps =  nsteps,
+#                                betamax = betamax, out = _out,_reuse = _reuse)                       
+#            fout = np.add(fout, _out, out = fout)
+
+        if out is not None:
+            out[...] = fout
+        else:
+            out = fout
+        return out
+    else:
+        raise ValueError("Invalid diffraction value")
 
 def propagate_4x4_effective_1(field, wavenumbers, layer, effective_layer, beta = 0, phi=0,
                     nsteps = 1, diffraction = True, 
@@ -458,6 +555,8 @@ def propagate_4x4_full(field, wavenumbers, layer,
                 pm = phasem(alpha,kd[i], out = pm)
                 w = eigenwave(amplitude.shape[:-1]+shape, ieig,jeig, amplitude = amplitude[...,j])
                 w = dotmdmf(f,pm,fi,w, out = w)
+                #m = dotmdm(f,pm,fi)
+                #w = dotmf(m,w, out = w)
                 np.add(ofield,w,ofield)
                 
             out[...,i,:,:,:] = ofield

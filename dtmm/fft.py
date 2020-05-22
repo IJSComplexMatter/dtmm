@@ -41,17 +41,18 @@ def _set_out(a,out):
 
 def _copy(x,y):
     y[...] = x
+    return y
 
-_copy_if_needed = lambda x,y: _copy(x,y) if x is not y else None
+_copy_if_needed = lambda x,y: _copy(x,y) if x is not y else x
     
 def _sequential_inplace_fft(fft,array):
     [fft(d,overwrite_x = True) for d in array] 
 
-def _sequential_fft(fft,array, out):
+def _sequential_fft(fft,array, out, overwrite_x = False):
     if out is array:
         [_copy_if_needed(fft(d, overwrite_x = True),out[i]) for i,d in enumerate(array)] 
     else:
-        [_copy_if_needed(fft(d),out[i]) for i,d in enumerate(array)] 
+        [_copy_if_needed(fft(d, overwrite_x = overwrite_x),out[i]) for i,d in enumerate(array)] 
 
 def _optimal_workers(size, nthreads):
     if size%nthreads == 0:
@@ -89,17 +90,17 @@ def _mkl_ifft2(a,out = None):
     return __mkl_fft(mkl_fft.ifft2,a,out)
 
 
-def __sp_fft(fft,a,out):
+def __sp_fft(fft,a,out, overwrite_x = False):
     out = _set_out(a,out)
     shape, a = _reshape(a)
     shape, out = _reshape(out)
     if DTMMConfig.nthreads > 1:
         pool = ThreadPool(DTMMConfig.nthreads)
-        workers = [pool.apply_async(_sequential_fft, args = (fft,d,out[i])) for i,d in enumerate(a)] 
+        workers = [pool.apply_async(_sequential_fft, args = (fft,d,out[i],overwrite_x)) for i,d in enumerate(a)] 
         results = [w.get() for w in workers]
         pool.close()
     else:
-        _sequential_fft(fft,a,out)
+        _sequential_fft(fft,a,out,overwrite_x)
     return out.reshape(shape)   
 
 #def __sp_fft(fft,a,out):
@@ -188,5 +189,145 @@ def ifft2(a, out = None):
     elif libname == "numpy":
         return _np_ifft2(a, out)  
     else: #default implementation is numpy
-        return _np_ifft2(a, out)    
- 
+        return _np_ifft2(a, out)   
+
+  
+def mfft2(a, overwrite_x = False):
+    """Computes matrix fft2 on a matrix of shape (..., n,n,4,4).
+    
+    This is identical to np.fft2(a, axes = (-4,-3))
+    
+    Parameters
+    ----------
+    a : array_like
+        Input array (must be complex).
+    overwrite_x : bool
+        Specifies whether original array can be destroyed (for inplace transform)
+       
+    Returns
+    -------
+    out : complex ndarray
+        Result of the transformation along the (-4,-3) axes.    
+    """
+    a = np.asarray(a, dtype = CDTYPE)      
+    libname = DTMMConfig["fftlib"]    
+    if libname == "mkl_fft":
+        return mkl_fft.fft2(a, axes = (-4,-3), overwrite_x = overwrite_x)
+    elif libname == "scipy":
+        return spfft.fft2(a, axes = (-4,-3), overwrite_x = overwrite_x)
+    elif libname == "numpy":
+        return npfft.fft2(a, axes = (-4,-3))
+    else: #default implementation is numpy
+        return npfft.fft2(a, axes = (-4,-3))
+
+def mifft2(a, overwrite_x = False):
+    """Computes matrix ifft2 on a matrix of shape (..., n,n,4,4).
+    
+    This is identical to np.ifft2(a, axes = (-4,-3))
+    
+    Parameters
+    ----------
+    a : array_like
+        Input array (must be complex).
+    overwrite_x : bool
+        Specifies whether original array can be destroyed (for inplace transform)
+       
+    Returns
+    -------
+    out : complex ndarray
+        Result of the transformation along the (-4,-3) axes.    
+    """
+    a = np.asarray(a, dtype = CDTYPE)      
+    libname = DTMMConfig["fftlib"]    
+    if libname == "mkl_fft":
+        return mkl_fft.ifft2(a, axes = (-4,-3), overwrite_x = overwrite_x)
+    elif libname == "scipy":
+        return spfft.ifft2(a, axes = (-4,-3), overwrite_x = overwrite_x)
+    elif libname == "numpy":
+        return npfft.ifft2(a, axes = (-4,-3))
+    else: #default implementation is numpy
+        return npfft.ifft2(a, axes = (-4,-3))    
+    
+def mfft(a, overwrite_x = False):
+    """Computes matrix fft on a matrix of shape (..., n,4,4).
+    
+    This is identical to np.fft2(a, axis = -3)
+    
+    Parameters
+    ----------
+    a : array_like
+        Input array (must be complex).
+    overwrite_x : bool
+        Specifies whether original array can be destroyed (for inplace transform)
+       
+    Returns
+    -------
+    out : complex ndarray
+        Result of the transformation along the (-4,-3) axes.    
+    """
+    a = np.asarray(a, dtype = CDTYPE)      
+    libname = DTMMConfig["fftlib"]    
+    if libname == "mkl_fft":
+        return mkl_fft.fft(a, axis = -3, overwrite_x = overwrite_x)
+    elif libname == "scipy":
+        return spfft.fft(a, axis = -3, overwrite_x = overwrite_x)
+    elif libname == "numpy":
+        return npfft.fft(a, axis = -3)
+    else: #default implementation is numpy
+        return npfft.fft(a, axis = -3)
+    
+def fft(a, overwrite_x = False):
+    """Computes  fft on a matrix of shape (..., n).
+    
+    This is identical to np.fft2(a)
+    
+    Parameters
+    ----------
+    a : array_like
+        Input array (must be complex).
+    overwrite_x : bool
+        Specifies whether original array can be destroyed (for inplace transform)
+       
+    Returns
+    -------
+    out : complex ndarray
+        Result of the transformation along the (-4,-3) axes.    
+    """
+    a = np.asarray(a, dtype = CDTYPE)      
+    libname = DTMMConfig["fftlib"]    
+    if libname == "mkl_fft":
+        return mkl_fft.fft(a, overwrite_x = overwrite_x)
+    elif libname == "scipy":
+        return spfft.fft(a,  overwrite_x = overwrite_x)
+    elif libname == "numpy":
+        return npfft.fft(a)
+    else: #default implementation is numpy
+        return npfft.fft(a)
+    
+def ifft(a, overwrite_x = False):
+    """Computes  ifft on a matrix of shape (..., n).
+    
+    This is identical to np.ifft2(a)
+    
+    Parameters
+    ----------
+    a : array_like
+        Input array (must be complex).
+    overwrite_x : bool
+        Specifies whether original array can be destroyed (for inplace transform)
+       
+    Returns
+    -------
+    out : complex ndarray
+        Result of the transformation along the (-4,-3) axes.    
+    """
+    a = np.asarray(a, dtype = CDTYPE)      
+    libname = DTMMConfig["fftlib"]    
+    if libname == "mkl_fft":
+        return mkl_fft.fft(a, overwrite_x = overwrite_x)
+    elif libname == "scipy":
+        return spfft.fft(a,  overwrite_x = overwrite_x)
+    elif libname == "numpy":
+        return npfft.fft(a)
+    else: #default implementation is numpy
+        return npfft.fft(a)

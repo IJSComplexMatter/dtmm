@@ -62,7 +62,8 @@ def _transfer_ray_2x2_1(fft_field, wavenumbers, layer, effective_layer_in,effect
                 out = fft_field
             else:
                 fft_field = dotmf(tmat, fft_field, out = out)
-                fft_field = dotmf(dmat1, fft_field, out = fft_field)
+                if dmat1 is not None:
+                    fft_field = dotmf(dmat1, fft_field, out = fft_field)
                 out = fft_field
         else:
             if dmat1 is not None:
@@ -91,7 +92,7 @@ def _transfer_ray_2x2_2(field, wavenumbers, in_layer, out_layer, dmat = None, be
                     nsteps = 1, mode = +1,  reflection = True, betamax = BETAMAX, refl = None, bulk = None, out = None, tmpdata = None):
     _out = {} if tmpdata is None else tmpdata
     if in_layer is not None:
-        d, epsv,epsa = in_layer        
+        d, epsv,epsa = in_layer    
         alpha, fmat_in = alphaf(beta,phi, epsv, epsa, out = _out.get("afin"))
         if tmpdata is not None:
             _out["afin"] = alpha, fmat_in
@@ -126,9 +127,11 @@ def _transfer_ray_2x2_2(field, wavenumbers, in_layer, out_layer, dmat = None, be
                     #_out["eieri"] = ei,eri
                     _out["eieri"] = tmat, rmat
                 trans = refl.copy()
-                #refl = dotmf(eri, field, out = refl)
-                refl = dotmf(rmat, field, out = refl)
-                #field = dotmf(ei,field, out = out)
+ 
+                #refl = dotmf(rmat, field, out = refl)
+                refl = dotmf(tmat, field, out = refl)
+                refl = np.subtract(field, refl, out = refl)
+
                 field = dotmf(tmat,field, out = out)
                 field = np.add(field,trans, out = field)
                 
@@ -317,6 +320,7 @@ def propagate_2x2_effective_2(field, wavenumbers, layer_in, layer_out, effective
             beta = beta[...,0]
             phi = phi[...,0]
         except IndexError:
+            #beta and phi are scalar
             broadcast_shape = ()
             
         windows, (betas, phis) = fft_mask(field.shape, wavenumbers, int(diffraction), 

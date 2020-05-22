@@ -35,7 +35,7 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, beta = 0.,
                                             pixelsize = PIXELSIZE, window = window) 
 
 f,w,p  = dtmm.transfer_field(field_data_in, optical_data,  beta = 0., phi = 0., betamax = 0.8,
-             method = "4x4", ret_bulk = True, npass = 4, reflection = 2, smooth = 0.1) #must be even for 4x4 method
+             method = "2x2", ret_bulk = True, npass = 4, reflection = 2, smooth = 0.1) #must be even for 4x4 method
 
 
 viewer_bulk = dtmm.field_viewer((f,w,p), bulk_data = True)

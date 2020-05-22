@@ -2,7 +2,7 @@
 Some helper function for jones calculus.
 """
 
-from dtmm.conf import CDTYPE,FDTYPE,NFDTYPE, NCDTYPE, NUMBA_TARGET, NUMBA_CACHE, NUMBA_FASTMATH
+from dtmm.conf import CDTYPE,FDTYPE
 import numpy as np
 from dtmm.rotation import rotation_matrix2
 from dtmm.linalg import dotmv

@@ -476,9 +476,9 @@ def cholesteric_director(shape, pitch, hand = "left"):
     nz, ny, nx = shape
     
     if hand == 'left':
-        phi =  2*np.pi/pitch*np.arange(nz)
-    elif hand == "right":
         phi = -2*np.pi/pitch*np.arange(nz)
+    elif hand == "right":
+        phi = 2*np.pi/pitch*np.arange(nz)
     else:
         raise ValueError("Unknown handedness '{}'".format(hand))
     out = np.zeros(shape = (nz,ny,nx,3), dtype = FDTYPE)

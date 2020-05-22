@@ -7,10 +7,11 @@ from dtmm.conf import DTMMConfig,  BETAMAX, SMOOTH, FDTYPE
 from dtmm.wave import k0
 from dtmm.data import uniaxial_order, refind2eps, validate_optical_data
 from dtmm.tmm import E2H_mat, projection_mat, alphaf
+from dtmm.tmm3d import transfer3d
 from dtmm.linalg import  dotmf, dotmv
 from dtmm.print_tools import print_progress
 from dtmm.diffract import diffract, projection_matrix, diffraction_alphaffi
-from dtmm.field import field2intensity, mean_betaphi, transpose
+from dtmm.field import field2intensity, field2betaphi, field2fvec
 from dtmm.fft import fft2, ifft2
 from dtmm.jones import jonesvec
 from dtmm.polarization import normal_polarizer
@@ -91,14 +92,14 @@ def transmitted_field_direct(field, beta, phi, n = 1.):
     alpha, fmat = alphaf(beta,phi, ev, ea)
     pmat = projection_mat(fmat)
     field0 = np.empty_like(field)
-    dotmv(pmat,transpose(field), out = transpose(field0))
+    dotmv(pmat,field2fvec(field), out = field2fvec(field0))
     return field0
 
 def project_normalized_local(field, dmat, window = None, ref = None, out = None):
     f1 = fft2(field) 
     f2 = dotmf(dmat, f1 ,out = f1)
     f = ifft2(f2, out = f2)
-    pmat1 = normal_polarizer(jonesvec(transpose(f[...,::2,:,:])))
+    pmat1 = normal_polarizer(jonesvec(field2fvec(f[...,::2,:,:])))
     pmat2 = -pmat1
     pmat2[...,0,0] += 1
     pmat2[...,1,1] += 1 #pmat1 + pmat2 = identity by definition
@@ -257,8 +258,8 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
            npass = 1, nstep=1, diffraction = 1, reflection = None, method = "2x2", 
            multiray = False,
            norm = DTMM_NORM_FFT, betamax = BETAMAX, smooth = SMOOTH, split_rays = False,
-           split_diffraction = False,
-           eff_data = None, ret_bulk = False):
+           split_diffraction = False,split_wavelengths = False,
+           eff_data = None, ret_bulk = False, out = None):
     """Tranfers input field data through optical data.
     
     This function calculates transmitted field and possibly (when npass > 1) 
@@ -344,10 +345,16 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
     t0 = time.time()
     verbose_level = DTMMConfig.verbose
     
+    
     if method == "4x4" and npass > 1 and diffraction == False:
         import warnings
         warnings.warn("The 4x4 method with diffraction disabled is not yet supported\
                       for input fields with beta >0. Use 2x2 method insted.")
+        
+    if npass == -1 or npass == np.inf:
+        method = "4x4"
+        diffraction = np.inf
+        reflection = 2
         
     #choose best/supported reflection mode based on other arguments
     if reflection is None:
@@ -368,29 +375,99 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         print(" $ diffraction mode: {}".format(diffraction))  
         print(" $ number of substeps: {}".format(nstep))     
         print(" $ input refractive index: {}".format(nin))   
-        print(" $ output refractive index: {}".format(nin)) 
+        print(" $ output refractive index: {}".format(nout)) 
         print("------------------------------------")
+        
+    
+    
+    field_in,wavelengths,pixelsize = field_data
+
+#    if out is None:
+#        if ret_bulk == True:
+#            #must have a length of optical data + 2 extra layers
+#            field_out = np.empty(shape = (len(optical_data[0])+2,)+field_in.shape, dtype = field_in.dtype)     
+#        else:
+#            field_out = np.empty_like(field_in) 
+#    else:
+#        field_out = out
+    
+    splitted_wavelengths = split_wavelengths == True and not isinstance(field_in, tuple) and ret_bulk == False
+
+    
+    if splitted_wavelengths:
+        if out is None:
+            out_field = np.empty_like(field_in) 
+        else:
+            out_field = out
+        out = [out_field[...,i,:,:,:] for i in range(len(wavelengths))]
+        field_in = tuple((field_in[...,i,:,:,:] for i in range(len(wavelengths))))
+
+    if isinstance(field_in, tuple):
+        nwavelengths = len(field_in)
+        if out is None:
+            out = [None for i in range(len(field_in))]
+        for i,(f,w,o) in enumerate(zip(field_in, wavelengths, out)):
+            if verbose_level >0:
+                print("Wavelength {}/{}".format(i+1,nwavelengths))
+            field_data = f,w,pixelsize
+            o = _transfer_field(field_data, optical_data, beta, phi, nin, nout,  
+           npass , nstep, diffraction, reflection , method, 
+           multiray, norm, betamax, smooth, split_rays,
+           split_diffraction ,
+           eff_data, ret_bulk, o) 
+            out[i] = o
+        out = tuple(out)
+    else:
+    
+        out = _transfer_field(field_data, optical_data, beta, phi, nin, nout,  
+               npass , nstep, diffraction, reflection , method, 
+               multiray, norm, betamax, smooth, split_rays,
+               split_diffraction ,
+               eff_data, ret_bulk, out)   
+
+    t = time.time()-t0
+    if verbose_level >1:
+        print("------------------------------------")
+        print("   Done in {:.2f} seconds!".format(t))  
+        print("------------------------------------")
+    
+    if splitted_wavelengths:
+        return out_field, wavelengths, pixelsize
+    else:
+        return out
+
+def _transfer_field(field_data, optical_data, beta, phi, nin, nout,  
+           npass , nstep, diffraction, reflection , method, 
+           multiray, norm, betamax, smooth, split_rays,
+           split_diffraction ,
+           eff_data, ret_bulk, out):
+    verbose_level = DTMMConfig.verbose
  
     if split_rays == False:
         if method  == "4x4":
-            out = transfer_4x4(field_data, optical_data, beta = beta, 
+            if npass == -1 or npass == np.inf:
+                out = transfer3d(field_data, optical_data,nin = nin, nout =nout, betamax = betamax)
+            else:
+                out = transfer_4x4(field_data, optical_data, beta = beta, 
                            phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
                       diffraction = diffraction, reflection = reflection, multiray = multiray,norm = norm, smooth = smooth,
-                      betamax = betamax, ret_bulk = ret_bulk)
+                      betamax = betamax, ret_bulk = ret_bulk, out = out)
         else:
             out = transfer_2x2(field_data, optical_data, beta = beta, 
                    phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,
-              diffraction = diffraction,  multiray = multiray,split_diffraction = split_diffraction,reflection = reflection, betamax = betamax, ret_bulk = ret_bulk)
+              diffraction = diffraction,  multiray = multiray,split_diffraction = split_diffraction,reflection = reflection, betamax = betamax, ret_bulk = ret_bulk, out = out)
         
     else:#split input data by rays and compute ray-by-ray
         
         field_in,wavelengths,pixelsize = field_data
-        if ret_bulk == True:
-            #must have a length of optical data + 2 extra layers
-            field_out = np.empty(shape = (len(optical_data[0])+2,)+field_in.shape, dtype = field_in.dtype)     
+        if out is None:
+            if ret_bulk == True:
+                #must have a length of optical data + 2 extra layers
+                field_out = np.empty(shape = (len(optical_data[0])+2,)+field_in.shape, dtype = field_in.dtype)     
+            else:
+                field_out = np.empty_like(field_in) 
         else:
-            field_out = np.empty_like(field_in) 
-
+            field_out = out
         nrays = len(field_in)
         if beta is None:
             beta = [None] * nrays
@@ -420,13 +497,8 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         
             
         out = field_out, wavelengths, pixelsize
-    t = time.time()-t0
-    if verbose_level >1:
-        print("------------------------------------")
-        print("   Done in {:.2f} seconds!".format(t))  
-        print("------------------------------------")
-
     return out
+
 
         
 
@@ -490,7 +562,8 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
             bulk_out = None
             field_out = np.zeros_like(field_in)   
     else:
-        out[...] = 0.
+        
+        #out[...] = 0.
         if ret_bulk == True:
             bulk_out = out
             bulk_out[0] = field_in
@@ -499,26 +572,31 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
         else:
             bulk_out = None
             field_out = out
+        #make sure we remove forward propagating waves
+        reflected_field(field_out, ks, n = nin, betamax = betamax, out = field_out)
     indices = list(range(1,n-1))
     #if npass > 1:
     #    field0 = field_in.copy()
  
-    field0 = field_in.copy()
+    #field0 = field_in.copy()
+    field0 = transmitted_field(field_in, ks, n = nin, betamax = betamax)
     field = field_in.copy()
 
     
-    field_in[...] = 0.
+    #field_in[...] = 0.
             
     if norm == 2:
         #make sure we take only the forward propagating part of the field
         transmitted_field(field, ks, n = nin, betamax = min(betamax,nin), out = field)
-
+        field_in[...] = field
+        
     if calc_reference:
         ref = field.copy()
     else:
         ref = None    
     
-    i0 = field2intensity(transmitted_field(field0, ks, n = nin, betamax = betamax))
+    #i0 = field2intensity(transmitted_field(field0, ks, n = nin, betamax = betamax))
+    i0 = field2intensity(field0)
     i0 = i0.sum(tuple(range(i0.ndim))[-2:]) 
     
     if reflection not in (2,4) and 0<= diffraction and diffraction < np.inf:
@@ -619,7 +697,10 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
         
         if npass > 1:
             #smooth = 1. - i/(npass-1.)
+            #even passes - normalizing output field
             if i%2 == 0:
+                if i == 0:
+                    np.subtract(field,field_out, field)
                 if i != npass -1:
                     if verbose_level > 1:
                         print(" * Normalizing transmissions.")
@@ -640,9 +721,10 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
                 np.add(field_out, field, field_out)
                 field = field_out.copy()
                 
-                
+            #odd passes - normalizeing input field   
             else:
                 field_in[...] = field
+                #if not the last pass...
                 if i != npass -1:
                     if verbose_level > 1:
                         print(" * Normalizing reflections.")
@@ -655,7 +737,7 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
                     field = ifft2(field, out = ffield)
                     
                     i0f = total_intensity(field)
-                    fact = ((i0/i0f))
+                    fact = ((i0/i0f))#**0.5)
                     fact = fact[...,None,None,None]
                     np.multiply(field,fact, out = field) 
                         
@@ -674,7 +756,7 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
                         
         else:
             field_out[...] = field
-            field_in[...] = field0
+            #field_in[...] = field0
     #denoise(field_out, ks, nout, smooth*10, out = field_out)           
         
     if ret_bulk == True:
@@ -744,15 +826,6 @@ def _layers_list(optical_data, eff_data, nin, nout, nstep):
     eff_layers.append((1,(0., refind2eps([nout]*3), np.array((0.,0.,0.), dtype = FDTYPE))))
     return layers, eff_layers
 
-def field2betaphi(field_in,ks, multiray = False):
-    beta, phi = mean_betaphi(field_in, ks)
-    if field_in.ndim > 4 and multiray == True:  #must have at least two polarization states or multi-ray input
-        beta = beta.mean(axis = tuple(range(1,field_in.ndim-3))) #average all, but first (multu-ray) axis
-        phi = phi.mean(axis = tuple(range(1,field_in.ndim-3)))
-    else:
-        beta = beta.mean() #mean over all axes - single ray case
-        phi = phi.mean()
-    return beta, phi
 
 def transfer_2x2(field_data, optical_data, beta = None, 
                    phi = None, eff_data = None, nin = 1., 
@@ -812,7 +885,7 @@ def transfer_2x2(field_data, optical_data, beta = None,
     indices = list(range(n))
         
     #make sure we take only the forward propagating part of the field
-    if diffraction:
+    if diffraction > 0:
         field0 = transmitted_field(field_in, ks, n = nin, betamax = betamax)
     else:
         field0 = transmitted_field_direct(field_in, beta, phi, n = nin)
@@ -829,9 +902,11 @@ def transfer_2x2(field_data, optical_data, beta = None,
         #no need to store reflected waves
         refl = [None]*n
         
-    if reflection in (0,1) and 0<= diffraction and diffraction < np.inf:
+    if reflection in (0,1) and 0< diffraction and diffraction < np.inf:
         work_in_fft = True
-    else:
+    elif reflection == 1:
+        work_in_fft = True
+    else:   
         work_in_fft = False
         
     if work_in_fft:
@@ -892,10 +967,11 @@ def transfer_2x2(field_data, optical_data, beta = None,
             if diffraction >= 0 and diffraction < np.inf:
      
 
-                if reflection <= 1 :
+                if work_in_fft:
                     field, refli = propagate_2x2_effective_1(field, ks, input_layer, output_layer ,input_layer_eff, output_layer_eff, 
                             beta = beta, phi = phi, nsteps = nstep, diffraction = diffraction, split_diffraction = split_diffraction, reflection = reflection, 
                             betamax = betamax,mode = direction, refl = refl[j], bulk = bulk, tmpdata = tmpdata)
+                
                 else:
                     field, refli = propagate_2x2_effective_2(field, ks, input_layer, output_layer ,input_layer_eff, output_layer_eff, 
                             beta = beta, phi = phi, nsteps = nstep, diffraction = diffraction, split_diffraction = split_diffraction, reflection = reflection, 

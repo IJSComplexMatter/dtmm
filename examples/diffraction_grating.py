@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 #: pixel size in nm
 PIXELSIZE = 100
 #: compute box dimensions
-NLAYERS, HEIGHT, WIDTH = 10, 1024,1024
+NLAYERS, HEIGHT, WIDTH = 100, 1024,1024
 #: illumination wavelengths in nm
 WAVELENGTHS = np.linspace(380,780,9)
 WAVELENGTHS = [600]
@@ -20,9 +20,21 @@ d[...]=1
 a[...] = 0.
 a[...,1] = np.pi/2
 
-e=e + 1j
+def eps_periodic(size = 1024, period = 25, n1 = 1.7, n2 = 1.5):
+    out = []
+    for i in range(size):
+        if (i//period)%2 == 0:
+            out.append(n1**2)
+        else:
+            out.append(n2**2)
+    return np.array(out)
+
+#e=e + 1j
 mod = (1 + 1*np.sin(np.linspace(0,np.pi/2048*PIXELSIZE*WIDTH, WIDTH))**2)
+
+mod = eps_periodic()
 e[...,2] = mod[None,None,:]
+
 
 window = dtmm.aperture((HEIGHT,WIDTH), 0.1,1)
 
