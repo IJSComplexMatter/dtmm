@@ -1,6 +1,12 @@
 dtmm: Diffractive Transfer Matrix Method
 ========================================
 
+[![Python version](https://img.shields.io/pypi/pyversions/cddm)](https://pypi.org/project/cddm/)
+
+.. image:: https://img.shields.io/pypi/pyversions/dtmm
+    :target: https://pypi.org/project/dtmm/
+    :alt: Python version
+
 .. image:: https://readthedocs.org/projects/dtmm/badge/?version=latest
     :target: https://dtmm.readthedocs.io/en/latest/?badge=latest
     :alt: Documentation Status
