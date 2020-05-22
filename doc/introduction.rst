@@ -3,15 +3,21 @@ Introduction
 
 ``dtmm`` is an electro-magnetic field transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as confined liquid-crystals with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method and an adapted 2x2 extended Jones method. Details of the method are given in *... some future paper*.
 
-
 .. note::
 
-   This package is still in its early stage of development, so it should be considered experimental. No official release exists yet! The package and the documentation is actively being worked on, so please stay tuned. The core functionality has been defined and the package is ready for use and testing, but much needs to be done to documentation and code cleanup, etc.. Expect also some minor API changes in the near future.
+   This package is still in its early stage of development, so it should be considered experimental. The core functionality has been defined and the package is ready for use.
 
 License
 -------
 
-``dtmm`` will be released under MIT license so you will be able to use it freely, however, I will ask you to cite the *... some future paper*. In the mean time you can play with the current development version freely, but i kindly ask you not to redistribute the code or  publish data obtained with this package. **Please wait until the package is officially released!**
+``dtmm`` is released under MIT license so you can use it freely. Please cite the package. See the DOI badge in the `repository`_.
+
+Contributors
+------------
+
+I thank the following people for contributing:
+
+* Alex Vasile
 
 Highlights
 ----------
@@ -94,5 +100,6 @@ Visualize the transmitted field with matplotlib plot:
 
 Curious enough? Read the :ref:`quickstart`.
 
+.. _repository: https://github.com/IJSComplexMatter/dtmm
 
 
