@@ -33,7 +33,7 @@ Optional:
 Installation
 ------------
 
-To install the latest release run::
+Run::
 
     $ pip install dtmm
 
