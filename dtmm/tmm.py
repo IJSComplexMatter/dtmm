@@ -778,84 +778,84 @@ def layer_mat(kd, epsv,epsa, beta = 0,phi = 0, cfact = 0.1, method = "4x4", fmat
     else:
         return fmat, out 
 
-def layer3D_mat(kd, epsv,epsa, betamax = BETAMAX,  out = None):
-    """Computes characteristic matrix of a single layer M=F.P.Fi,
+# def layer3D_mat(kd, epsv,epsa, betamax = BETAMAX,  out = None):
+#     """Computes characteristic matrix of a single layer M=F.P.Fi,
     
-    Numpy broadcasting rules apply
+#     Numpy broadcasting rules apply
     
-    Parameters
-    ----------
-    kd : float
-        A sequence of phase values (layer thickness times wavenumber in vacuum).
-        len(kd) must match len(epsv) and len(epsa).
-    epsv : array_like
-        Epsilon eigenvalues.
-    epsa : array_like
-        Optical axes orientation angles (psi, theta, phi).
-    out : ndarray, optional
+#     Parameters
+#     ----------
+#     kd : float
+#         A sequence of phase values (layer thickness times wavenumber in vacuum).
+#         len(kd) must match len(epsv) and len(epsa).
+#     epsv : array_like
+#         Epsilon eigenvalues.
+#     epsa : array_like
+#         Optical axes orientation angles (psi, theta, phi).
+#     out : ndarray, optional
     
-    Returns
-    -------
-    cmat : ndarray
-        Characteristic matrix of the layer.
-    """    
-    if method in ("2x2","2x2_1"):
-        alpha,fmat = alphaf(beta,phi,epsv,epsa)
-        f = E_mat(fmat, mode = +1, copy = False)
-        if fmatin is not None and method == "2x2_1":
-            fi = Eti_mat(fmatin, fmat, mode = +1)
-        else:
-            fi = inv(f)
-        pmat = phase_mat(alpha[...,::2],kd)
+#     Returns
+#     -------
+#     cmat : ndarray
+#         Characteristic matrix of the layer.
+#     """    
+#     if method in ("2x2","2x2_1"):
+#         alpha,fmat = alphaf(beta,phi,epsv,epsa)
+#         f = E_mat(fmat, mode = +1, copy = False)
+#         if fmatin is not None and method == "2x2_1":
+#             fi = Eti_mat(fmatin, fmat, mode = +1)
+#         else:
+#             fi = inv(f)
+#         pmat = phase_mat(alpha[...,::2],kd)
 
-    elif method in ("4x4","4x4_1","4x4_r","4x4_2"):
-        alpha,fmat,fi = alphaffi(beta,phi,epsv,epsa)
-        f = fmat
-        pmat0 = phase_mat(alpha,-kd)
-        if method ==  "4x4_r":
-            alpha1 = alpha.copy()
-            np.add(alpha1[...,1::2],alpha1[...,1::2].real*2j*cfact, out = alpha1[...,1::2])
-            np.add(alpha[...,::2],-alpha[...,::2].real*2j*cfact, out = alpha[...,::2])
-            pmat1 = phase_mat(alpha1,-kd)
-            pmat2 = phase_mat(alpha,-kd)
+#     elif method in ("4x4","4x4_1","4x4_r","4x4_2"):
+#         alpha,fmat,fi = alphaffi(beta,phi,epsv,epsa)
+#         f = fmat
+#         pmat0 = phase_mat(alpha,-kd)
+#         if method ==  "4x4_r":
+#             alpha1 = alpha.copy()
+#             np.add(alpha1[...,1::2],alpha1[...,1::2].real*2j*cfact, out = alpha1[...,1::2])
+#             np.add(alpha[...,::2],-alpha[...,::2].real*2j*cfact, out = alpha[...,::2])
+#             pmat1 = phase_mat(alpha1,-kd)
+#             pmat2 = phase_mat(alpha,-kd)
             
-            pmat = np.zeros(shape = pmat0.shape[:-1] + (8,8), dtype = pmat0.dtype)
-            pmat[...,0,0] = pmat1[...,0]
-            pmat[...,1,1] = pmat1[...,1]
-            pmat[...,2,2] = pmat1[...,2]
-            pmat[...,3,3] = pmat1[...,3]
-            pmat[...,4,4] = pmat2[...,0]
-            pmat[...,5,5] = pmat2[...,1]
-            pmat[...,6,6] = pmat2[...,2]
-            pmat[...,7,7] = pmat2[...,3]
-            pmat[...,5,1] = pmat0[...,1] - pmat1[...,1]
-            pmat[...,7,3] = pmat0[...,3] - pmat1[...,3]
+#             pmat = np.zeros(shape = pmat0.shape[:-1] + (8,8), dtype = pmat0.dtype)
+#             pmat[...,0,0] = pmat1[...,0]
+#             pmat[...,1,1] = pmat1[...,1]
+#             pmat[...,2,2] = pmat1[...,2]
+#             pmat[...,3,3] = pmat1[...,3]
+#             pmat[...,4,4] = pmat2[...,0]
+#             pmat[...,5,5] = pmat2[...,1]
+#             pmat[...,6,6] = pmat2[...,2]
+#             pmat[...,7,7] = pmat2[...,3]
+#             pmat[...,5,1] = pmat0[...,1] - pmat1[...,1]
+#             pmat[...,7,3] = pmat0[...,3] - pmat1[...,3]
             
-            f1 = np.zeros_like(pmat)
-            f1[...,0:4,0:4] = f
-            f1[...,4:8,4:8] = f
+#             f1 = np.zeros_like(pmat)
+#             f1[...,0:4,0:4] = f
+#             f1[...,4:8,4:8] = f
             
-            f1i = np.zeros_like(pmat)
-            f1i[...,0:4,0:4] = fi
-            f1i[...,4:8,4:8] = fi  
+#             f1i = np.zeros_like(pmat)
+#             f1i[...,0:4,0:4] = fi
+#             f1i[...,4:8,4:8] = fi  
             
-            return dotmm(f1,dotmm(pmat,f1i))
+#             return dotmm(f1,dotmm(pmat,f1i))
             
-        elif method == "4x4_2":
-            np.add(alpha[...,1::2],alpha[...,1::2].real*2*1j*cfact, out = alpha[...,1::2])
+#         elif method == "4x4_2":
+#             np.add(alpha[...,1::2],alpha[...,1::2].real*2*1j*cfact, out = alpha[...,1::2])
 
-        pmat = phase_mat(alpha,-kd)
-        if method == "4x4_1":
-            pmat[...,1::2] = 0.
-    else:
-        raise ValueError("Unknown method!")
+#         pmat = phase_mat(alpha,-kd)
+#         if method == "4x4_1":
+#             pmat[...,1::2] = 0.
+#     else:
+#         raise ValueError("Unknown method!")
         
-    out = dotmdm(f,pmat,fi,out = out) 
+#     out = dotmdm(f,pmat,fi,out = out) 
     
-    if retfmat == False:
-        return out   
-    else:
-        return fmat, out 
+#     if retfmat == False:
+#         return out   
+#     else:
+#         return fmat, out 
 
 def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, cfact = 0.01, method = "4x4", out = None):
     """Computes a stack characteristic matrix M = M_1.M_2....M_n if method is
