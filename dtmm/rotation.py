@@ -15,32 +15,108 @@ import numba as nb
 from dtmm.conf import NCDTYPE, NFDTYPE, NF32DTYPE, NF64DTYPE, \
        CDTYPE, FDTYPE, NUMBA_TARGET, NUMBA_CACHE, NUMBA_FASTMATH
 
+
 def _check_matrix(mat, shape, dtype):
+    """
+    Checks that <mat> is of the correct shape and data type.
+
+    Parameters
+    ----------
+    mat : array
+        The matrix to check
+    shape : tuple
+        The shape that <mat> should have.
+    dtype : dtype
+        The data type that <mat> should have.
+
+    Returns
+    -------
+
+    """
     if not (mat.shape == shape and mat.dtype == dtype):
         raise TypeError('Input matrix must be a numpy array of shape %s and %s dtype' % (shape, dtype))     
 
+
 def _output_matrix(mat, shape, dtype):
+    """
+    Ensures that the output matrix <mat> exists and is of the correct data type.
+    Checks that <mat> is of the correct shape.
+
+    Parameters
+    ----------
+    mat : array
+        The matrix to check
+    shape : tuple
+        The shape that <mat> should have.
+    dtype : dtype
+        The data type that <mat> should have.
+
+    Returns
+    -------
+
+    """
     if mat is None:
-        mat = np.empty(shape, dtype = dtype)
+        mat = np.empty(shape, dtype=dtype)
     else:
-        _check_matrix(mat, shape,dtype)
+        _check_matrix(mat, shape, dtype)
+
     return mat
+
 
 def _input_matrix(mat, shape, dtype):
+    """
+    Ensures that the matrix is of the correct data type and checks that
+    it is of the right shape.
+
+    Parameters
+    ----------
+    mat : array
+        The matrix to check
+    shape : tuple
+        The shape that <mat> should have.
+    dtype : dtype
+        The data type that <mat> should have.
+
+    Returns
+    -------
+
+    """
+    # Ensure matrix is a numpy ndarray
     if not isinstance(mat, np.ndarray):
-        mat = np.array(mat, dtype = dtype)  
-    else:  
-        _check_matrix(mat, shape, dtype)
+        mat = np.array(mat, dtype=dtype)
+
+    # Ensure that the matrix is of the correct shape and type
+    _check_matrix(mat, shape, dtype)
+
     return mat
 
-def rotation_vector2(angle, out = None):
-    """Returns 2D rotation vector (cos(angle), sin(angle)).
-    Numpy broadcasting rules apply."""
-    c,s = np.cos(angle), np.sin(angle)
+
+def rotation_vector2(angle, out=None):
+    """
+    Coverts the provided angle into a rotation vector
+
+    Parameters
+    ----------
+    angle : array
+         Array containing the angle of rotation at different points in space
+    out : array
+        Rotation, represented as a 2D vector at every point in space
+
+    Returns
+    -------
+
+    """
+    # calculate rotations from angle
+    c, s = np.cos(angle), np.sin(angle)
+
+    # Create <out> if not provided
     if out is None:
-        out = np.empty(shape = c.shape + (2,), dtype = FDTYPE)
-    out[...,0] = c
-    out[...,1] = s
+        out = np.empty(shape=c.shape + (2,), dtype=FDTYPE)
+
+    # Store values
+    out[..., 0] = c
+    out[..., 1] = s
+
     return out
 
 def rotation_matrix2(angle, out = None):
@@ -223,45 +299,117 @@ def _rotate_diagonal_tensor(R,diagonal,out):
     out[5] = diagonal[0]*R[1,0]*R[2,0] + diagonal[1]*R[1,1]*R[2,1] + diagonal[2]*R[1,2]*R[2,2]
     return out
 
-@jit([(NF32DTYPE[:,:],NF32DTYPE[:],NF32DTYPE[:]),
-      (NF64DTYPE[:,:],NF64DTYPE[:],NFDTYPE[:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def _rotate_vector(R,vector,out):
-    
-    out0 = vector[0]*R[0,0] + vector[1]*R[0,1] + vector[2]*R[0,2]
-    out1 = vector[0]*R[1,0] + vector[1]*R[1,1] + vector[2]*R[1,2]
-    out2 = vector[0]*R[2,0] + vector[1]*R[2,1] + vector[2]*R[2,2]
-    
+
+@jit([(NF32DTYPE[:, :], NF32DTYPE[:], NF32DTYPE[:]),
+      (NF64DTYPE[:, :], NF64DTYPE[:], NFDTYPE[:])], nopython=True, cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)
+def _rotate_vector(rotation_matrix, vector, out):
+    """
+    Rotates vector <vector> using rotation matrix <rotation_matrix>
+
+    Parameters
+    ----------
+    rotation_matrix : array
+        3x3 rotation matrix
+    vector : array
+        Input 3-vector to rotate
+    out : array
+        Output rotated 3-vector
+
+    Returns
+    -------
+
+    """
+    # Rotate x values
+    out0 = vector[0] * rotation_matrix[0, 0] + vector[1] * rotation_matrix[0, 1] + vector[2] * rotation_matrix[0, 2]
+    # Rotate y values
+    out1 = vector[0] * rotation_matrix[1, 0] + vector[1] * rotation_matrix[1, 1] + vector[2] * rotation_matrix[1, 2]
+    # Rotate z values
+    out2 = vector[0] * rotation_matrix[2, 0] + vector[1] * rotation_matrix[2, 1] + vector[2] * rotation_matrix[2, 2]
+
+    # Set outputs, return by reference
     out[0] = out0
     out[1] = out1
     out[2] = out2
 
-@nb.guvectorize([(NF32DTYPE[:,:],NF32DTYPE[:],NF32DTYPE[:]),
-                 (NF64DTYPE[:,:],NF64DTYPE[:],NFDTYPE[:]),],"(n,n),(n)->(n)", cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH, target = NUMBA_TARGET)
-def rotate_vector(R,vector, out):
-    """rotate_vector(R,vector)
-    
-    Calculates out = R.vector of a vector"""
+
+@nb.guvectorize([(NF32DTYPE[:, :], NF32DTYPE[:], NF32DTYPE[:]),
+                 (NF64DTYPE[:, :], NF64DTYPE[:], NFDTYPE[:]), ], "(n,n),(n)->(n)", cache=NUMBA_CACHE,
+                fastmath=NUMBA_FASTMATH, target=NUMBA_TARGET)
+def rotate_vector(rotation_matrix, vector, out):
+    """
+    Rotates vector <vector> using rotation matrix <rotation_matrix>
+    rotate_vector(R, vector)
+
+    Calculates out = R.vector of a vector
+
+    Parameters
+    ----------
+    rotation_matrix
+    vector
+    out
+
+    Returns
+    -------
+
+    """
+    # Ensure size is correct size
     if len(vector) != 3:
-        raise ValueError("Invalid input data shape")    
-    _rotate_vector(R,vector,out)
+        raise ValueError("Invalid input data shape")
+
+    # Perform rotation
+    _rotate_vector(rotation_matrix, vector, out)
     
 
 dotrv = rotate_vector
-    
-def tensor_to_matrix(tensor, output = None):
-    """Converts tensor of shape (6,) to matrix of shape (3,3)
+
+
+def tensor_to_matrix(tensor, output=None):
     """
-    output = _output_matrix(output,(3,3),CDTYPE)
-    tensor = _input_matrix(tensor,(6,),CDTYPE)
+    Converts a symmetric tensor of shape (6,) to matrix of shape (3,3).
+
+    Parameters
+    ----------
+    tensor : array
+        The symmetric tensor to represent as a matrix
+    output : array
+        The (3, 3) matrix representation of <tensor>
+
+    Returns
+    -------
+
+    """
+    # Check that output matrix exists and is good
+    output = _output_matrix(output, (3, 3), CDTYPE)
+    # Check the input matrix is good
+    tensor = _input_matrix(tensor, (6,), CDTYPE)
+    # Convert tensor to matrix
     _tensor_to_matrix(tensor, output)
+
     return output
 
-def diagional_tensor_to_matrix(tensor, output = None):
-    """Converts tensor of shape (3,) to matrix of shape (3,3)
+
+def diagonal_tensor_to_matrix(tensor, output=None):
     """
-    output = _output_matrix(output,(3,3),CDTYPE)
-    tensor = _input_matrix(tensor,(3,),CDTYPE)
+    Converts diagonal tensor of shape (3,) to matrix of shape (3,3).
+
+    Parameters
+    ----------
+    tensor : array
+        The diagonal tensor to represent as a matrix
+    output : array
+        The (3, 3) matrix representation of <tensor>
+
+    Returns
+    -------
+
+    """
+    # Check that output matrix exists and is good
+    output = _output_matrix(output, (3, 3), CDTYPE)
+    # Check the input matrix is good
+    tensor = _input_matrix(tensor, (3,), CDTYPE)
+    # Convert tensor to matrix
     _diagonal_tensor_to_matrix(tensor, output)
+
     return output
 
 @jit([NCDTYPE[:,:](NCDTYPE[:],NCDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)

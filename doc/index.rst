@@ -16,6 +16,7 @@ Welcome to dtmm's documentation!
    datamodel
    tutorial
    optimization
+   CHANGELOG
    reference
 
 

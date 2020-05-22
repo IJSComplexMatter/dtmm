@@ -1,6 +1,14 @@
 dtmm: Diffractive Transfer Matrix Method
 ========================================
 
+.. image:: https://img.shields.io/pypi/pyversions/dtmm
+    :target: https://pypi.org/project/dtmm/
+    :alt: Python version
+
+.. image:: https://readthedocs.org/projects/dtmm/badge/?version=latest
+    :target: https://dtmm.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
+
 .. image:: https://zenodo.org/badge/125330690.svg
    :target: https://zenodo.org/badge/latestdoi/125330690
 
@@ -23,7 +31,11 @@ Optional:
 Installation
 ------------
 
-No official release exists yet, so you have to clone or download the latest development code and run::
+Install with pip::
+
+    $ pip install dtmm
+    
+or clone the latest development version and run::
 
     $ python setup.py install
 
@@ -43,7 +55,7 @@ of use.
 License
 -------
 
-``dtmm`` will be released under MIT license so you will be able to use it freely, however, I will ask you to cite the *... some future paper*. In the mean time you can play with the current development version freely, but i kindly ask you not to redistribute the code or  publish data obtained with this package. **Please wait until the package is officially released!**
+``dtmm`` is released under MIT license so you can use it freely. Please cite the package if you use it. See the provided DOI badge.
 
 
 

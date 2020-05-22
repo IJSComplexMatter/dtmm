@@ -43,12 +43,14 @@ def _redim(a, ndim=1):
         new_shape = (np.multiply.reduce(old_shape[0:n+1]),) + old_shape[n+1:]
     return a.reshape(new_shape)
 
-def bulk_viewer(field_data, cmf = None, window = None, **parameters):
-    """Returns a FieldViewer object for optical microsope simulation
+
+def bulk_viewer(field_data, cmf=None, window=None, **parameters):
+    """
+    Returns a FieldViewer object for optical microscope simulation
     
     Parameters
     ----------
-    field_data : field data tuple
+    field_data : tuple[np.ndarray]
         Input field data
     cmf : str, ndarray or None, optional
         Color matching function (table). If provided as an array, it must match 
@@ -62,24 +64,28 @@ def bulk_viewer(field_data, cmf = None, window = None, **parameters):
         
     Returns
     -------
-    out : viewer
+    out : BulkViewer
         A :class:`BulkViewer` viewer object 
     
     """    
-    return field_viewer(field_data, cmf, bulk_data = True, window = window, **parameters)
+    return field_viewer(field_data, cmf, bulk_data=True, window=window, **parameters)
 
-def field_viewer(field_data, cmf = None, bulk_data = False, n = 1., mode = None,
-                 window = None, diffraction = True, polarization = "normal", betamax = BETAMAX, **parameters):
-    """Returns a FieldViewer object for optical microsope simulation
+
+def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None,
+                 window=None, diffraction=True, polarization_mode="normal", betamax=BETAMAX, **parameters):
+    """
+    Returns a FieldViewer object for optical microscope simulation
     
     Parameters
     ----------
-    field_data : field data tuple
+    field_data : tuple[np.ndarray]
         Input field data
     cmf : str, ndarray or None, optional
         Color matching function (table). If provided as an array, it must match 
         input field wavelengths. If provided as a string, it must match one of 
         available CMF names or be a valid path to tabulated data. See load_tcmf.
+    bulk_data: bool
+        # TODO: I don't know what this value is
     n : float, optional
         Refractive index of the output material.
     mode : [ 't' | 'r' | None], optional
@@ -92,7 +98,7 @@ def field_viewer(field_data, cmf = None, bulk_data = False, n = 1., mode = None,
         Specifies whether field is treated as diffractive field or not (if it
         was calculated by diffraction > 0 algorithm or not). If set to False
         refocusing is disabled.
-    polarization : str, optional
+    polarization_mode : str, optional
         Defines polarization mode. That is, how the polarization of the light is
         treated after passing the analyzer. By default, polarizer is applied
         in real space (`mode`) which is good for normal (or mostly normal) 
@@ -107,42 +113,67 @@ def field_viewer(field_data, cmf = None, bulk_data = False, n = 1., mode = None,
         
     Returns
     -------
-    out : viewer
+    out : FieldViewer
         A :class:`FieldViewer` or :class:`BulkViewer` viewer object 
     
     """
+    # Valid polarization modes
+    valid_polarization_modes = ("mode", "normal")
+    # Extract components out of field_data
     field, wavelengths, pixelsize = field_data
-    wavenumbers = k0(wavelengths, pixelsize)
+    # Convert wavelengths and pixel size to wave numbers
+    wave_numbers = k0(wavelengths, pixelsize)
     
-    if diffraction == False and mode is not None:
+    if not diffraction and mode is not None:
         import warnings
         warnings.warn("Diffraction has been enabled because projection mode is set!")
         diffraction = True
-    pmodes =    ("mode","normal")
-    if polarization not in pmodes :
-        raise ValueError("Unknown polarization mode, should be one of {}".format(repr(pmodes)))
-   
+
+    # Check that the provided polarization mode is a value one
+    if polarization_mode not in valid_polarization_modes:
+        raise ValueError("Unknown polarization mode, should be one of {}".format(repr(valid_polarization_modes)))
+
+    # Ensure a color matching function will be used
     if cmf is None:
         cmf = load_tcmf(wavelengths)
     elif isinstance(cmf, str):
-        cmf = load_tcmf(wavelengths, cmf = cmf)
-    if bulk_data == False:
+        cmf = load_tcmf(wavelengths, cmf=cmf)
+
+    if not bulk_data:
         if field.ndim < 4:
             raise ValueError("Incompatible field shape")
-        viewer = FieldViewer(field, wavenumbers, cmf, mode = mode, n = n,
-                   window = window, diffraction = diffraction, polarization = polarization, betamax = betamax)
+
+        viewer = FieldViewer(field, wave_numbers, cmf, mode=mode, n=n,
+                             window=window, diffraction=diffraction,
+                             polarization=polarization_mode, betamax=betamax)
         
         viewer.set_parameters(**parameters)
     else:
         if field.ndim < 5:
             raise ValueError("Incompatible field shape")
+
         parameters.setdefault("focus", 0)
-        viewer = BulkViewer(field, wavenumbers, cmf, mode = mode, n = n,
-                   window = window, diffraction = diffraction, polarization = polarization, betamax = betamax)
+        viewer = BulkViewer(field, wave_numbers, cmf, mode=mode, n=n,
+                            window=window, diffraction=diffraction,
+                            polarization=polarization_mode, betamax=betamax)
         viewer.set_parameters(**parameters)        
     return viewer
 
+
 def _float_or_none(value):
+    """
+    Helper function to convert the passed value to a float and return it, or return None.
+
+    Parameters
+    ----------
+    value : SupportsFloat, _SupportsIndex, str, bytes, bytearray
+        A value which can be represented as a float, or None.
+
+    Returns
+    -------
+    value: float, optional
+        The passed value represented as a float, or None if it does not exist.
+    """
     return float(value) if value is not None else None
  
 
@@ -562,10 +593,14 @@ class FieldViewer(object):
         specter = self.calculate_specter(recalc,**params)
         if recalc or "intensity" in self._updated_parameters:
             if self.intensity is not None:
-                if self.mode == "r":
-                    norm = -1./self.intensity
+                if self.intensity != 0.0:
+                    if self.mode == "r":
+                        norm = -1./self.intensity
+                    else:
+                        norm = 1./self.intensity
                 else:
-                    norm = 1./self.intensity
+                    norm = 0.0
+
                 self.image = specter2color(specter,self.cmf, norm = norm, gamma = self.gamma, gray = self.gray) 
             else:
                 if self.mode == "r":

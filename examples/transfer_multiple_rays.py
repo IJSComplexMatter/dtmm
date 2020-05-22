@@ -29,8 +29,8 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, PIXELSIZE,
 field_data_out = dtmm.transfer_field(field_data_in, optical_data, diffraction = 1, multiray = True,
                                      nin = 1.5,nout =1.5)
 
-viewer = dtmm.field_viewer(field_data_out, sample = 0, intensity = 2,n=1.5,
-                polarizer = 0, focus = -30, analyzer = 90, polarization = "mode")
+viewer = dtmm.field_viewer(field_data_out, sample = 0, intensity = 2, n=1.5,
+                           polarizer = 0, focus = -30, analyzer = 90, polarization_mode="mode")
 fig, ax = viewer.plot()
 fig.show()
 
