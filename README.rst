@@ -1,8 +1,8 @@
 dtmm: Diffractive Transfer Matrix Method
 ========================================
 
-.. image:: https://zenodo.org/badge/125330690.svg
-   :target: https://zenodo.org/badge/latestdoi/125330690
+[![Documentation Status](https://readthedocs.org/projects/dtmm/badge/?version=latest)](https://dtmm.readthedocs.io)
+[![DOI](https://zenodo.org/badge/125330690.svg)](https://zenodo.org/badge/latestdoi/125330690)
 
 ``dtmm`` is a simple-to-use light (electro-magnetic field) transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as liquid-crystal with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method. Details of the method are given in *... some future paper*.
 
@@ -43,7 +43,7 @@ of use.
 License
 -------
 
-``dtmm`` will be released under MIT license so you will be able to use it freely, however, I will ask you to cite the *... some future paper*. In the mean time you can play with the current development version freely, but i kindly ask you not to redistribute the code or  publish data obtained with this package. **Please wait until the package is officially released!**
+``dtmm`` is released under MIT license so you can use it freely. Please cite the package if you use it. See the provided DOI badge.
 
 
 
