@@ -1,8 +1,9 @@
 dtmm: Diffractive Transfer Matrix Method
 ========================================
 
-.. image:: https://readthedocs.org/projects/dtmm/badge/?version=latest)
-   :target: https://dtmm.readthedocs.io
+.. image:: https://readthedocs.org/projects/dtmm/badge/?version=latest
+    :target: https://dtmm.readthedocs.io/en/latest/?badge=latest
+    :alt: Documentation Status
 
 .. image:: https://zenodo.org/badge/125330690.svg
    :target: https://zenodo.org/badge/latestdoi/125330690
