@@ -1,4 +1,4 @@
-__version__ = "0.4.0.dev"
+__version__ = "0.4.0"
 
 from .linalg import * 
 from .wave import *
