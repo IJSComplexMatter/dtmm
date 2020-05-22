@@ -109,8 +109,9 @@ def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), nor
     out[...,0] = xx
     out[...,1] = yy
     out[...,2] = zz
-    out = rotate_vector(rmat.T,out,out) #rotate coordinates
-    
+
+    out = rotate_vector(rmat.T,out, out) #rotate coordinates
+
     #out2 = out.copy()
     #out2[...,0] = out[...,2]
     #out2[...,2] = out[...,0]
@@ -126,14 +127,14 @@ def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), nor
     out[...,1] = ynew
     out[...,2] = znew
     
-    rotate_vector(rmat,out, out) #rotate vector in each voxel
+    out = rotate_vector(rmat,out, out) #rotate vector in each voxel
     
     if norm == True:
         s = director2order(out)
         mask = (s == 0.)
         s[mask] = 1.
         return np.divide(out, s[...,None], out)
-    return 
+    return out
 
 def rot90_director(data,axis = "+x", out = None):
     """
