@@ -33,9 +33,13 @@ Optional:
 Installation
 ------------
 
-Run::
+Install with pip::
 
     $ pip install dtmm
+    
+or clone the latest development version and run::
+
+    $ python setup.py install
 
 Documentation
 -------------
