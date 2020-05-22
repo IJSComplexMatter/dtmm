@@ -1,8 +1,8 @@
 Release Notes
 -------------
 
-V0.5.0 (May 22 2020)
-++++++++++++++++++++
+V0.5.0 (In development)
++++++++++++++++++++++++
 
 Initial support for non-iterative 4x4 calculation with reflections (for 2d data)
 
