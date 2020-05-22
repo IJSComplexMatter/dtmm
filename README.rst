@@ -27,9 +27,9 @@ Optional:
 Installation
 ------------
 
-No official release exists yet, so you have to clone or download the latest development code and run::
+To install the latest release run::
 
-    $ python setup.py install
+    $ pip install dtmm
 
 Documentation
 -------------
