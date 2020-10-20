@@ -10,8 +10,9 @@ import sys
 
 from dtmm.conf import FDTYPE, CDTYPE, NFDTYPE, NCDTYPE, NUMBA_CACHE,\
 NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE, DTMMConfig
-from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector
-
+from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector, _tensor_to_matrix, rotation_angles
+from dtmm.wave import betaphi
+from dtmm.fft import fft2, ifft2
 
 def read_director(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
     """Reads raw director data from a binary or text file. 
@@ -259,6 +260,7 @@ def validate_optical_data(data, homogeneous = False):
         raise ValueError("Material length should match thickness length")
     if (material.ndim != 2 and homogeneous) or (material.ndim != 4 and not homogeneous):
         raise ValueError("Invalid dimensions of the material.")
+
     angles = np.asarray(angles, dtype = FDTYPE)
     if (angles.ndim == 1 and homogeneous) or (angles.ndim==3 and not homogeneous):
         angles = np.broadcast_to(angles, (n,)+angles.shape)
@@ -272,6 +274,7 @@ def validate_optical_data(data, homogeneous = False):
         raise ValueError("Incompatible shapes for angles and material")
  
     return thickness.copy(), material.copy(), angles.copy()
+
 
     
 def raw2director(data, order = "zyxn", nvec = "xyz"):
@@ -655,15 +658,26 @@ def _refind2eps(refind, out):
     out[1] = refind[1]**2
     out[2] = refind[2]**2
 
-@numba.guvectorize(_REFIND_DECL,"(n)->(n)", cache = NUMBA_CACHE)  
-def refind2eps(refind, out):
-    """Converts three eigen (complex) refractive indices to three eigen dielectric tensor elements"""
-    assert refind.shape[0] == 3
-    _refind2eps(refind, out)
-   
+# @numba.guvectorize(_REFIND_DECL,"(n)->(n)", cache = NUMBA_CACHE)  
+# def refind2eps(refind, out):
+#     """Converts three eigen (complex) refractive indices to three eigen dielectric tensor elements"""
+#     assert refind.shape[0] == 3
+#     _refind2eps(refind, out)
+
+_REFIND_DECL = [NF32DTYPE(NF32DTYPE), NFDTYPE(NF64DTYPE),NC64DTYPE(NC64DTYPE), NCDTYPE(NC128DTYPE)]
+
+@numba.vectorize(_REFIND_DECL, cache = NUMBA_CACHE)  
+def refind2eps(refind):
+    """Converts refractive index to epsilon"""
+    return refind**2
+
+_EPS_DECL = [(NF32DTYPE,NF32DTYPE[:],NF32DTYPE[:]), (NF64DTYPE, NF64DTYPE[:],NFDTYPE[:]),
+             (NF32DTYPE,NC64DTYPE[:],NC64DTYPE[:]), (NF64DTYPE, NC128DTYPE[:],NCDTYPE[:])
+             ]
+
     
-_EPS_DECL = ["(float32,float32[:],float32[:])","(float64,float64[:],float64[:])",
-             "(float32,complex64[:],complex64[:])","(float64,complex128[:],complex128[:])"]
+#_EPS_DECL = ["(float32,float32[:],float32[:])","(float64,float64[:],float64[:])",
+#             "(float32,complex64[:],complex64[:])","(float64,complex128[:],complex128[:])"]
 @numba.njit(_EPS_DECL, cache = NUMBA_CACHE)
 def _uniaxial_order(order, eps, out):
     m = (eps[0] + eps[1] + eps[2])/3.
@@ -679,8 +693,39 @@ def _uniaxial_order(order, eps, out):
     out[1] = eps1
     out[2] = eps3
     
-    return out
 
+@numba.njit(_EPS_DECL, cache = NUMBA_CACHE)
+def _uniaxial_order_tensor(order, eps, out):
+    m = np.empty((3,3), dtype = eps.dtype)
+    m = _tensor_to_matrix(eps, m)
+
+    
+    eps, v = np.linalg.eig(m)
+    
+    
+    m = (eps[0] + eps[1] + eps[2])/3.
+    delta = eps[2] - (eps[0] + eps[1])/2.
+    if order == 0.:
+        eps1 = m
+        eps3 = m
+    else:
+        eps1 = m - 1./3. *order * delta
+        eps3 = m + 2./3. * order * delta
+        
+    eps[0] = eps1
+    eps[1] = eps1
+    eps[2] = eps3
+    
+    m = np.dot(v,np.dot(np.diag(eps),v.T))
+    
+    out[0] = m[0,0]
+    out[1] = m[1,1]
+    out[2] = m[2,2]
+    out[3] = m[0,1]
+    out[4] = m[0,2]
+    out[5] = m[1,2]
+    
+    
 _EPS_DECL_VEC = ["(float32[:],float32[:],float32[:])","(float64[:],float64[:],float64[:])",
              "(float32[:],complex64[:],complex64[:])","(float64[:],complex128[:],complex128[:])"]
 @numba.guvectorize(_EPS_DECL_VEC ,"(),(n)->(n)", cache = NUMBA_CACHE)
@@ -696,11 +741,14 @@ def uniaxial_order(order, eps, out):
     >>> uniaxial_order(1,[1,2,3.])
     array([ 1.5+0.j,  1.5+0.j,  3.0+0.j])
     """
-    assert eps.shape[0] == 3
-    _uniaxial_order(order[0], eps, out)
+    assert eps.shape[0] in (3,6)
+    if eps.shape[0] == 3:
+        _uniaxial_order(order[0], eps, out)
+    else :
+        _uniaxial_order_tensor(order[0], eps, out)
     
 MAGIC = b"dtms" #legth 4 magic number for file ID
-VERSION = b"\x00"
+VERSION = b"\x01"
 
 """
 IOs fucntions
@@ -734,7 +782,8 @@ def save_stack(file, optical_data):
         f.write(VERSION)
         np.save(f,d)
         np.save(f,epsv)
-        np.save(f,epsa)
+        if epsa is not None:
+            np.save(f,epsa)
     finally:
         if own_fid == True:
             f.close()
@@ -757,17 +806,110 @@ def load_stack(file):
             f = file
         magic = f.read(len(MAGIC))
         if magic == MAGIC:
-            if f.read(1) != VERSION:
+            if ord(f.read(1)) > ord(VERSION):
                 raise OSError("This file was created with a more recent version of dtmm. Please upgrade your dtmm package!")
             d = np.load(f)
             epsv = np.load(f)
-            epsa = np.load(f)
+            if f.peek(1) == b"":
+                epsa =  None
+            else:
+                epsa = np.load(f)
             return d, epsv, epsa
         else:
             raise OSError("Failed to interpret file {}".format(file))
     finally:
         if own_fid == True:
             f.close()
+
+
+_EIG_EPS_DECL = [(NF32DTYPE[:],NFDTYPE[:],NF32DTYPE[:],NF32DTYPE[:,:]), (NF64DTYPE[:], NFDTYPE[:],NFDTYPE[:],NFDTYPE[:,:]),
+             (NC64DTYPE[:],NFDTYPE[:],NC64DTYPE[:],NF32DTYPE[:,:]), (NC128DTYPE[:], NFDTYPE[:],NCDTYPE[:],NFDTYPE[:,:])
+             ]
+
+_EIG_EPS_DECL = [(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:,:]), 
+             (NCDTYPE[:], NFDTYPE[:],NCDTYPE[:],NFDTYPE[:,:])
+             ]
+
+
+
+@numba.njit([(NFDTYPE[:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:,:]),(NCDTYPE[:],NFDTYPE[:,:],NCDTYPE[:],NFDTYPE[:,:])], cache = NUMBA_CACHE)
+def _copy_sorted(eps,r, out_eps, out_r):
+    """Eigen modes sorting based on eigenvalues... make extraordinary axis 3"""
+    e0 = np.sqrt(eps[0]).real
+    e1 = np.sqrt(eps[1]).real
+    e2 = np.sqrt(eps[2]).real
+    
+    m2 = np.abs(e1-e0)
+    m1 = np.abs(e2-e0)
+    m0 = np.abs(e2-e1)
+    
+    m = min(min(m0,m1),m2)
+    
+    if m == m0:
+        if e1 < e2:
+            i,j,k = 1,2,0
+        else:
+            i,j,k = 2,1,0
+    elif m == m1:
+        if e0 < e2:
+            i,j,k = 0,2,1
+        else:
+            i,j,k = 2,0,1     
+    else:
+        if e0 < e1:
+            i,j,k = 0,1,2
+        else:
+            i,j,k = 1,0,2   
+            
+    out_eps[0] = eps[i]
+    out_eps[1] = eps[j]
+    out_eps[2] = eps[k]        
+    
+    out_r[:,0] = r[:,i]
+    #out_r[:,1] = r[:,j]
+    if r[2,k]> 0:
+        out_r[:,2] = r[:,k]   
+    else:
+        out_r[:,2] = -r[:,k]   
+    out_r[:,1] = np.cross(out_r[:,2],out_r[:,0])
+
+            
+@numba.guvectorize(_EIG_EPS_DECL, "(m),(n)->(n),(n,n)")   
+def _eig_eps(eps, dummy, epsv, r):
+    assert len(eps) == 6
+    m = np.empty((3,3), dtype = eps.dtype)
+    _tensor_to_matrix(eps, m)
+    e,v = np.linalg.eig(m)
+    _copy_sorted(e,v.real, epsv, r)
+
+
+_dummy = np.empty((3,),FDTYPE)
+         
+def eig_eps(eps, out = None):
+    """Computes epsilon eigenvalues (epsv) and rotation angles (epsa) from
+    epsilon tensor of length 6. """
+    if out is not None:
+        return _eig_eps(eps, _dummy, out = out)
+    else:
+        return _eig_eps(eps, _dummy)
+    
+def eps2epsva(eps):
+    epsv, r = eig_eps(eps)
+    return epsv, rotation_angles(r)
+    
+
+def filter_eps(eps, k, betamax = 1):
+    eps = np.moveaxis(eps,-1,-3)
+    feps = fft2(eps)
+    beta, phi = betaphi(feps.shape[-2:],k)
+    mask = beta > betamax
+    feps[...,mask] = 0.
+    eps = ifft2(feps)
+    eps = np.moveaxis(eps,-3,-1)
+    return eps
+
+    
+    
 
 #@numba.guvectorize(["(complex64[:],float32[:],complex64[:])","(complex128[:],float64[:],complex128[:])"],"(n),()->(n)")
 #def eps2ueps(eps, order, out):

@@ -21,7 +21,7 @@ from dtmm.linalg import dotmf, dotmm
 from dtmm.fft import fft2, ifft2
 
 #: settable viewer parameters
-VIEWER_PARAMETERS = ("focus","analyzer", "polarizer", "sample", "intensity", "cols","rows")
+VIEWER_PARAMETERS = ("focus","analyzer", "polarizer", "sample", "intensity", "cols","rows","gamma","gray")
 
 
 def _redim(a, ndim=1):

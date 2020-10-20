@@ -811,20 +811,35 @@ def _layers_list(optical_data, eff_data, nin, nout, nstep):
     It appends/prepends input and output layers. A layer consists of
     a tuple of (n, thickness, epsv, epsa) where n is number of sublayers"""
     d, epsv, epsa = validate_optical_data(optical_data)  
-    n = len(d)
-    substeps = np.broadcast_to(np.asarray(nstep),(n,))
-    layers = [(n,(t/n, ev, ea)) for n,t,ev,ea in zip(substeps, d, epsv, epsa)]
-    #add input and output layers
-    layers.insert(0, (1,(0., np.broadcast_to(refind2eps([nin]*3), epsv[0].shape), np.broadcast_to(np.array((0.,0.,0.), dtype = FDTYPE), epsa[0].shape))))
-    layers.append((1,(0., np.broadcast_to(refind2eps([nout]*3), epsv[0].shape), np.broadcast_to(np.array((0.,0.,0.), dtype = FDTYPE), epsa[0].shape))))
-    if eff_data is None:
-        d_eff, epsv_eff, epsa_eff = _isotropic_effective_data(optical_data)
+    
+    if epsa is not None:
+        substeps = np.broadcast_to(np.asarray(nstep),(len(d),))
+        layers = [(n,(t/n, ev, ea)) for n,t,ev,ea in zip(substeps, d, epsv, epsa)]
+        #add input and output layers
+        layers.insert(0, (1,(0., np.broadcast_to(refind2eps([nin]*3), epsv[0].shape), np.broadcast_to(np.array((0.,0.,0.), dtype = FDTYPE), epsa[0].shape))))
+        layers.append((1,(0., np.broadcast_to(refind2eps([nout]*3), epsv[0].shape), np.broadcast_to(np.array((0.,0.,0.), dtype = FDTYPE), epsa[0].shape))))
+        if eff_data is None:
+            d_eff, epsv_eff, epsa_eff = _isotropic_effective_data(optical_data)
+        else:
+            d_eff, epsv_eff, epsa_eff = validate_optical_data(eff_data, homogeneous = True)        
+        eff_layers = [(n,(t/n, ev, ea)) for n,t,ev,ea in zip(substeps, d_eff, epsv_eff, epsa_eff)]
+        eff_layers.insert(0, (1,(0., refind2eps([nin]*3), np.array((0.,0.,0.), dtype = FDTYPE))))
+        eff_layers.append((1,(0., refind2eps([nout]*3), np.array((0.,0.,0.), dtype = FDTYPE))))
+        return layers, eff_layers
     else:
-        d_eff, epsv_eff, epsa_eff = validate_optical_data(eff_data, homogeneous = True)        
-    eff_layers = [(n,(t/n, ev, ea)) for n,t,ev,ea in zip(substeps, d_eff, epsv_eff, epsa_eff)]
-    eff_layers.insert(0, (1,(0., refind2eps([nin]*3), np.array((0.,0.,0.), dtype = FDTYPE))))
-    eff_layers.append((1,(0., refind2eps([nout]*3), np.array((0.,0.,0.), dtype = FDTYPE))))
-    return layers, eff_layers
+        substeps = np.broadcast_to(np.asarray(nstep),(len(d),))
+        layers = [(n,(t/n, ev, None)) for n,t,ev in zip(substeps, d, epsv)]
+        #add input and output layers
+        layers.insert(0, (1,(0., np.broadcast_to(refind2eps([nin,nin,nin,0,0,0]), epsv[0].shape), None)))
+        layers.append((1,(0., np.broadcast_to(refind2eps([nout,nout,nout,0,0,0]), epsv[0].shape), None)))
+        if eff_data is None:
+            d_eff, epsv_eff, epsa_eff = _isotropic_effective_data(optical_data)
+        else:
+            d_eff, epsv_eff, epsa_eff = validate_optical_data(eff_data, homogeneous = True)        
+        eff_layers = [(n,(t/n, ev, ea)) for n,t,ev,ea in zip(substeps, d_eff, epsv_eff, epsa_eff)]
+        eff_layers.insert(0, (1,(0., refind2eps([nin]*3), np.array((0.,0.,0.), dtype = FDTYPE))))
+        eff_layers.append((1,(0., refind2eps([nout]*3), np.array((0.,0.,0.), dtype = FDTYPE))))
+        return layers, eff_layers       
 
 
 def transfer_2x2(field_data, optical_data, beta = None, 

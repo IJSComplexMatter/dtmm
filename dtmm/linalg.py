@@ -9,6 +9,154 @@ import numpy as np
 
 if not NUMBA_PARALLEL:
     prange = range
+    
+def _sort_eigenvalues(eigs, out = None):
+    eigs = np.asarray(eigs)
+    if out is None:
+        out = np.empty_like(eigs)
+    e0, e1, e2 = np.sqrt(eigs).real #take real part of refractive indices 
+    m2 = np.abs(e1-e0)
+    m1 = np.abs(e2-e0)
+    m0 = np.abs(e2-e1)
+    m = min(min(m0,m1),m2)
+    if m == m0:
+        if e1 < e2:
+            i,j,k = 1,2,0
+        else:
+            i,j,k = 2,1,0
+    elif m == m1:
+        if e0 < e2:
+            i,j,k = 0,2,1
+        else:
+            i,j,k = 2,0,1     
+    else:
+        if e0 < e1:
+            i,j,k = 0,1,2
+        else:
+            i,j,k = 1,0,2   
+    out[0] = eigs[i]
+    out[1] = eigs[j]
+    out[2] = eigs[k]
+    return out
+    
+    
+def eigvals3(m):
+    """Computes eigenvalues of a 3x3 matrix using analytical noniterative algorithm
+    from A Robust Eigensolver for 3 × 3 Symmetric Matrices by David Eberly @ Geometric Tools.
+    """
+    A = m
+    I = np.diag((1.,1.,1.))
+    tr = np.trace(m)#m[0,0] + m[1,1] + m[2,2]
+    q = tr/3.
+    B = (A - q*I)
+    B2 = np.dot(B,B)
+    p = (np.trace(B2)/6.)**0.5
+    B = B/p
+    
+    det = np.linalg.det(B)
+    
+    phi = np.arccos(det/2)/3.
+    
+    eig1 = q + 2 * p * np.cos(phi)
+    eig3 = q + 2 * p * np.cos(phi + (2*np.pi/3))
+    eig2 = 3 * q - eig1 - eig3     # since trace(A) = eig1 + eig2 + eig3    
+    
+    return _sort_eigenvalues((eig1,eig2,eig3))
+    
+
+def eigvals3b(A):
+    """Computes eigenvalues of a 3x3 matrix using analytical noniterative algorithm
+    from wikipedia
+    """
+    p1 = A[0,1]^2 + A[0,2]^2 + A[1,2]^2
+    if (p1 == 0):
+        # A is diagonal.
+        eig1 = A[0,0]
+        eig2 = A[1,1]
+        eig3 = A[2,2]
+    else:
+        I = np.diag((1.,1.,1.))
+        q = np.trace(A)/3.            
+        p2 = (A[0,0] - q)^2 + (A[1,1] - q)^2 + (A[2,2] - q)^2 + 2 * p1
+        p = np.sqrt(p2 / 6)
+        B = (1 / p) * (A - q * I)   
+        r = np.linalg.det(B) / 2.
+        
+        # In exact arithmetic for a symmetric matrix  -1 <= r <= 1
+        # but computation error can leave it slightly outside this range.
+        if (r <= -1): 
+            phi = np.pi / 3
+        elif (r >= 1):
+            phi = 0
+        else:
+            phi = np.acos(r) / 3
+        
+        
+        # the eigenvalues satisfy eig3 <= eig2 <= eig1
+        eig1 = q + 2 * p * np.cos(phi)
+        eig3 = q + 2 * p * np.cos(phi + (2*np.pi/3))
+        eig2 = 3 * q - eig1 - eig3     # since trace(A) = eig1 + eig2 + eig3    
+       
+        return eig1, eig2, eig3
+    
+def eig3(A):
+    eigs = eigvals3(A)
+    W = eigvec2(A,eigs[2])
+    if np.abs(W[0]) > np.abs(W[1]):
+        invlength = 1./(np.abs(W[0])**2 + np.abs(W[2])**2)**0.5
+        U = np.array((-W[2]*invlength,0.,W[0]*invlength))
+    else:
+        invlength = 1./(np.abs(W[1])**2 + np.abs(W[2])**2)**0.5
+        U = np.array((0,+W[2]*invlength,-W[1]*invlength))  
+    V = np.cross(W,U)
+    
+    AU = np.dot(A,U)
+    AV = np.dot(A,V)
+        
+    
+    
+    if eigs[0] == eigs[1]:
+        pass
+    
+    
+        #uniaxial case.. 
+    
+def eigvec2(A,e1):
+    D = np.diag((e1,e1,e1))
+    B = A - D
+    
+    r0xr1 = np.cross(B[0], B[1])
+    r0xr2 = np.cross(B[0], B[2])
+    r1xr2 = np.cross(B[1], B[2])
+        
+    # d0 = np.dot(r1xr2, np.conj(r1xr2))
+    # d1 = np.dot(r0xr2, np.conj(r0xr2))
+    # d2 = np.dot(r0xr1, np.conj(r0xr1))
+ 
+    d0 = np.dot(r1xr2, r1xr2)
+    d1 = np.dot(r0xr2, r0xr2)
+    d2 = np.dot(r0xr1, r0xr1) 
+ 
+    dmax = np.abs(d2)
+    imax = 2
+    
+    if (np.abs(d1)>dmax):
+        dmax = np.abs(d1)
+        imax = 1
+    if (np.abs(d0)>dmax):
+        dmax = np.abs(d0)
+        imax = 0
+    if imax == 0:
+        out = r1xr2/(d0**0.5)
+    elif imax ==1:
+        out = r0xr2/(d1**0.5)
+    else:
+        out = r0xr1/(d2**0.5)
+    if out[2].real < 0.:
+        return -out
+    else:
+        return out
+    
 
 
 @njit([(NCDTYPE[:, :], NCDTYPE[:, :])], cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)

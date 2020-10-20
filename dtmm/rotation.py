@@ -12,7 +12,7 @@ from numba import jit
 import numba as nb
 
 
-from dtmm.conf import NCDTYPE, NFDTYPE, NF32DTYPE, NF64DTYPE, \
+from dtmm.conf import NCDTYPE, NFDTYPE, NF32DTYPE, NF64DTYPE, NC64DTYPE,NC128DTYPE, \
        CDTYPE, FDTYPE, NUMBA_TARGET, NUMBA_CACHE, NUMBA_FASTMATH
 
 
@@ -205,6 +205,25 @@ def _rotation_matrix(psi,theta,phi, R):
     R[2,1] = sintheta*sinpsi
     R[2,2] = costheta
     
+@jit([(NF32DTYPE[:,:],NF32DTYPE[:]),
+      (NF64DTYPE[:,:],NFDTYPE[:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)     
+def _rotation_angles(R, out):
+    """Computes the three Euler angles from the rotation matrix"""
+    theta = np.arccos(R[2,2])
+    #if sin(theta) == 0., then R[1,2] and R[0,2] are zero
+    if R[1,2] == 0. and R[0,2] == 0. or theta == 0.:
+        #it does not matter what psi is, so set to zero
+        psi = 0.
+        #np.arccos(R[1,1]) is phi -psi, but since we set psi ti zero we may set this to phi.
+        phi = np.arccos(R[1,1])
+    else:
+        phi = np.arctan2(R[1,2],R[0,2])
+        psi = np.arctan2(R[2,1],-R[2,0])
+    out[0] = psi
+    out[1] = theta
+    out[2] = phi
+    
+    
 @jit([(NF32DTYPE,NF32DTYPE,NF32DTYPE[:,:]),
       (NF64DTYPE,NF64DTYPE,NFDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH) 
 def _rotation_matrix_uniaxial(theta,phi, R):
@@ -225,7 +244,7 @@ def _rotation_matrix_uniaxial(theta,phi, R):
     R[2,0] = -sintheta
     R[2,1] = 0.
     R[2,2] = costheta
-
+    
 
 @nb.guvectorize([(NF32DTYPE[:],NF32DTYPE[:,:]),
                  (NF64DTYPE[:],NFDTYPE[:,:])], "(n)->(n,n)", 
@@ -261,6 +280,14 @@ def rotation_matrix(angles, out):
     _rotation_matrix(angles[0],angles[1],angles[2], out)
 
 
+@nb.guvectorize([(NF32DTYPE[:,:],NF32DTYPE[:]),
+                 (NF64DTYPE[:,:],NFDTYPE[:])], "(n,n)->(n)", 
+                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def rotation_angles(matrix, out):
+    if len(matrix) != 3:
+        raise ValueError("Invalid input data shape")
+    _rotation_angles(matrix, out)
+
 def rotate_diagonal_tensor(R,diagonal,output = None):
     """Rotates a diagonal tensor, based on the rotation matrix provided
     
@@ -288,6 +315,19 @@ def rotate_diagonal_tensor(R,diagonal,output = None):
     _rotate_diagonal_tensor(R,diagonal,output)
     return output 
 
+def rotate_tensor(R,tensor,output = None):
+    """Rotates a tensor, based on the rotation matrix provided
+    
+    >>> R = rotation_matrix((0.12,0.245,0.78))
+    >>> tensor = np.array([1.3,1.4,1.5,0.1,0.2,0.3], dtype = CDTYPE)
+    >>> tensor = rotate_tensor(R, tensor)
+    >>> matrix = tensor_to_matrix(tensor)
+    """
+    output = _output_matrix(output,(6,),CDTYPE)
+    diagonal = _input_matrix(tensor, (6,), CDTYPE)
+    R = _input_matrix(R,(3,3),FDTYPE)
+    _rotate_tensor(R,diagonal,output)
+    return output 
         
 @jit([NCDTYPE[:](NFDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _rotate_diagonal_tensor(R,diagonal,out):
@@ -297,6 +337,45 @@ def _rotate_diagonal_tensor(R,diagonal,out):
     out[3] = diagonal[0]*R[0,0]*R[1,0] + diagonal[1]*R[0,1]*R[1,1] + diagonal[2]*R[0,2]*R[1,2]
     out[4] = diagonal[0]*R[0,0]*R[2,0] + diagonal[1]*R[0,1]*R[2,1] + diagonal[2]*R[0,2]*R[2,2]          
     out[5] = diagonal[0]*R[1,0]*R[2,0] + diagonal[1]*R[1,1]*R[2,1] + diagonal[2]*R[1,2]*R[2,2]
+    return out
+
+
+@jit([NCDTYPE[:](NFDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def _rotate_tensor(R,tensor,out):
+    """Calculates out = R.tensor.RT of a tensor"""
+    r11 = R[0,0]
+    r12 = R[0,1]
+    r13 = R[0,2]
+    r21 = R[1,0]
+    r22 = R[1,1]
+    r23 = R[1,2]
+    r31 = R[2,0]
+    r32 = R[2,1]
+    r33 = R[2,2]
+    t1 = tensor[0]
+    t2 = tensor[1]
+    t3 = tensor[2]
+    t4 = tensor[3]
+    t5 = tensor[4]
+    t6 = tensor[5]    
+    
+    a1 = (r11 * t1 + r12 * t4 + r13 * t5)
+    a2 = (r13 * t3 + r11 * t5 + r12 * t6)
+    a3 = (r12 * t2 + r11 * t4 + r13 * t6)
+    
+    out[0] = r11 * a1 + r13 * a2 + r12 * a3 
+    out[3] = r21 * a1 + r23 * a2 + r22 * a3  
+    out[4] = r31 * a1 + r33 * a2 + r32 * a3 
+    
+    a1 = r21 * t1 + r22 * t4 + r23 * t5 
+    a2 = r23 * t3 + r21 * t5 + r22 * t6  
+    a3 = r22 * t2 + r21 * t4 + r23 * t6
+    
+    out[1] =  r21 * a1 + r23 * a2 + r22 * a3
+    out[5] =  r31 * a1 + r33 * a2 + r32 * a3
+    
+    out[2] = r31 * (r31 * t1 + r32 * t4 + r33 * t5) + r33 * (r33 * t3 + r31 * t5 + r32 * t6) + r32 * (r32 * t2 + r31 * t4 + r33 * t6)
+    
     return out
 
 
@@ -412,7 +491,15 @@ def diagonal_tensor_to_matrix(tensor, output=None):
 
     return output
 
-@jit([NCDTYPE[:,:](NCDTYPE[:],NCDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+_TENS_DECL = [NF32DTYPE[:,:](NF32DTYPE[:],NF32DTYPE[:,:]), 
+              NFDTYPE[:,:](NF64DTYPE[:],NFDTYPE[:,:]), 
+              NC64DTYPE[:,:](NC64DTYPE[:],NC64DTYPE[:,:]), 
+              NCDTYPE[:,:](NC128DTYPE[:],NCDTYPE[:,:]), 
+             ]
+
+
+#@jit([NCDTYPE[:,:](NCDTYPE[:],NCDTYPE[:,:]), NFDTYPE[:,:](NFDTYPE[:],NFDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+@jit(_TENS_DECL,nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _tensor_to_matrix(tensor, matrix):
     matrix[0,0] = tensor[0]
     matrix[1,1] = tensor[1]
@@ -425,7 +512,8 @@ def _tensor_to_matrix(tensor, matrix):
     matrix[2,1] = tensor[5]
     return matrix
 
-@jit([NCDTYPE[:,:](NCDTYPE[:],NCDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+#@jit([NCDTYPE[:,:](NCDTYPE[:],NCDTYPE[:,:]),NFDTYPE[:,:](NFDTYPE[:],NFDTYPE[:,:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+@jit(_TENS_DECL,nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _diagonal_tensor_to_matrix(tensor, matrix):
     matrix[0,0] = tensor[0]
     matrix[1,1] = tensor[1]

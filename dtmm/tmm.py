@@ -209,31 +209,22 @@ def _poynting(field):
 
 @nb.njit([(NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE)
 def _copy_sorted(alpha,fmat, out_alpha, out_fmat):
+    """Eigen modes sorting based on the computed poynting vector direction"""
     i = 0
     j = 1
     for k in range(4):
-        assert i < 4
-        assert j < 4
         p = _poynting(fmat[:,k])
-        if p == 1j:
-            if alpha[k].imag >= 0.:
-                out_alpha[i] = alpha[k]
-                out_fmat[:,i] = fmat[:,k]
-                i = i + 2
-                
-            else:
-                out_alpha[j] = alpha[k]
-                out_fmat[:,j] = fmat[:,k] 
-                j = j + 2
+
+        if p >= 0.:
+            assert i < 4
+            out_alpha[i] = alpha[k]
+            out_fmat[:,i] = fmat[:,k]
+            i = i + 2
         else:
-            if p >= 0.:
-                out_alpha[i] = alpha[k]
-                out_fmat[:,i] = fmat[:,k]
-                i = i + 2
-            else:
-                out_alpha[j] = alpha[k]
-                out_fmat[:,j] = fmat[:,k] 
-                j = j + 2
+            assert j < 4
+            out_alpha[j] = alpha[k]
+            out_fmat[:,j] = fmat[:,k] 
+            j = j + 2
             
 @nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NCDTYPE[:],NFDTYPE[:],NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:])],
                  "(),(),(m),(l),(k),(n)->(n),(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
