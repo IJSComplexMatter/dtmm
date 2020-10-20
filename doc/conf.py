@@ -26,7 +26,7 @@ author = 'Andrej Petelin'
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
-release = '0.5.0'
+release = '0.6.0.dev'
 
 numfig = True
 

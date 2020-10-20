@@ -4,9 +4,10 @@ from __future__ import division, print_function, absolute_import
 
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider
+from matplotlib.widgets import Slider, AxesWidget, RadioButtons
 from matplotlib.image import imsave
 import scipy.ndimage as nd
+
 
 #from dtmm.project import projection_matrix, project
 from dtmm.color import load_tcmf, specter2color
@@ -16,12 +17,79 @@ from dtmm.field import field2specter
 from dtmm.wave import k0
 from dtmm.data import refind2eps
 from dtmm.conf import BETAMAX, CDTYPE
+from dtmm.jones import jonesvec
 
 from dtmm.linalg import dotmf, dotmm
 from dtmm.fft import fft2, ifft2
 
 #: settable viewer parameters
 VIEWER_PARAMETERS = ("focus","analyzer", "polarizer", "sample", "intensity", "cols","rows","gamma","gray")
+
+SAMPLE_LABELS = ("-90 ","-45 "," 0  ","+45 ", "+90 ")
+POLARIZER_LABELS = (" H  "," V  ","LCP ","RCP ","none")
+
+class CustomRadioButtons(RadioButtons):
+
+    def __init__(self, ax, labels, active=0, activecolor='blue', size=49,
+                 orientation="horizontal", **kwargs):
+        """
+        Add radio buttons to an `~.axes.Axes`.
+        Parameters
+        ----------
+        ax : `~matplotlib.axes.Axes`
+            The axes to add the buttons to.
+        labels : list of str
+            The button labels.
+        active : int
+            The index of the initially selected button.
+        activecolor : color
+            The color of the selected button.
+        size : float
+            Size of the radio buttons
+        orientation : str
+            The orientation of the buttons: 'vertical' (default), or 'horizontal'.
+        Further parameters are passed on to `Legend`.
+        """
+        AxesWidget.__init__(self, ax)
+        self.activecolor = activecolor
+        axcolor = ax.get_facecolor()
+        self.value_selected = None
+
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_navigate(False)
+
+        circles = []
+        for i, label in enumerate(labels):
+            if i == active:
+                self.value_selected = label
+                facecolor = activecolor
+            else:
+                facecolor = axcolor
+            p = ax.scatter([],[], s=size, marker="o", edgecolor='black',
+                           facecolor=facecolor)
+            circles.append(p)
+        if orientation == "horizontal":
+            kwargs.update(ncol=len(labels), mode="expand")
+        kwargs.setdefault("frameon", False)    
+        self.box = ax.legend(circles, labels, loc="center", **kwargs)
+        self.labels = self.box.texts
+        self.circles = self.box.legendHandles
+        for c in self.circles:
+            c.set_picker(5)
+        self.cnt = 0
+        self.observers = {}
+
+        self.connect_event('pick_event', self._clicked)
+
+
+    def _clicked(self, event):
+        if (self.ignore(event) or event.mouseevent.button != 1 or
+            event.mouseevent.inaxes != self.ax):
+            return
+        if event.artist in self.circles:
+            self.set_active(self.circles.index(event.artist))
+
 
 
 def _redim(a, ndim=1):
@@ -101,7 +169,7 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None,
     polarization_mode : str, optional
         Defines polarization mode. That is, how the polarization of the light is
         treated after passing the analyzer. By default, polarizer is applied
-        in real space (`mode`) which is good for normal (or mostly normal) 
+        in real space (`normal`) which is good for normal (or mostly normal) 
         incidence light. You can use `mode` instead of `normal` for more 
         accurate, but slower computation. Here polarizers are applied to 
         mode coefficients in fft space. 
@@ -176,6 +244,49 @@ def _float_or_none(value):
     """
     return float(value) if value is not None else None
  
+    
+def _polarizer_type(value):
+    if isinstance(value, str):
+        name = value.lower().strip()
+        if name in ("lcp","rcp", "h", "v","x","y","none"):
+            return name, _jvec_from_name(name)
+        else:
+            raise ValueError("Unknown polarizer!")
+    else:
+        try:
+            angle = _float_or_none(value)
+            return angle, _jvec_from_angle(angle)
+        except TypeError:
+            jvec = jonesvec(value)
+            if jvec.shape != (2,):
+                raise ValueError("Not a valid jones vector")
+            return jvec, jvec
+        
+def _jvec_from_name(name):
+    if name in ("h","x"):
+        return (1,0)
+    if name in ("v","y"):
+        return (0,1)
+    if name == "lcp":
+        return jonesvec((1,1j))
+    if name == "rcp":
+        return jonesvec((1,-1j))
+    if name == "none":
+        return None
+
+def _jvec_from_angle(angle):
+    if angle is None:
+        return None
+    angle = np.pi/180 * angle
+    out = jonesvec((np.cos(angle),np.sin(angle))) if angle is not None else None 
+    return out    
+        
+
+def _rotate_jonesvec(jones, phi):
+    phi = np.pi/180 * phi
+    c_rot, s_rot = np.cos(phi), np.sin(phi)    
+    R = np.array(((c_rot,-s_rot),(s_rot,c_rot)))
+    return np.dot(R,jones)
 
 class FieldViewer(object): 
     """Base viewer"""  
@@ -184,8 +295,11 @@ class FieldViewer(object):
     _cols = 1
     _focus = None
     _polarizer = None
+    _polarizer_jones = None
     _sample = None
+    _sample_angle = None
     _analyzer = None
+    _analyzer_jones = None
     _intensity = 1.
     _parameters = VIEWER_PARAMETERS
     _fmin = 0
@@ -224,6 +338,7 @@ class FieldViewer(object):
     
     @property
     def ffield(self):
+        """Fourier transform of the field"""
         if self._ffield is None:
             self._ffield = fft2(self.ifield)
         return self._ffield
@@ -238,6 +353,7 @@ class FieldViewer(object):
 
     @property
     def cols(self):
+        """Number of columns used (for periodic tructures)"""
         return self._cols
     
     @cols.setter    
@@ -251,39 +367,71 @@ class FieldViewer(object):
     
     @rows.setter    
     def rows(self, rows):
+        """Number of rows used (for periodic tructures)"""
         self._rows = max(1,int(rows))
         self._updated_parameters.add("rows")   
 
     @property
     def sample(self):
-        """Sample rotation angle."""
+        """Sample rotation angle"""
         return self._sample
+    
+    @property
+    def sample_angle(self):
+        """Sample rotation angle in degrees in float"""
+        return self._sample_angle
     
     @sample.setter    
     def sample(self, angle):
-        self._sample = _float_or_none(angle)
+        """Sample rotation angle in degrees, in float or as a string"""
+        if isinstance(angle, str):
+            labels = tuple((label.strip() for label in SAMPLE_LABELS))
+            if angle.strip() not in labels:
+                if angle in ("none","+0","-0"):
+                    angle = "0"
+                else:
+                    raise ValueError("sample angle must be a float or any of {}".format(labels))
+        self._sample_angle = _float_or_none(angle)
+        self._sample = angle
         self._updated_parameters.add("sample")   
+        
+    @property
+    def polarizer_jones(self):
+        return self._polarizer_jones
+    
+    @polarizer_jones.setter 
+    def polarizer_jones(self, value):
+        self.polarizer = value
+        
+    @property
+    def analyzer_jones(self):
+        return self._analyzer_jones
+    
+    @analyzer_jones.setter 
+    def analyzer_jones(self, value):
+        self.analyzer = value
+
 
     @property
     def polarizer(self):
-        """Polarizer rotation angle."""
+        """Polarizer angle. Can be 'h','v', 'lcp', 'rcp', 'none', angle float or a jones vector"""
         return self._polarizer
         
     @polarizer.setter 
     def polarizer(self, angle):
         if angle is not None and self.ifield.ndim >= 5 and self.ifield.shape[-5] != 2:
             raise ValueError("Cannot set polarizer. Incompatible field shape.")
-        self._polarizer = _float_or_none(angle)
+        self._polarizer, self._polarizer_jones = _polarizer_type(angle)
         self._updated_parameters.add("polarizer")
         
     @property
     def analyzer(self):
-        """Analyzer angle"""
+        """Analyzer angle. Can be 'h','v', 'lcp', 'rcp', 'none', angle float or a jones vector"""
         return self._analyzer    
         
     @analyzer.setter   
     def analyzer(self, angle):
-        self._analyzer = _float_or_none(angle)
+        self._analyzer, self._analyzer_jones = _polarizer_type(angle)
         self._updated_parameters.add("analyzer")
         
     @property
@@ -388,18 +536,48 @@ class FieldViewer(object):
             if self.polarizer is not None:
                 if self.sliders.get("polarizer") is None:
                     self.axpolarizer = self.fig.add_axes(axes.pop())
-                    self.sliders["polarizer"] = Slider(self.axpolarizer, "polarizer",kwargs.pop("pmin",0),kwargs.pop("pmax",90),valinit = self.polarizer, valfmt='%.1f')
-                self._ids4 = self.sliders["polarizer"].on_changed(update_polarizer)    
+                    if isinstance(self.polarizer, str):
+                        labels = tuple((label.strip().lower() for label in POLARIZER_LABELS))
+                        active = labels.index(self.polarizer)
+                        self.sliders["polarizer"] = CustomRadioButtons(self.axpolarizer, POLARIZER_LABELS, active = active)
+                        self.axpolarizer.set_ylabel("polarizer",rotation="horizontal",ha = "right", va = "center")
+                    else:
+                        self.sliders["polarizer"] = Slider(self.axpolarizer, "polarizer",kwargs.pop("pmin",0),kwargs.pop("pmax",90),valinit = self.polarizer, valfmt='%.1f')
+                try:
+                    self._ids4 = self.sliders["polarizer"].on_changed(update_polarizer)  
+                except AttributeError:
+                    self._ids4 = self.sliders["polarizer"].on_clicked(update_polarizer) 
+                    
             if self.sample is not None:
                 if self.sliders.get("sample") is None:
                     self.axsample = self.fig.add_axes(axes.pop())
-                    self.sliders["sample"] = Slider(self.axsample, "sample",kwargs.pop("smin",-180),kwargs.pop("smax",180),valinit = self.sample, valfmt='%.1f')
-                self._ids3 = self.sliders["sample"].on_changed(update_sample)    
+                    if isinstance(self.sample, str):
+                        labels = tuple((label.strip().lower() for label in SAMPLE_LABELS))
+                        active = labels.index(self.sample)
+                        self.sliders["sample"] = CustomRadioButtons(self.axsample, SAMPLE_LABELS, active = active)
+                        self.axsample.set_ylabel("sample",rotation="horizontal",ha = "right", va = "center")
+                    else:
+                        self.sliders["sample"] = Slider(self.axsample, "sample",kwargs.pop("smin",-180),kwargs.pop("smax",180),valinit = self.sample, valfmt='%.1f')
+                try:
+                    self._ids3 = self.sliders["sample"].on_changed(update_sample)
+                except AttributeError:
+                    self._ids3 = self.sliders["sample"].on_clicked(update_sample)
+            
+            
             if self.analyzer is not None:
                 if self.sliders.get("analyzer") is None:
                     self.axanalyzer = self.fig.add_axes(axes.pop())
-                    self.sliders["analyzer"] = Slider(self.axanalyzer, "analyzer",kwargs.pop("amin",0),kwargs.pop("amax",90),valinit = self.analyzer, valfmt='%.1f')
-                self._ids2 = self.sliders["analyzer"].on_changed(update_analyzer)
+                    if isinstance(self.analyzer, str):
+                        labels = tuple((label.strip().lower() for label in POLARIZER_LABELS))
+                        active = labels.index(self.analyzer)
+                        self.sliders["analyzer"] = CustomRadioButtons(self.axanalyzer, POLARIZER_LABELS, active = active)
+                        self.axanalyzer.set_ylabel("analyzer",rotation="horizontal",ha = "right", va = "center")
+                    else:
+                        self.sliders["analyzer"] = Slider(self.axanalyzer, "analyzer",kwargs.pop("amin",0),kwargs.pop("amax",90),valinit = self.analyzer, valfmt='%.1f')
+                try:
+                    self._ids2 = self.sliders["analyzer"].on_changed(update_analyzer)
+                except AttributeError:
+                    self._ids2 = self.sliders["analyzer"].on_clicked(update_analyzer)
             if self.focus is not None:  
                 if self.sliders.get("focus") is None:      
                     self.axfocus = self.fig.add_axes(axes.pop())
@@ -459,33 +637,37 @@ class FieldViewer(object):
                     self.ofield = self.ifield.copy()
             recalc = True
         if recalc or "polarizer" in self._updated_parameters or "analyzer" in self._updated_parameters or "sample" in self._updated_parameters:
-            sample = self.sample
+            sample = self.sample_angle
             if sample is None:
                 sample = 0.
-            if self.polarizer is None:
+            if self.polarizer_jones is None:
                 tmp = _redim(self.ofield, ndim = 5)
                 out = np.empty_like(tmp[0])
             else:
-                angle = -np.pi/180*(self.polarizer - sample)
-                c,s = np.cos(angle),np.sin(angle)  
+                c,s = _rotate_jonesvec(self.polarizer_jones, sample)
+
+                #angle = -np.pi/180*(self.polarizer - sample)
+                #c,s = np.cos(angle),np.sin(angle)  
+                
                 tmp = _redim(self.ofield, ndim = 6)
                 out = np.empty_like(tmp[0,0])
-            if self.analyzer is not None:
-                
-                angle = -np.pi/180*(self.analyzer - sample)
+            if self.analyzer_jones is not None:
+
+                #angle = -np.pi/180*(self.analyzer - sample)
                 #pmat = linear_polarizer(angle)
-                pmat = normal_polarizer((np.cos(angle),np.sin(angle)))
+                #pmat = normal_polarizer((np.cos(angle),np.sin(angle)))
+                pmat = normal_polarizer(_rotate_jonesvec(self.analyzer_jones, sample))
                 #pmat = ray_polarizer((np.cos(angle),np.sin(angle)),epsv = self.epsv, epsa = self.epsa)
                  
             for i,data in enumerate(tmp):
-                if self.polarizer is not None:
+                if self.polarizer_jones is not None:
                     x = data[0]*c
                     y = np.multiply(data[1], s, out = out)
                     ffield = np.add(x,y, out = out)#numexpr.evaluate("x*c+y*s", out = out)
                 else: 
                     ffield = data
                     
-                if self.analyzer is not None:
+                if self.analyzer_jones is not None:
                     #pfield = apply_jones_matrix(pmat, ffield, out = out)
                     pfield = dotmf(pmat, ffield, out = out)
                 else:
@@ -514,12 +696,14 @@ class FieldViewer(object):
         if self.ofield is None:
             recalc = True #first time only trigger calculation 
         if recalc or self._has_parameter_updated("sample", "polarizer"):
-            sample = self.sample if self.sample is not None else 0.
+            sample = self.sample_angle if self.sample_angle is not None else 0.
             if self.polarizer is not None:
                 if self.ffield is None:
                     self.ffield = fft2(self.ifield)
-                angle = -np.pi/180*(self.polarizer - sample)            
-                c,s = np.cos(angle),np.sin(angle)  
+                    
+                c,s = _rotate_jonesvec(self.polarizer_jones, sample)
+                #angle = -np.pi/180*(self.polarizer - sample)            
+                #c,s = np.cos(angle),np.sin(angle)  
                 
                 self.data = _redim(self.ffield, ndim = 6)
                 x = c*self.data[:,0]
@@ -538,10 +722,9 @@ class FieldViewer(object):
             else:
                 self.dmat = np.asarray(np.diag((1,1,1,1)), CDTYPE)      
         if recalc or self._has_parameter_updated("analyzer", "sample") :
-            sample = self.sample if self.sample is not None else 0.
+            sample = self.sample_angle if self.sample_anlge is not None else 0.
             if self.analyzer is not None:
-                angle = -np.pi/180*(self.analyzer - sample)
-                c,s = np.cos(angle),np.sin(angle) 
+                (c,s) = _rotate_jonesvec(self.analyzer_jones, sample)
                 self.pmat = mode_polarizer(self.ifield.shape[-2:], self.ks,  jones = (c,s),
                                           epsv = self.epsv, epsa = self.epsa, 
                                           betamax = self.betamax) 
@@ -611,8 +794,8 @@ class FieldViewer(object):
             self.image = np.hstack(tuple((self.image for i in range (self.cols))))
             self.image = np.vstack(tuple((self.image for i in range (self.rows))))
             
-            if self.sample != 0 and self.sample is not None:
-                self.image = nd.rotate(self.image, self.sample, reshape = False, order = 1) 
+            if self.sample_angle != 0 and self.sample_angle is not None:
+                self.image = nd.rotate(self.image, self.sample_angle, reshape = False, order = 1) 
         self._updated_parameters.clear()
         return self.image
     

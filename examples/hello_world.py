@@ -21,7 +21,7 @@ field_data_in = dtmm.field.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, beta 
 field_data_out = dtmm.transfer_field(field_data_in, optical_data, betamax = 1, reflection =2)
 
 #: visualize output field
-viewer = dtmm.field_viewer(field_data_out, polarizer = 0, analyzer = 90, focus = -30, n=1.5)
+viewer = dtmm.field_viewer(field_data_out, polarizer = "v", analyzer = "h" , focus = -30, n=1.5)
 
 fig,ax = viewer.plot()
 

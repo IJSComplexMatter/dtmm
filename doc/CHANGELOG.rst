@@ -1,6 +1,11 @@
 Release Notes
 -------------
 
+V0.6.0 (In development)
++++++++++++++++++++++++
+
+* Added: RadioButtons for FieldViewer, with options for LCP and RCP polarizations.
+
 V0.5.0 (October 20 2020)
 ++++++++++++++++++++++++
 
