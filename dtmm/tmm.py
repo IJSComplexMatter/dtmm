@@ -1757,14 +1757,14 @@ def transfer(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1.,
 
 transfer1d = transfer
     
-def polarizer4x4(jvec, fmat, out = None):
+def polarizer4x4(jones, fmat, out = None):
     """Returns a polarizer matrix from a given jones vector and a field matrix. 
     
     Numpy broadcasting rules apply.
     
     Parameters
     ----------
-    jvec : array_like
+    jones : array_like
         A length two array describing the jones vector. Jones vector should
         be normalized.
     fmat : array_like
@@ -1775,11 +1775,11 @@ def polarizer4x4(jvec, fmat, out = None):
     Examples
     --------
     >>> f = f_iso(n = 1.) 
-    >>> jvec = dtmm.jones.jonesvec((1,0)) 
-    >>> pol_mat = polarizer4x4(jvec, f) #x polarizer matrix
+    >>> jones = dtmm.jones.jonesvec((1,0)) 
+    >>> pol_mat = polarizer4x4(jones, f) #x polarizer matrix
     
     """
-    jmat = polarizer2x2(jvec)
+    jmat = polarizer2x2(jones)
     return jonesmat4x4(jmat, fmat, out)
 
 def jonesmat4x4(jmat, fmat, out = None):
@@ -1803,14 +1803,14 @@ def jonesmat4x4(jmat, fmat, out = None):
     return m
     
 
-def avec(jvec = (1,0), amplitude = 1., mode = +1, out = None):
+def avec(jones = (1,0), amplitude = 1., mode = +1, out = None):
     """Constructs amplitude vector.
     
     Numpy broadcasting rules apply for jones, and amplitude parameters
     
     Parameters
     ----------
-    jvec : jonesvec
+    jones : jonesvec
         A jones vector, describing the polarization state of the field.
     amplitude : complex
         Amplitude of the field.
@@ -1838,7 +1838,7 @@ def avec(jvec = (1,0), amplitude = 1., mode = +1, out = None):
     >>> b[1]
     array([0.+0.j, 0.+0.j, 2.+0.j, 0.+0.j])
     """
-    jones = np.asarray(jvec)
+    jones = np.asarray(jones)
     amplitude = np.asarray(amplitude)  
     c,s = jones[...,0], jones[...,1] 
     b = np.broadcast(c, amplitude)
@@ -1864,7 +1864,7 @@ def avec(jvec = (1,0), amplitude = 1., mode = +1, out = None):
 
 
 
-def fvec(fmat, jvec = (1,0),  amplitude = 1., mode = +1, out = None):
+def fvec(fmat, jones = (1,0),  amplitude = 1., mode = +1, out = None):
     """Build field vector form a given polarization state, amplitude and mode.
     
     This function calls avec and then avec2fvec, see avec for details.
@@ -1873,7 +1873,7 @@ def fvec(fmat, jvec = (1,0),  amplitude = 1., mode = +1, out = None):
     ----------
     fmat : (...,4,4) array
         Field matrix array.
-    jvec : jonesvec
+    jones : jonesvec
         A jones vector, describing the polarization state of the field.
     amplitude : complex
         Amplitude of the field.
@@ -1898,7 +1898,7 @@ def fvec(fmat, jvec = (1,0),  amplitude = 1., mode = +1, out = None):
     True
     """
     
-    a = avec(jvec, amplitude, mode, out)
+    a = avec(jones, amplitude, mode, out)
     return avec2fvec(a, fmat, out = a)
 
 
