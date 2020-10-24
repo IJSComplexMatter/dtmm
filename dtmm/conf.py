@@ -13,6 +13,17 @@ try:
 except:
     #python 2.7
     from ConfigParser import ConfigParser
+    
+    
+#These will be defined later at runtime... here we hold reference to disable warnings in autoapi generation
+I = None
+CDTYPE = None 
+IDTYPE = None
+C = None
+NUMBA_PARALLEL = None
+NCDTYPE = None
+NFDTYPE = None
+
 
 DATAPATH = os.path.dirname(__file__)
 

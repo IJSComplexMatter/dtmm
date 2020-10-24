@@ -5,8 +5,8 @@ Quickstart Guide
 
 Here you will learn how to construct optical data with the provided helper functions and how to perform calculations for the most typical use case that this package was designed for - propagation of light through a liquid-crystal cell with inhomogeneous director configuration, and visualization (simulation of the optical polarizing microscope imaging). If you are curious about the implementation details you are also advised to read the :ref:`data-model` first and then go through the examples below. More detailed examples  and tutorials are given in the :ref:`tutorial`. 
 
-Importing Data
---------------
+Importing director data
+-----------------------
 
 Say you have a director data stored in a raw or text file (or create a sample director data to work with).
 
@@ -63,6 +63,28 @@ This grows the compute box in lateral dimensions symmetrically, by filling the m
 .. note::
 
    By expansion in lateral dimension we provide more space between the borders and the feature that we wish to observe. This way we can reduce border effects due to the periodic boundary conditions implied by the Fourier transform that is used in diffraction calculation. 
+
+Importing Q tensor data
+-----------------------
+
+If you want to work with Q tensor data described by a matrix (NLAYERS, HEIGHT, WIDTH ,6),
+where the 6 components of the tensor are (Q[0,0], Q[1,1], Q[2,2], Q[0,1], Q[0,2], Q[1,2]), there are some conversion functions to use:
+
+.. doctest::
+
+   >>> Q = dtmm.data.director2Q(director)
+   >>> Q.tofile("Qtensor.raw")
+   >>> Q = dtmm.data.read_Q("Qtensor.raw", (NLAYERS, HEIGHT, WIDTH ,6))
+
+You can convert the tensor to director. This assumes, that you have uniaxial symmetry. If
+the Q tensor is not uniaxial, the conversion function first makes it uniaxial, by finding the eigenvalues and eigenvectors and determining the most distinctive eigenvalue to determine the orientation of the main axis of the tensor.
+
+.. doctest::
+
+   >>> director = Q2director(Q)
+
+Alternative approach is to build the di
+
 
 Transmission Calculation
 ------------------------

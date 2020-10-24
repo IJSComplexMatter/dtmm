@@ -447,7 +447,7 @@ def waves2field2(waves, fmat, jones = None, phi = 0,mode = +1):
 
 def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., intensity = 1.,
                       n = 1., focus = 0., window = None, backdir = False, 
-                      jones = None, diffraction = True, betamax = BETAMAX):
+                      jones = None, diffraction = True, eigenmodes = None, betamax = BETAMAX):
     """Constructs forward (or backward) propagating input illumination field data.
     
     Parameters
@@ -482,13 +482,27 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
         Specifies whether field is diffraction limited or not. By default, the 
         field is filtered so that it has only propagating waves. You can disable
         this by specifying diffraction = False.    
+    eigenmodes : bool or None
+        If set to True (sefault value when `window` = None.), it defines whether 
+        to build eigenmodes from beta and phi values. In this case, beta and phi 
+        are only approximate values. If set to False (default when `window` != None), 
+        true beta and phi values are set. 
     betamax : float, optional
         The betamax parameter of the propagating field.
+
+        
+    Returns
+    -------
+    illumination : field_data
+        A field data tuple.       
     """
     
     verbose_level = DTMMConfig.verbose
     if verbose_level > 0:
         print("Building illumination data.") 
+    
+    eigenmodes = (window is None) if eigenmodes is None else bool(eigenmodes)
+    
     wavelengths = np.asarray(wavelengths)
     wavenumbers = 2*np.pi/wavelengths * pixelsize
     if wavenumbers.ndim not in (1,):
@@ -514,6 +528,18 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
         phi = _phi[:,None]
     else:
         phi = _phi
+        
+    if verbose_level > 1:
+        print("------------------------------------")
+        print(" $ shape: {}".format(shape)) 
+        print(" $ num wavelengths: {}".format(len(wavelengths)))  
+        print(" $ num rays: {}".format(nrays))  
+        print(" $ refractive index: {}".format(n)) 
+        print(" $ diffraction limited: {}".format(diffraction))  
+        print(" $ using eigenmodes: {}".format(eigenmodes))     
+        print(" $ max beta: {}".format(betamax))   
+        print(" $ jones: {}".format( jones if jones is not None else "unpolarized")) 
+        print("------------------------------------")
         
     waves = illumination_waves(shape, wavenumbers, beta = beta, phi = phi, window = window)
  

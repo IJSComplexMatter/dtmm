@@ -17,7 +17,7 @@ Welcome to dtmm's documentation!
    tutorial
    optimization
    CHANGELOG
-   reference
+   autoapi/index
 
 
 Indices and tables

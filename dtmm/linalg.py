@@ -3,161 +3,419 @@ Numba optimized linear algebra functions for 4x4 matrices and 2x2 matrices.
 """
 
 from __future__ import absolute_import, print_function, division
-from dtmm.conf import NCDTYPE, NFDTYPE, NUMBA_TARGET,NUMBA_PARALLEL, NUMBA_CACHE, NUMBA_FASTMATH, CDTYPE
-from numba import njit, prange, guvectorize
+from dtmm.conf import NCDTYPE, NFDTYPE, NUMBA_TARGET,NUMBA_PARALLEL, NUMBA_CACHE, NUMBA_FASTMATH, CDTYPE, FDTYPE
+from numba import njit, prange, guvectorize, boolean
 import numpy as np
 
 if not NUMBA_PARALLEL:
     prange = range
     
-def _sort_eigenvalues(eigs, out = None):
-    eigs = np.asarray(eigs)
-    if out is None:
-        out = np.empty_like(eigs)
-    e0, e1, e2 = np.sqrt(eigs).real #take real part of refractive indices 
+@njit([(NFDTYPE[:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:,:]),(NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE)
+def _sort_eigvec(eps,r, epsout, rout):
+    """Eigen modes sorting based on eigenvalues. Finds extraordinary axis,
+    performs cyclic permutation of axes to move the extraordinary axis to 3"""
+    e0 = eps[0]#.real #real part of the refractive index
+    e1 = eps[1]#.real
+    e2 = eps[2]#.real
+    
     m2 = np.abs(e1-e0)
     m1 = np.abs(e2-e0)
     m0 = np.abs(e2-e1)
-    m = min(min(m0,m1),m2)
-    if m == m0:
-        if e1 < e2:
+    
+    #assume extraordinary is 2    
+    i,j,k = 0,1,2
+    
+    #if we need to move eigenavlue to axis 2... do a cyclical permutation, to preserve right-handed coordinate system
+    if m2 > m1 or m2 > m0:
+        if m1 > m0:
+            #extraordinary is 0
             i,j,k = 1,2,0
         else:
-            i,j,k = 2,1,0
-    elif m == m1:
-        if e0 < e2:
-            i,j,k = 0,2,1
-        else:
-            i,j,k = 2,0,1     
-    else:
-        if e0 < e1:
-            i,j,k = 0,1,2
-        else:
-            i,j,k = 1,0,2   
-    out[0] = eigs[i]
-    out[1] = eigs[j]
-    out[2] = eigs[k]
-    return out
-    
-    
-def eigvals3(m):
-    """Computes eigenvalues of a 3x3 matrix using analytical noniterative algorithm
-    from A Robust Eigensolver for 3 × 3 Symmetric Matrices by David Eberly @ Geometric Tools.
-    """
-    A = m
-    I = np.diag((1.,1.,1.))
-    tr = np.trace(m)#m[0,0] + m[1,1] + m[2,2]
-    q = tr/3.
-    B = (A - q*I)
-    B2 = np.dot(B,B)
-    p = (np.trace(B2)/6.)**0.5
-    B = B/p
-    
-    det = np.linalg.det(B)
-    
-    phi = np.arccos(det/2)/3.
-    
-    eig1 = q + 2 * p * np.cos(phi)
-    eig3 = q + 2 * p * np.cos(phi + (2*np.pi/3))
-    eig2 = 3 * q - eig1 - eig3     # since trace(A) = eig1 + eig2 + eig3    
-    
-    return _sort_eigenvalues((eig1,eig2,eig3))
-    
+            #extraordinary is 1
+            i,j,k = 2,0,1
+            
+    #perform sorting
 
-def eigvals3b(A):
-    """Computes eigenvalues of a 3x3 matrix using analytical noniterative algorithm
-    from wikipedia
-    """
-    p1 = A[0,1]^2 + A[0,2]^2 + A[1,2]^2
-    if (p1 == 0):
-        # A is diagonal.
-        eig1 = A[0,0]
-        eig2 = A[1,1]
-        eig3 = A[2,2]
-    else:
-        I = np.diag((1.,1.,1.))
-        q = np.trace(A)/3.            
-        p2 = (A[0,0] - q)^2 + (A[1,1] - q)^2 + (A[2,2] - q)^2 + 2 * p1
-        p = np.sqrt(p2 / 6)
-        B = (1 / p) * (A - q * I)   
-        r = np.linalg.det(B) / 2.
-        
-        # In exact arithmetic for a symmetric matrix  -1 <= r <= 1
-        # but computation error can leave it slightly outside this range.
-        if (r <= -1): 
-            phi = np.pi / 3
-        elif (r >= 1):
-            phi = 0
-        else:
-            phi = np.acos(r) / 3
-        
-        
-        # the eigenvalues satisfy eig3 <= eig2 <= eig1
-        eig1 = q + 2 * p * np.cos(phi)
-        eig3 = q + 2 * p * np.cos(phi + (2*np.pi/3))
-        eig2 = 3 * q - eig1 - eig3     # since trace(A) = eig1 + eig2 + eig3    
+    eps0 = eps[i]
+    eps1 = eps[j]
+    eps2 = eps[k]
+    
+    r00 = r[i,0]
+    r01 = r[i,1]
+    r02 = r[i,2]
+    
+    r10 = r[j,0]
+    r11 = r[j,1]
+    r12 = r[j,2]
+    
+    r20 = r[k,0]
+    r21 = r[k,1]
+    r22 = r[k,2]
+    
+    rout[0] = (r00,r01,r02)
+    rout[1] = (r10,r11,r12)
+    rout[2] = (r20,r21,r22)
+          
+    epsout[0] = eps0
+    epsout[1] = eps1
+    epsout[2] = eps2
        
-        return eig1, eig2, eig3
-    
-def eig3(A):
-    eigs = eigvals3(A)
-    W = eigvec2(A,eigs[2])
-    if np.abs(W[0]) > np.abs(W[1]):
-        invlength = 1./(np.abs(W[0])**2 + np.abs(W[2])**2)**0.5
-        U = np.array((-W[2]*invlength,0.,W[0]*invlength))
-    else:
-        invlength = 1./(np.abs(W[1])**2 + np.abs(W[2])**2)**0.5
-        U = np.array((0,+W[2]*invlength,-W[1]*invlength))  
-    V = np.cross(W,U)
-    
-    AU = np.dot(A,U)
-    AV = np.dot(A,V)
-        
-    
-    
-    if eigs[0] == eigs[1]:
-        pass
-    
-    
-        #uniaxial case.. 
-    
-def eigvec2(A,e1):
-    D = np.diag((e1,e1,e1))
-    B = A - D
-    
-    r0xr1 = np.cross(B[0], B[1])
-    r0xr2 = np.cross(B[0], B[2])
-    r1xr2 = np.cross(B[1], B[2])
-        
-    # d0 = np.dot(r1xr2, np.conj(r1xr2))
-    # d1 = np.dot(r0xr2, np.conj(r0xr2))
-    # d2 = np.dot(r0xr1, np.conj(r0xr1))
- 
-    d0 = np.dot(r1xr2, r1xr2)
-    d1 = np.dot(r0xr2, r0xr2)
-    d2 = np.dot(r0xr1, r0xr1) 
- 
-    dmax = np.abs(d2)
-    imax = 2
-    
-    if (np.abs(d1)>dmax):
-        dmax = np.abs(d1)
-        imax = 1
-    if (np.abs(d0)>dmax):
-        dmax = np.abs(d0)
-        imax = 0
-    if imax == 0:
-        out = r1xr2/(d0**0.5)
-    elif imax ==1:
-        out = r0xr2/(d1**0.5)
-    else:
-        out = r0xr1/(d2**0.5)
-    if out[2].real < 0.:
-        return -out
-    else:
-        return out
     
 
+@njit([NFDTYPE(NFDTYPE[:]),NFDTYPE(NCDTYPE[:])], cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)        
+def _vecabs2(v):
+    """Computes vec.(vec.conj)"""
+    out = 0.
+    for i in range(len(v)):
+        out = out + v[i].real**2 + v[i].imag**2
+    return out
+
+@njit([NFDTYPE(NFDTYPE[:]),NCDTYPE(NCDTYPE[:])], cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)        
+def _vnorm2(v):
+    """Computes vec.vec"""
+    return v[0]*v[0] + v[1]*v[1] + v[2]*v[2]
+
+@njit([NFDTYPE[:](NFDTYPE[:],NFDTYPE[:],NFDTYPE[:]),NCDTYPE[:](NCDTYPE[:],NCDTYPE[:],NCDTYPE[:]), ], cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)        
+def _cross(v1,v2,v3):
+    """performs vector cross product"""
+    v30 = v1[1] * v2[2] - v1[2] * v2[1]
+    v31 = v1[2] * v2[0] - v1[0] * v2[2]
+    v32 = v1[0] * v2[1] - v1[1] * v2[0]
+    v3[0] = v30
+    v3[1] = v31
+    v3[2] = v32
+    return v3
+
+_eigvec0_decl = [
+                 (NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:]),
+                 (NCDTYPE,NCDTYPE,NCDTYPE,NCDTYPE,NCDTYPE,NCDTYPE,NCDTYPE,NCDTYPE[:],NCDTYPE[:],NCDTYPE[:],NCDTYPE[:])
+                 ]
+
+@njit(_eigvec0_decl, cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)            
+def _eigvec0(a00,a11,a22,a01,a02,a12,eval0,vec0, tmp1, tmp2, tmp3):
+    """The first eigenvector"""
+    
+    row0 = vec0
+    row0[0] = a00 - eval0
+    row0[1] = a01
+    row0[2] = a02
+   
+    row1 = tmp1
+    row1[0] = a01 
+    row1[1] = a11 - eval0
+    row1[2] = a12
+    
+    row2 = tmp2
+    row2[0] = a02 
+    row2[1] = a12
+    row2[2] = a22 - eval0
+    
+    r0xr1 = _cross(row0, row1, tmp3 ) #tmp[0] is empty
+    r1xr2 = _cross(row1, row2, tmp1 ) #row1 is in tmp1, but it can be deleted
+    r0xr2 = _cross(row0, row2, tmp2 )
+    
+    d0 = _vecabs2(r0xr1)
+    d1 = _vecabs2(r0xr2)
+    d2 = _vecabs2(r1xr2)
+    
+    dmax = d0
+    imax = 0
+    
+    if d1 > dmax:
+        dmax = d1
+        imax = 1
+    if d2 > dmax:
+        imax = 2
+        
+    if imax == 0:
+        norm = 1/(_vnorm2(r0xr1)**0.5)
+        vec0[:] = r0xr1[:] 
+    elif imax == 1:
+        norm = 1/(_vnorm2(r0xr2)**0.5)
+        vec0[:] = r0xr2[:] 
+    else:
+        norm = 1/(_vnorm2(r1xr2)**0.5)
+        vec0[:] = r1xr2[:] 
+        
+    vec0 *= norm
+
+@njit([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:]),(NCDTYPE[:],NCDTYPE[:],NCDTYPE[:])], cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH) 
+def _orthogonal_basis(w,u,v):
+    """build an orthogonal basis based on normalized input vector w"""
+    if abs(w[0]) > abs(w[1]):
+        u[0] = (-w[2])
+        u[1] = 0
+        u[2] = w[0]
+        scale = 1 / (_vecabs2(u)**0.5)
+        u *= scale
+    else:
+        u[0] = 0
+        u[1] = w[2]
+        u[2] = (-w[1])
+        scale = 1 / (_vecabs2(u)**0.5)
+        u *= scale   
+    _cross(w,u,v)
+
+    
+_eigvec1_decl = [
+                 (NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE,NFDTYPE[:],NFDTYPE,NFDTYPE[:],NFDTYPE[:],NFDTYPE[:]),
+                 (NCDTYPE,NCDTYPE,NCDTYPE,NCDTYPE,NCDTYPE,NCDTYPE,NCDTYPE[:],NCDTYPE,NCDTYPE[:],NCDTYPE[:],NCDTYPE[:])
+                 ]   
+
+@njit(_eigvec1_decl, cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)            
+def _eigvec1(a00,a11,a22,a01,a02,a12,vec0,eval1, vec1, tmp1, tmp2):
+    """The second eigenvector"""
+    u = vec1
+    v = tmp1
+    AU = tmp2
+    
+    _orthogonal_basis(vec0, u, v)
+    
+    AU[0] = a00 * u[0] + a01 * u[1] + a02 * u[2]
+    AU[1] = a01 * u[0] + a11 * u[1] + a12 * u[2]
+    AU[2] = a02 * u[0] + a12 * u[1] + a22 * u[2]
+    
+    m00 = u[0] * AU[0] + u[1] * AU[1] + u[2] * AU[2] - eval1
+    
+    AV = tmp2
+   
+    AV[0] = a00 * v[0] + a01 * v[1] + a02 * v[2]
+    AV[1] = a01 * v[0] + a11 * v[1] + a12 * v[2]
+    AV[2] = a02 * v[0] + a12 * v[1] + a22 * v[2]    
+    
+    m01 = u[0] * AV[0] + u[1] * AV[1] + u[2] * AV[2]
+    m11 = v[0] * AV[0] + v[1] * AV[1] + v[2] * AV[2] - eval1
+    
+    absm00 = abs(m00)
+    absm01 = abs(m01)
+    absm11 = abs(m11)
+    
+    if absm00 >= absm11:
+        m = max(absm00,absm01)
+        if m > 0:
+            if absm00 >= absm01:
+                m01 /= m00 
+                m00 = 1/((1+m01**2)**0.5)
+                m01 *= m00
+            else:
+                m00 /= m01
+                m01 = 1/((1+m00**2)**0.5) 
+                m00 *= m01
+            for i in range(3):
+                vec1[i] = m01* u[i] - m00 * v[i] #vec1 is u so we are doing vec1 = m01 * u
+    else:
+        m = max(absm11,absm01)
+        if m > 0:
+            if absm11 >= absm01:
+                m01 /= m11
+                m11= 1/((1+m01**2)**0.5)
+                m01 *= m11
+            else:
+                m11 /= m01
+                m01 = 1/((1+m11**2)**0.5) 
+                m11 *= m01
+                
+            for i in range(3):
+                vec1[i] = m11* u[i] - m01 * v[i]   
+  
+    
+_EIG_DECL = [(NFDTYPE[:,:],boolean[:],NFDTYPE[:],NFDTYPE[:,:]), (NCDTYPE[:,:],boolean[:],NCDTYPE[:], NCDTYPE[:,:])]         
+
+
+   
+@guvectorize(_EIG_DECL, '(m,m),()->(m),(m,m)', target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)   
+def _tensor_eig(tensor, is_real, eig,vec):
+    """Computes eigenvalues of a tensor using analytical noniterative algorithm
+    adapted from A Robust Eigensolver for 3 × 3 Symmetric Matrices by 
+    David Eberly @ Geometric Tools.
+    
+    Input array is overwritten.
+    """
+    
+    
+    m1 = max(abs(tensor[0,0]),abs(tensor[1,1]))
+    m2 = max(abs(tensor[2,2]),abs(tensor[0,1]))
+    m3 = max(abs(tensor[0,2]),abs(tensor[1,2]))
+    
+    scale = max(max(m1,m2),m3)
+    
+    if scale == 0.:
+        #zero matrix.. set eigenvalues to zero
+        eig[0] = 0.
+        eig[1] = 0.
+        eig[2] = 0.
+        vec[0] = (1,0,0)
+        vec[1] = (0,1,0)
+        vec[2] = (0,0,1)
+    else:
+        #precondition the matrix to avoid floating-point overflow
+        scalem = 1 / scale
+        a00 = tensor[0,0]*scalem
+        a11 = tensor[1,1]*scalem
+        a22 = tensor[2,2]*scalem
+        a01 = tensor[0,1]*scalem
+        a02 = tensor[0,2]*scalem
+        a12 = tensor[1,2]*scalem
+        
+        q = (a00 + a11 + a22)/3
+        
+        b00 = a00 - q
+        b11 = a11 - q
+        b22 = a22 - q
+            
+        norm = a01**2 + a02**2 + a12**2
+        
+        if norm != 0.:
+            p = ((b00**2 + b11**2 +b22**2 + 2 * norm)/6)**0.5
+        
+            c00 = b11 * b22 - a12 * a12
+            c01 = a01 * b22 - a12 * a02
+            c02 = a01 * a12 - b11 * a02
+            
+            half_det = (b00 * c00 - a01 * c01 + a02 * c02) / (p * p * p * 2)
+            
+            if is_real[0] == True:
+                #for real data, half_det is between -1 and 1, to avoid possible rounding error, clamp it, just to make sure
+                half_det = min(max(half_det.real, -1),1)
+                
+            phi = np.arccos(half_det)/3.
+            
+            eig0 = np.cos(phi + (2*np.pi/3)) * 2
+            eig2 = np.cos(phi) * 2
+            eig1 = -(eig0 + eig2)
+            
+            #eigenvalues sorted by increasing 
+            eig0 = (eig0 * p + q) 
+            eig1 = (eig1 * p + q) 
+            eig2 = (eig2 * p + q) 
+            
+            #now compute the eigenvectors
+            if half_det.real >= 0:
+                _eigvec0(a00,a11,a22,a01,a02,a12,eig2,vec[2], vec[1],vec[0], eig)    
+                _eigvec1(a00,a11,a22,a01,a02,a12,vec[2],eig1,vec[1],vec[0],eig)
+                _cross(vec[1],vec[2],vec[0])
+            else:
+                _eigvec0(a00,a11,a22,a01,a02,a12,eig0,vec[0],vec[1],vec[2],eig) 
+                _eigvec1(a00,a11,a22,a01,a02,a12,vec[0],eig1,vec[1],vec[2],eig) 
+                _cross(vec[0],vec[1],vec[2])
+                
+            eig[0] = (eig0 *  scale) 
+            eig[1] = (eig1 *  scale) 
+            eig[2] = (eig2 *  scale) 
+        else:
+            #matrix is diagonal
+            eig[0] = a00 *  scale
+            eig[1] = a11 *  scale
+            eig[2] = a22 *  scale
+            vec[0] = (1,0,0)
+            vec[1] = (0,1,0)
+            vec[2] = (0,0,1)
+        
+        _sort_eigvec(eig,vec,eig,vec)
+
+_EIG_DECL = [(NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:,:]), (NCDTYPE[:,:],NCDTYPE[:], NCDTYPE[:,:])]         
+
+
+@guvectorize(_EIG_DECL, '(m,m)->(m),(m,m)', target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)   
+def _eig(tensor, eig,vec):
+    e,v = np.linalg.eig(tensor)
+    #_sort_eigvec uses rows for eigvecs.. so we need to transpose v and vec
+    v = v.transpose()
+    _sort_eigvec(e,v,eig,vec.transpose())
+    
+def eig(matrix,overwrite_x = False):
+    """Computes eigenvalues and eigenvectors of 3x3 matrix using numpy.linalg.eig.
+    Eigenvalues are sorted so that eig[2] is the most distinct (extraordinary).
+
+    Parameters
+    ----------
+    matrix: (...,3,3) array 
+        A 3x3 matrix.
+    overwrite_x : bool, optional
+        Ifset, the function will write eigenvectors as rows in the input array.
+        
+    Returns
+    -------
+    w : (..., 3) array
+        The eigenvalues, each repeated according to its multiplicity.
+        The eigenvalues are ordered so that the third eigenvalue is most
+        distinct and first two are least distinct
+    
+    v : (..., 3, 3) array
+        The normalized (unit "length") eigenvectors, such that the
+        column ``v[:,i]`` is the eigenvector corresponding to the
+        eigenvalue ``w[i]``.
+    """
+    matrix = np.asarray(matrix)
+    if matrix.shape[-2:] != (3,3):
+        raise ValueError("Only 3x3 matrices supported")
+    if overwrite_x == True:
+        out = (np.empty(matrix.shape[:-1],matrix.dtype), matrix)
+        return _eig(matrix,out[0], out[1])
+    else:
+        return _eig(matrix)   
+        
+def tensor_eig(tensor, overwrite_x = False):
+    """Computes eigenvalues and eigenvectors of a tensor.
+    
+    Eigenvalues are sorted so that eig[2] is the most distinct (extraordinary).
+    
+    If tensor is provided as a length 6 matrix, the elements are 
+    a[0,0], a[1,1], a[2,2], a[0,1], a[0,2], a[1,2]. If provided as a (3x3) 
+    matrix a, the rest of the elements are silently ignored.
+    
+    Parameters
+    ----------
+    tensor : (...,6) or (...,3,3) array 
+        A length 6 array or 3x3 matrix
+    overwrite_x : bool, optional
+        If tensor is (...,3,3) array, the function will write eigenvectors
+        as rows in the input array.
+        
+    Returns
+    -------
+    w : (..., 3) array
+        The eigenvalues, each repeated according to its multiplicity.
+        The eigenvalues are ordered so that the third eigenvalue is most
+        distinct and first two are least distinct
+    
+    v : (..., 3, 3) array
+        The normalized (unit "length") eigenvectors, such that the
+        column ``v[:,i]`` is the eigenvector corresponding to the
+        eigenvalue ``w[i]``.
+    """
+    tensor = np.asarray(tensor)
+    matrix = tensor
+    out = None
+    
+    _is_real = (np.iscomplexobj(matrix) == False)
+    
+    eig = _tensor_eig
+    
+    #eig = _tensor_eig_complex if np.iscomplex(tensor) else _tensor_eig
+    
+    if tensor.shape[-1] == 6:
+        matrix = np.empty(tensor.shape[0:-1] + (3,3),tensor.dtype)
+        matrix[...,0,0] = tensor[...,0]
+        matrix[...,1,1] = tensor[...,1]
+        matrix[...,2,2] = tensor[...,2]
+        matrix[...,0,1] = tensor[...,3]
+        matrix[...,0,2] = tensor[...,4]
+        matrix[...,1,2] = tensor[...,5]
+        # we can overwrite temporary matrix data
+        out = (np.empty(tensor.shape[:-1] + (3,),tensor.dtype), matrix)
+    elif matrix.shape[-2:] != (3,3):
+        raise ValueError("Not a matrix of size (...,3,3) or (...,6)")
+    else:
+        if overwrite_x == True:
+            out = (np.empty(matrix.shape[:-1],matrix.dtype), matrix)
+    if out is None:
+        eig, vec = eig(matrix,_is_real)
+    else:
+        eig, vec = eig(matrix, _is_real, out[0], out[1])
+        
+    return eig, np.swapaxes(vec, -1,-2) #as returned by np.linalg.eig, eigenvectors are in columns, not rows
+    
 
 @njit([(NCDTYPE[:, :], NCDTYPE[:, :])], cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)
 def _inv2x2(src, dst):
@@ -256,10 +514,15 @@ def _inv4x4(src,dst):
 
 
 @guvectorize([(NCDTYPE[:,:], NCDTYPE[:,:])], '(n,n)->(n,n)', target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def inv(mat, output):
-    """inv(mat)
+def inv(mat, out):
+    """inv(mat), gufunc
     
 Calculates inverse of a 4x4 complex matrix or 2x2 complex matrix
+
+Parameters
+----------
+mat : ndarray
+   Input array
 
 Examples
 --------
@@ -274,12 +537,12 @@ Examples
 True
     """
     if mat.shape[0] == 2:
-        _inv2x2(mat,output)
+        _inv2x2(mat,out)
     elif mat.shape[0] == 4:
-        _inv4x4(mat,output)
+        _inv4x4(mat,out)
     else:
         inv = np.linalg.inv(mat)
-        output[...] = inv
+        out[...] = inv
 
 
 @njit([(NCDTYPE[:,:],NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)    
@@ -998,4 +1261,5 @@ def multi_dot(arrays,  axis = 0, reverse = False):
     return out
     
     
-__all__ = ["inv", "dotmm","dotmf","dotmv","dotmdm","dotmd","multi_dot"]
+__all__ = ["inv", "dotmm","dotmf","dotmv","dotmdm","dotmd","multi_dot","eig","tensor_eig"]
+

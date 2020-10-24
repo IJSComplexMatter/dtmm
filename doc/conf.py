@@ -82,6 +82,55 @@ else:
 """
 
 
+if sys.argv[2] in ('latex', 'latexpdf'):
+    plot_template = """
+{% for img in images %}
+.. figure:: {{ build_dir }}/{{ img.basename }}.pdf
+    {%- for option in options %}
+    {{ option }}
+    {% endfor %}
+    
+    \t{{caption}}
+{% endfor %}
+"""
+
+else:
+    plot_template = """
+{% for img in images %}
+
+.. figure:: {{ build_dir }}/{{ img.basename }}.png
+    {%- for option in options %}
+    {{ option }}
+    {% endfor %}
+
+    \t{% if html_show_formats and multi_image -%}
+    (
+    {%- for fmt in img.formats -%}
+    {%- if not loop.first -%}, {% endif -%}
+    `{{ fmt }} <{{ dest_dir }}/{{ img.basename }}.{{ fmt }}>`__
+    {%- endfor -%}
+    )
+    {%- endif -%}
+
+    {{ caption }} {% if source_link or (html_show_formats and not multi_image) %} (
+{%- if source_link -%}
+`Source code <{{ source_link }}>`__
+{%- endif -%}
+{%- if html_show_formats and not multi_image -%}
+    {%- for img in images -%}
+    {%- for fmt in img.formats -%}
+        {%- if source_link or not loop.first -%}, {% endif -%}
+        `{{ fmt }} <{{ dest_dir }}/{{ img.basename }}.{{ fmt }}>`__
+    {%- endfor -%}
+    {%- endfor -%}
+{%- endif -%}
+)
+{% endif %}
+{% endfor %}
+"""
+
+
+
 
 
 
@@ -105,9 +154,29 @@ extensions = [
     'plot_directive'
 ]
 
-import os 
+extensions = ['sphinx.ext.autodoc',
+              'sphinx.ext.githubpages',
+               "sphinx.ext.imgmath",
+    'sphinx.ext.napoleon',
+	"sphinx.ext.doctest",
+    'sphinx.ext.inheritance_diagram',    
+	'autoapi.extension',
+	'matplotlib.sphinxext.plot_directive'
+    ]
+
+autoapi_keep_files = True
+napoleon_numpy_docstring = True
+
+autoapi_dirs = ['../dtmm']
+autoapi_options = ['members', 'undoc-members', 'show-inheritance', 'special-members']
+autoapi_options = ['members', 'show-inheritance']
+autoapi_ignore = ["*test_*.py"]
+autoapi_ignore = ["*test/*.py"]
 
 numfig = True
+
+import os 
+
 
 plot_working_directory = "examples"#os.path.abspath("../examples")
 
@@ -147,6 +216,7 @@ pygments_style = 'sphinx'
 # a list of builtin themes.
 #
 html_theme = 'default'
+#html_theme = 'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -157,74 +227,7 @@ html_theme = 'default'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
-
-# Custom sidebar templates, must be a dictionary that maps document names
-# to template names.
-#
-# The default sidebars (for documents that don't match any pattern) are
-# defined by theme itself.  Builtin themes are using these templates by
-# default: ``['localtoc.html', 'relations.html', 'sourcelink.html',
-# 'searchbox.html']``.
-#
-# html_sidebars = {}
+html_static_path = []
 
 
-# -- Options for HTMLHelp output ---------------------------------------------
 
-# Output file base name for HTML help builder.
-htmlhelp_basename = 'dtmmdoc'
-
-
-# -- Options for LaTeX output ------------------------------------------------
-
-latex_elements = {
-    # The paper size ('letterpaper' or 'a4paper').
-    #
-    # 'papersize': 'letterpaper',
-
-    # The font size ('10pt', '11pt' or '12pt').
-    #
-    # 'pointsize': '10pt',
-
-    # Additional stuff for the LaTeX preamble.
-    #
-    # 'preamble': '',
-
-    # Latex figure (float) alignment
-    #
-    # 'figure_align': 'htbp',
-}
-
-# Grouping the document tree into LaTeX files. List of tuples
-# (source start file, target name, title,
-#  author, documentclass [howto, manual, or own class]).
-latex_documents = [
-    (master_doc, 'dtmm.tex', 'dtmm Documentation',
-     'Andrej Petelin', 'manual'),
-]
-
-
-# -- Options for manual page output ------------------------------------------
-
-# One entry per manual page. List of tuples
-# (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, 'dtmm', 'dtmm Documentation',
-     [author], 1)
-]
-
-
-# -- Options for Texinfo output ----------------------------------------------
-
-# Grouping the document tree into Texinfo files. List of tuples
-# (source start file, target name, title, author,
-#  dir menu entry, description, category)
-texinfo_documents = [
-    (master_doc, 'dtmm', 'dtmm Documentation',
-     author, 'dtmm', 'One line description of project.',
-     'Miscellaneous'),
-]
-
-
-# -- Extension configuration -------------------------------------------------

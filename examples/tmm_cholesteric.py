@@ -91,7 +91,7 @@ jright = dtmm.jonesvec((1,-1j), phi)
 pmat = dtmm.tmm.projection_mat(fout,mode = +1)
 mmat = dtmm.tmm.projection_mat(fin, mode = -1)
 
-fvec = dtmm.tmm.field4(fin,jones = jleft)
+fvec = dtmm.tmm.fvec(fin,jones = jleft)
 fvec = np.array([fvec]*nwavelengths)
 
 tfvec = dtmm.tmm.transmit(fvec, cmat, fmatin = fin[None,...], fmatout = fout[None,...])
@@ -109,7 +109,7 @@ Tll = dtmm.tmm.intensity(dotmv(l_polarizer,tfvec))
 Trl = dtmm.tmm.intensity(dotmv(r_polarizer,tfvec))
 
 
-fvec = dtmm.tmm.field4(fin,jones = jright)
+fvec = dtmm.tmm.fvec(fin,jones = jright)
 fvec = np.array([fvec]*nwavelengths)
 
 

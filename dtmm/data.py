@@ -13,6 +13,7 @@ NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE, DTMMConfig
 from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector, _tensor_to_matrix, rotation_angles
 from dtmm.wave import betaphi
 from dtmm.fft import fft2, ifft2
+from dtmm.linalg import tensor_eig
 
 def read_director(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
     """Reads raw director data from a binary or text file. 
@@ -51,6 +52,42 @@ def read_director(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder
         raise TypeError("shape must be director data shape (z,x,y,n)")
     data = read_raw(file, shape, dtype, sep = sep, endian = endian)
     return raw2director(data, order, nvec)
+
+def read_Q(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder, order = "zyxn"):
+    """Reads raw Q tensor data from a binary or text file. 
+    
+    A convinient way to read Q tensor data from file. Q tensor is assumed to be
+
+    
+    Parameters
+    ----------
+    file : str or file
+        Open file object or filename.
+    shape : sequence of ints
+        Shape of the data array, e.g., ``(50, 24, 34, 6)``
+    dtype : data-type
+        Data type of the raw data. It is used to determine the size of the items 
+        in the file.
+    sep : str
+        Separator between items if file is a text file.
+        Empty ("") separator means the file should be treated as binary.
+        Spaces (" ") in the separator match zero or more whitespace characters.
+        A separator consisting only of spaces must match at least one
+        whitespace.
+    endian : str, optional
+        Endianess of the data in file, e.g. 'little' or 'big'. If endian is 
+        specified and it is different than sys.endian, data is byteswapped. 
+        By default no byteswapping is done. 
+    order : str, optional
+        Data order. It can be any permutation of 'xyzn'. Defaults to 'zyxn'. It
+        describes what are the meaning of axes in data.
+    """
+    try:
+        i,j,k,c = shape
+    except:
+        raise TypeError("shape must be 3D tensor data shape (z,x,y,n)")
+    data = read_raw(file, shape, dtype, sep = sep, endian = endian)
+    return raw2director(data, order) #no swapping of Q tensor element, so we can use raw2director
 
 def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), norm = True, out = None):
     """
@@ -750,10 +787,10 @@ def uniaxial_order(order, eps, out):
 MAGIC = b"dtms" #legth 4 magic number for file ID
 VERSION = b"\x01"
 
-"""
-IOs fucntions
--------------
-"""
+
+#IOs fucntions
+#-------------
+
 
 def save_stack(file, optical_data):
     """Saves optical data to a binary file in ``.dtms`` format.
@@ -790,7 +827,7 @@ def save_stack(file, optical_data):
 
 
 def load_stack(file):
-    """Load optical data from file.
+    """Load optical data from a file.
     
     Parameters
     ----------
@@ -821,81 +858,56 @@ def load_stack(file):
         if own_fid == True:
             f.close()
 
-
-_EIG_EPS_DECL = [(NF32DTYPE[:],NFDTYPE[:],NF32DTYPE[:],NF32DTYPE[:,:]), (NF64DTYPE[:], NFDTYPE[:],NFDTYPE[:],NFDTYPE[:,:]),
-             (NC64DTYPE[:],NFDTYPE[:],NC64DTYPE[:],NF32DTYPE[:,:]), (NC128DTYPE[:], NFDTYPE[:],NCDTYPE[:],NFDTYPE[:,:])
-             ]
-
-_EIG_EPS_DECL = [(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NFDTYPE[:,:]), 
-             (NCDTYPE[:], NFDTYPE[:],NCDTYPE[:],NFDTYPE[:,:])
-             ]
-
-
-
-@numba.njit([(NFDTYPE[:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:,:]),(NCDTYPE[:],NFDTYPE[:,:],NCDTYPE[:],NFDTYPE[:,:])], cache = NUMBA_CACHE)
-def _copy_sorted(eps,r, out_eps, out_r):
-    """Eigen modes sorting based on eigenvalues... make extraordinary axis 3"""
-    e0 = np.sqrt(eps[0]).real
-    e1 = np.sqrt(eps[1]).real
-    e2 = np.sqrt(eps[2]).real
+def director2Q(director):
+    """Computes Q tensor form the uniaxial director. The length of the director is
+    the order parameter"""
+    pass
     
-    m2 = np.abs(e1-e0)
-    m1 = np.abs(e2-e0)
-    m0 = np.abs(e2-e1)
-    
-    m = min(min(m0,m1),m2)
-    
-    if m == m0:
-        if e1 < e2:
-            i,j,k = 1,2,0
-        else:
-            i,j,k = 2,1,0
-    elif m == m1:
-        if e0 < e2:
-            i,j,k = 0,2,1
-        else:
-            i,j,k = 2,0,1     
-    else:
-        if e0 < e1:
-            i,j,k = 0,1,2
-        else:
-            i,j,k = 1,0,2   
             
-    out_eps[0] = eps[i]
-    out_eps[1] = eps[j]
-    out_eps[2] = eps[k]        
-    
-    out_r[:,0] = r[:,i]
-    #out_r[:,1] = r[:,j]
-    if r[2,k]> 0:
-        out_r[:,2] = r[:,k]   
+def Q2director(qtensor, qlength = False):
+    """Computes the director form the traceless q tensor"""
+    qeig, r = tensor_eig(qtensor) #sorted eigenvalues.. qeig[2] is for the main axis (director)
+    S = qeig[...,2] * 3/2. #the S parameter of the uniaxial q tensor
+    if qlength:
+        return S[...,None] * r[...,2]
     else:
-        out_r[:,2] = -r[:,k]   
-    out_r[:,1] = np.cross(out_r[:,2],out_r[:,0])
-
+        return r[...,2]
             
-@numba.guvectorize(_EIG_EPS_DECL, "(m),(n)->(n),(n,n)")   
-def _eig_eps(eps, dummy, epsv, r):
-    assert len(eps) == 6
-    m = np.empty((3,3), dtype = eps.dtype)
-    _tensor_to_matrix(eps, m)
-    e,v = np.linalg.eig(m)
-    _copy_sorted(e,v.real, epsv, r)
-
-
-_dummy = np.empty((3,),FDTYPE)
-         
-def eig_eps(eps, out = None):
-    """Computes epsilon eigenvalues (epsv) and rotation angles (epsa) from
-    epsilon tensor of length 6. """
-    if out is not None:
-        return _eig_eps(eps, _dummy, out = out)
+def Q2eps(qtensor, no = 1.5, ne = 1.6,scale_factor = 1., out = None):
+    """Converts Q tensor to epsilon tensor"""
+    qtensor = np.asarray(qtensor)
+    if qtensor.shape[-1] == 6:
+        qdiag = qtensor[...,0:3]
+        qoff = qtensor[...,3:]
+        epse = ne**2
+        epso = no**2
+        if out is None:
+            out = np.empty_like(qtensor)
+        #: scaled anisotropy
+        epsa = (epse-epso) / scale_factor
+        #: mean epsilon
+        epsm = (epso*2 + epse)/3.
+        out[...,0:3] = epsa * qdiag + epsm
+        out[...,3:] = epsa * qoff
+        return out
     else:
-        return _eig_eps(eps, _dummy)
+        raise ValueError("input tensor must be an array of shape (...,6)")
     
 def eps2epsva(eps):
-    epsv, r = eig_eps(eps)
-    return epsv, rotation_angles(r)
+    """Computes epsilon eigenvalues (epsv) and rotation angles (epsa) from
+    epsilon tensor of shape (...,6) or represented as a (...,3,3)
+    
+    Parameters
+    ----------
+    eps : (...,3,3) or (...,6) symmetric tensor  
+
+    Returns
+    -------
+    epsv, epsa : ndarray, ndarray
+        Eigenvalues and Euler angles arrays.
+    """
+    epsv, r = tensor_eig(eps)
+    return epsv, rotation_angles(r.real)
     
 
 def filter_eps(eps, k, betamax = 1):

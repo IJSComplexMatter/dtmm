@@ -1,18 +1,34 @@
 """
-Some helper function for jones calculus.
+Jones calculus helper functions.
 """
 
 from dtmm.conf import CDTYPE,FDTYPE
 import numpy as np
 from dtmm.rotation import rotation_matrix2
-from dtmm.linalg import dotmv
+from dtmm.linalg import dotmv, dotmm, multi_dot
 
-def jonesvec(pol, phi = 0.):
+def jonesvec(pol, phi = 0., out = None):
     """Returns a normalized jones vector from an input length 2 vector., Additionaly,
-    you can use this function to view the jones vactor in rotated coordinate frame, 
+    you can use this function to view the jones vector in rotated coordinate frame, 
     defined with a rotation angle phi. 
     
     Numpy broadcasting rules apply.
+    
+    Parameters
+    ----------
+    pol : (...,2) array
+        Input jones vector. Does not need to be normalized. 
+    phi : float or (...,1) array
+        If jones vector must be view in the rotated frame, this parameter
+        defines the rotation angle.
+    out : ndarray
+        Output array in which to put the result; if provided, it
+        must have a shape that the inputs broadcast to.
+        
+    Returns
+    -------
+    vec : ndarray
+        Normalized jones vector
     
     Example
     -------
@@ -20,21 +36,148 @@ def jonesvec(pol, phi = 0.):
     >>> jonesvec((1,1j)) #left-handed circuar polarization
     array([0.70710678+0.j        , 0.        +0.70710678j])
     
+    In rotated frame
+    
+    >>> j1,j2 = jonesvec((1,1j), (np.pi/2,np.pi/4)) 
+    >>> np.allclose(j1, (0.70710678j,-0.70710678))
+    True
+    >>> np.allclose(j2, (0.5+0.5j,-0.5+0.5j))
+    True
+    
     """
     pol = np.asarray(pol, CDTYPE)
-    assert pol.shape[-1] == 2
+    phi = np.asarray(phi)
+    if pol.shape[-1] != 2:
+        raise ValueError("Invalid input shape")
     norm = (pol[...,0] * pol[...,0].conj() + pol[...,1] * pol[...,1].conj())**0.5
     pol = pol/norm[...,np.newaxis]
     pol = np.asarray(pol, CDTYPE)
     r = rotation_matrix2(-phi)
-    return dotmv(r, pol)
+    return dotmv(r, pol, out)
 
+def mirror(out = None):
+    """Returns jones mirror matrix.
+    
+    Parameters
+    ----------
+    out : ndarray, optional
+        Output array in which to put the result; if provided, it
+        must have a shape that the inputs broadcast to.
+        
+    Returns
+    -------
+    mat : ndarray
+        Output jones matrix.      
+    """
+    m = np.array(((1,0),(0,-1)), dtype = CDTYPE)
+    if out is not None:
+        out[...,:,:] = m
+        m = out
+    return m
+
+def retarder(phase, phi = 0., out = None):
+    """Returns jones matrix of general phase retarder
+    
+    Numpy broadcasting rules apply.
+    
+    Parameters
+    ----------
+    phase : float or array
+        Phase difference between the fast and slow axis of the retarder.
+    phi : float or array 
+        Fast axis orientation
+    out : ndarray, optional
+        Output array in which to put the result; if provided, it
+        must have a shape that the inputs broadcast to.
+        
+    Returns
+    -------
+    mat : ndarray
+        Output jones matrix.
+    """
+    phi = np.asarray(phi)
+    phase = np.asarray(phase)
+    
+    c = np.cos(phi*2)
+    s = np.sin(phi*2)
+    
+    cp = np.cos(phase/2.)
+    sp = np.sin(phase/2.)
+    
+    m00 = (cp + 1j*sp*c) 
+    m11 = (cp - 1j*sp*c) 
+    
+    m01 = 1j*sp * s 
+    
+    shape = m00.shape + (2,2)
+    if out is None:
+        out = np.empty(shape = shape, dtype = CDTYPE)
+    else:
+        assert out.shape == shape 
+    
+    out[...,0,0] = m00
+    out[...,0,1] = m01
+    out[...,1,0] = m01
+    out[...,1,1] = m11
+    return out     
+
+def quarter_waveplate(phi = 0., out = None):
+    """Returns jones quarter-wave plate matrix.
+    
+    Numpy broadcasting rules apply.
+    
+    Parameters
+    ----------
+    phi : float or array 
+        Fast axis orientation
+    out : ndarray, optional
+        Output array in which to put the result; if provided, it
+        must have a shape that the inputs broadcast to.
+        
+    Returns
+    -------
+    mat : ndarray
+        Output jones matrix.        
+    """
+    return retarder(np.pi/2, phi,  out)  
+
+def half_waveplate(phi = 0., out = None):
+    """Returns jones half-wave plate matrix.
+    
+    Numpy broadcasting rules apply.
+    
+    Parameters
+    ----------
+    phi : float or array 
+        Fast axis orientation
+    out : ndarray, optional
+        Output array in which to put the result; if provided, it
+        must have a shape that the inputs broadcast to.
+        
+    Returns
+    -------
+    mat : ndarray
+        Output jones matrix.    
+    """
+    return retarder(np.pi, phi, out)         
 
 def polarizer(jones, out = None):
-    """Returns jones polarizer matrix from a jones vector describing the output
-    polarizartion state.
+    """Returns jones polarizer matrix.
     
-    Numpy broadcasting rules apply
+    Numpy broadcasting rules apply.
+    
+    Parameters
+    ----------
+    jones : (...,2) array
+        Input normalized jones vector. Use :func:`.jonesvec` to generate jones vector
+    out : ndarray, optional
+        Output array in which to put the result; if provided, it
+        must have a shape that the inputs broadcast to.
+        
+    Returns
+    -------
+    mat : ndarray
+        Output jones matrix.
     
     Examples
     --------
@@ -63,11 +206,23 @@ def polarizer(jones, out = None):
     out[...,1,1] = s*s.conj()
     return out    
     
-
 def linear_polarizer(angle, out = None):
-    """Return jones matrix for a polarizer. Angle is the polarizer angle.
+    """Return jones matrix for a polarizer.
     
-    Broadcasting rules apply.
+    Numpy broadcasting rules apply.
+    
+    Parameters
+    ----------
+    angle : float or array
+        Orientation of the polarizer.
+    out : ndarray, optional
+        Output array in which to put the result; if provided, it
+        must have a shape that the inputs broadcast to.
+        
+    Returns
+    -------
+    mat : ndarray
+        Output jones matrix.
     """
     angle = np.asarray(angle)
     shape = angle.shape + (2,2)
@@ -87,8 +242,22 @@ def linear_polarizer(angle, out = None):
 polarizer_matrix = linear_polarizer
 
 def circular_polarizer(hand, out = None):
-    """Returns circular polarizee matrix. Hand is an integer  +1 (left-hand)
-    or -1 (right-hand).
+    """Returns circular polarizer matrix.
+    
+    Numpy broadcasting rules apply.
+    
+    Parameters
+    ----------
+    hand : int or (...,1) array
+        Handedness +1 (left-hand) or -1 (right-hand).
+    out : ndarray, optional
+        Output array in which to put the result; if provided, it
+        must have a shape that the inputs broadcast to.
+        
+    Returns
+    -------
+    mat : ndarray
+        Output jones matrix.
     """
     hand = np.asarray(hand)*0.5
     shape = hand.shape + (2,2)
@@ -102,25 +271,29 @@ def circular_polarizer(hand, out = None):
     out[...,1,1] = 0.5   
     return out
 
-#def as4x4(jonesmat, out = None):
-#    """Converts jones 2x2 matrix to field 4x4 matrix"""
-#    if out is None:
-#        shape = jonesmat.shape[:-2] + (4,4)
-#        out = np.zeros(shape, dtype = jonesmat.dtype)
-#    else:
-#        out[...] = 0.
-#    out[...,0,0] = jonesmat[...,0,0]
-#    out[...,0,2] = jonesmat[...,0,1]
-#    out[...,1,1] = jonesmat[...,0,0]
-#    out[...,1,3] = -jonesmat[...,0,1]
-#    out[...,2,0] = jonesmat[...,1,0]
-#    out[...,2,2] = jonesmat[...,1,1]
-#    out[...,3,1] = -jonesmat[...,1,0]
-#    out[...,3,3] = jonesmat[...,1,1]  
-#    return out
+def rotated_matrix(jmat, phi):
+    """jones matrix viewed in the rotated frame, where phi is the rotation angle"""
+    r = np.asarray(rotation_matrix2(-phi),CDTYPE)
+    jmat = np.asarray(jmat)
+    rT = np.swapaxes(r,-1,-2)
+    return multi_dot([r,jmat,rT])
 
 def as4x4(jonesmat,  out = None):
-    """Converts jones 2x2 matrix to eigenfield 4x4 matrix."""
+    """Converts jones 2x2 matrix to eigenfield 4x4 matrix.
+    
+    Parameters
+    ----------
+    jonesmat : (...,2,2) array
+        Jones matrix
+    out : ndarray, optional
+        Output array in which to put the result; if provided, it
+        must have a shape that the inputs broadcast to.
+        
+    Returns
+    -------
+    mat : (...,4,4) ndarray
+        Output jones matrix.
+    """
     
     if out is None:
         shape = jonesmat.shape[:-2] + (4,4)
@@ -128,42 +301,12 @@ def as4x4(jonesmat,  out = None):
     else:
         out[...] = 0.
     out[...,0::2,0::2] = jonesmat
-    out[...,1::2,1::2] = jonesmat
+    
+    #for back propagating waves, jones matrix is conjugate
+    out[...,1::2,1::2] = jonesmat#np.conj(jonesmat) 
 
     return out
 
-
-#@nb.guvectorize([(NCDTYPE[:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,m),(n,k,l)->(n,k,l)", 
-#                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-#def apply_jones_matrix(pmat, field, out):
-#    """Multiplies 2x2 jones polarizer matrix with 4 x n x m field array"""
-#    for i in range(field.shape[1]):
-#        for j in range(field.shape[2]):
-#            Ex = field[0,i,j] * pmat[0,0] + field[2,i,j] * pmat[0,1]
-#            Hy = field[1,i,j] * pmat[0,0] - field[3,i,j] * pmat[0,1]
-#            Ey = field[0,i,j] * pmat[1,0] + field[2,i,j] * pmat[1,1]
-#            Hx = -field[1,i,j] * pmat[1,0] + field[3,i,j] * pmat[1,1]
-#            out[0,i,j] = Ex
-#            out[1,i,j] = Hy
-#            out[2,i,j] = Ey
-#            out[3,i,j] = Hx
-#            
-#            
-#@nb.guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(k,l,m,m),(n,k,l)->(n,k,l)", 
-#                 target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-#def apply_jones_matrix2(pmat, field, out):
-#    """Multiplies 2x2 jones polarizer matrix with 4 x n x m field array"""
-#    for i in range(field.shape[1]):
-#        for j in range(field.shape[2]):
-#            Ex = field[0,i,j] * pmat[i,j,0,0] + field[2,i,j] * pmat[i,j,0,1]
-#            Hy = field[1,i,j] * pmat[i,j,0,0] - field[3,i,j] * pmat[i,j,0,1]
-#            Ey = field[0,i,j] * pmat[i,j,1,0] + field[2,i,j] * pmat[i,j,1,1]
-#            Hx = -field[1,i,j] * pmat[i,j,1,0] + field[3,i,j] * pmat[i,j,1,1]
-#            out[0,i,j] = Ex
-#            out[1,i,j] = Hy
-#            out[2,i,j] = Ey
-#            out[3,i,j] = Hx            
-#            
 __all__ = ["polarizer","circular_polarizer","linear_polarizer", "jonesvec", "as4x4"]
     
 if __name__ == "__main__":

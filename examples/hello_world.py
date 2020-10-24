@@ -15,16 +15,16 @@ optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH),
           radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
 #: create non-polarized input light
-field_data_in = dtmm.field.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, beta = 0., phi = 0.,
-                                            pixelsize = PIXELSIZE, window = 1.) 
+field_data_in = dtmm.field.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
+                                            pixelsize = PIXELSIZE) 
 #: transfer input light through stack
-field_data_out = dtmm.transfer_field(field_data_in, optical_data, betamax = 1, reflection =2)
+field_data_out = dtmm.transfer_field(field_data_in, optical_data)
 
 #: visualize output field
-viewer = dtmm.field_viewer(field_data_out, polarizer = "v", analyzer = "h" , focus = -30, n=1.5)
+viewer = dtmm.field_viewer(field_data_out)
+viewer.set_parameters(polarizer = "h", analyzer = "v" ,  focus = -18)
 
 fig,ax = viewer.plot()
-
 
 plt.show()
 

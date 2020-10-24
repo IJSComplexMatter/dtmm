@@ -1,12 +1,70 @@
 """
-4x4 and 2x2 transfer matrix method functions. 
+4x4 and 2x2 transfer matrix method functions for 1D calculation. 
+
+The implementation is based on standard formulation of 4x4 transfer matrix method.
+
+4x4 method
+----------
+
+Layers are stacked in the z direction, field vectors describing the field are 
+f = (Ex,Hy,Ey,Hx), Core functionality is defined by field matrix calculation
+functions:
+    
+Field vector creation/conversion functions
+++++++++++++++++++++++++++++++++++++++++++
+
+* :func:`.avec` for amplitude vector (eigenmode amplitudes).
+* :func:`.fvec` for field vector creation,
+* :func:`.avec2fvec` for amplitude to field conversion.
+* :func:`.fvec2avec` for field to amplitude conversion.
+
+Field matrix functions
+++++++++++++++++++++++
+
+* :func:`.f_iso` for input and output field matrix caluclation.
+* :func:`.ffi_iso` computes the inverse of the field matrix. 
+* :func:`.alphaf` for general field vectors and field coefficents calcualtion.
+* :func:`.alphaffi` computes the inverse of the field matrix.
+* :func:`.phase_mat` for phase matrix calculation.
+
+Layer/stack computation
++++++++++++++++++++++++
+
+* :func:`.layer_mat` for layer matrix calculation Mi=Fi.Pi.Fi^-1
+* :func:`.stack_mat` for stack matrix caluclation M = M1.M2.M3....
+* :func:`.system_mat` for system matrix calculation Fin^-1.M.Fout
+
+Transmission/reflection calculation 
++++++++++++++++++++++++++++++++++++
+
+* :func:`.transmit4x4` to work with the computed system  matrix
+* :func:`.transfer4x4` or :func:`.transfer` for higher level interface 
+
+Polarization handling and analysis
+++++++++++++++++++++++++++++++++++
+
+* :func:`.polarizer4x4` to apply polarizer.
+* :func:`.jonesmat4x4` to apply general jones matrix. 
+
+Intensity and Ez Hz field
++++++++++++++++++++++++++
+
+* :func:`.poynting` the z component of the Poynting vector.
+* :func:`.intensity` the absolute value of the Poytning vector.
+* :func:`.EHz` for calculation of the z component of the E and H fields.
+
+2x2 method
+----------
+    
+todo..
+
 """
 
 from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, FDTYPE, NUMBA_TARGET, BETAMAX, \
+from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, FDTYPE, NUMBA_TARGET, \
                         NUMBA_PARALLEL, NUMBA_CACHE, NUMBA_FASTMATH, DTMMConfig
 from dtmm.rotation import  _calc_rotations_uniaxial, _calc_rotations, _rotate_diagonal_tensor
 from dtmm.linalg import _dotr2m, dotmdm, dotmm, inv, dotmv, _dotr2v
@@ -15,7 +73,7 @@ from dtmm.rotation import rotation_vector2
 from dtmm.print_tools import print_progress
 
 from dtmm.jones import polarizer as polarizer2x2
-from dtmm.jones import as4x4, jonesvec
+from dtmm.jones import as4x4
 
 import numba as nb
 from numba import prange
@@ -28,7 +86,7 @@ sqrt = np.sqrt
 
 @nb.njit([(NFDTYPE,NCDTYPE[:],NCDTYPE[:,:])])                                                                
 def _auxiliary_matrix(beta,eps,Lm):
-    "Computes all elements of the auxiliary matrix of shape 4x4."
+    """Computes all elements of the auxiliary matrix of shape 4x4."""
     eps2m = 1./eps[2]
     eps4eps2m = eps[4]*eps2m
     eps5eps2m = eps[5]*eps2m
@@ -52,6 +110,7 @@ def _auxiliary_matrix(beta,eps,Lm):
 
 @nb.njit([(NFDTYPE,NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _alphaf_iso(beta,eps0,alpha,F):
+    """computes eigenvalue alpha and eigenvector field matrix of isotropic material"""
     #n = eps0[0]**0.5
     aout = sqrt(eps0[0]-beta**2)
     if aout != 0.:
@@ -84,7 +143,7 @@ def _alphaf_iso(beta,eps0,alpha,F):
 
 @nb.njit([(NFDTYPE,NCDTYPE[:],NFDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _alphaf_uniaxial(beta,eps0,R,alpha,F): 
-
+    """computes eigenvalue alpha and eigenvector field matrix of uniaxial material"""
     #uniaxial case
     ct = R[2,2]
     st = -R[2,0] 
@@ -200,9 +259,12 @@ def _alphaf_uniaxial(beta,eps0,R,alpha,F):
         F[1,j] = F[1,j]/tmp 
         F[2,j] = F[2,j]/tmp 
         F[3,j] = F[3,j]/tmp 
+        
+        
 
 @nb.njit([NFDTYPE(NCDTYPE[:])], cache = NUMBA_CACHE)
 def _poynting(field):
+    """Computes poynting vector from the field vector"""
     tmp1 = (field[0].real * field[1].real + field[0].imag * field[1].imag)
     tmp2 = (field[2].real * field[3].real + field[2].imag * field[3].imag)
     return tmp1-tmp2 
@@ -229,19 +291,23 @@ def _copy_sorted(alpha,fmat, out_alpha, out_fmat):
 @nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NCDTYPE[:],NFDTYPE[:],NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:])],
                  "(),(),(m),(l),(k),(n)->(n),(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _alphaf_vec(beta,phi,rv,epsv,epsa,dummy,alpha,F):
+    """eigenvalue solver. Depending on the material parameter
+    we choose isotropic, uniaxial  or a biaxial solver.
+    
+    Becaue the auxiliary matrix is written in the rotated frame (in the plane of incidence with phi = 0)
+    We need to rotate the computed vectors using _dotr2m 
+    """
     #F is a 4x4 matrix... we can use 3x3 part for Rotation matrix and F[3] for eps  temporary data
     
     #isotropic case
     if (epsv[0] == epsv[1] and epsv[1]==epsv[2]):
         eps = F[3] 
-        #_uniaxial_order(0.,epsv,eps) #store caluclated eps values in Fi[3]
         _alphaf_iso(beta[0],epsv,alpha,F)
         _dotr2m(rv,F,F)
     #uniaxial
     elif (epsv[0] == epsv[1]):
         R = F.real
         eps = F[3] 
-        #_uniaxial_order(1.,epsv,eps)
         _calc_rotations_uniaxial(phi[0],epsa,R) #store rotation matrix in Fi.real[0:3,0:3]
         _alphaf_uniaxial(beta[0],epsv,R,alpha,F)
         _dotr2m(rv,F,F)
@@ -265,13 +331,13 @@ def _alphaf(beta,phi,epsv,epsa,out = None):
     rv = rotation_vector2(phi) 
     return _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array, out = out)
 
-def _default_beta_phi(beta,phi):
+def _default_beta_phi(beta, phi):
     """Checks the validity of beta, phi arguments and sets default values if needed"""
     beta = np.asarray(beta, FDTYPE) if beta is not None else np.asarray(0., FDTYPE)
     phi = np.asarray(phi, FDTYPE) if phi is not None else np.asarray(0., FDTYPE)
     return beta, phi
 
-def _default_epsv_epsa(epsv,epsa):
+def _default_epsv_epsa(epsv, epsa):
     """Checks the validity of epsv, epsa arguments and sets default values if needed"""
     epsv = np.asarray(epsv, CDTYPE) if epsv is not None else np.asarray((1.,1.,1.), CDTYPE)
     epsa = np.asarray(epsa, FDTYPE) if epsa is not None else np.asarray((0.,0.,0.), FDTYPE)
@@ -280,31 +346,33 @@ def _default_epsv_epsa(epsv,epsa):
     return epsv, epsa
 
 def _as_field_vec(fvec):
+    """converts input to valid field vector"""
     fvec = np.asarray(fvec, dtype = CDTYPE)
     assert fvec.shape[-1] == 4
     return fvec
 
-def alphaf(beta=None,phi=None,epsv=None,epsa=None,out = None):
+def alphaf(beta = None, phi = None, epsv = None, epsa = None, out = None):
     """Computes alpha and field arrays (eigen values and eigen vectors arrays).
+    
     Broadcasting rules apply.
     
     Parameters
     ----------
     beta : float, optional
-       The beta parameter of the field (defaults to 0.)
+        The beta parameter of the field (defaults to 0.)
     phi : float, optional
-       The phi parameter of the field (defaults to 0.)
-    epsv : array-like, optional
-       Dielectric tensor eigenvalues array (defaults to unity).
-    epsa : array_like, optional
-       Euler rotation angles (psi, theta, phi) (defaults to (0.,0.,0.)).
-    out : ndarray, optional
-       Output array
+        The phi parameter of the field (defaults to 0.)
+    epsv : (...,3) array, optional
+        Dielectric tensor eigenvalues array (defaults to unity).
+    epsa : (...,3) array, optional
+        Euler rotation angles (psi, theta, phi) (defaults to (0.,0.,0.)).
+    out : (ndarray,ndarray), optional
+        Output arrays.
        
     Returns
     -------
-    alpha, field arrays : (ndarray, ndarray)
-        Eigen values and eigen vectors arrays 
+    alpha, fieldmat: (ndarray, ndarray)
+        Eigen values and eigen vectors arrays. 
     """
     beta, phi = _default_beta_phi(beta,phi)
     epsv, epsa = _default_epsv_epsa(epsv, epsa)
@@ -319,12 +387,28 @@ def alphaffi(beta=None,phi=None,epsv=None,epsa=None,out = None):
     and inverse of the field array. See :func:`alphaf` for details
     
     Broadcasting rules apply.
+    
+    Parameters
+    ----------
+    beta : float, optional
+        The beta parameter of the field (defaults to 0.)
+    phi : float, optional
+        The phi parameter of the field (defaults to 0.)
+    epsv : (...,3) array, optional
+        Dielectric tensor eigenvalues array (defaults to unity).
+    epsa : (...,3) array, optional
+        Euler rotation angles (psi, theta, phi) (defaults to (0.,0.,0.)).
+    out : (ndarray,ndarray,ndarray), optional
+        Output arrays.
        
     Returns
     -------
     alpha, field, ifield  : (ndarray, ndarray, ndarray)
         Eigen values and eigen vectors arrays and its inverse
-        
+     
+    Examples    
+    --------
+    
     This is equivalent to
     
     >>> alpha,field = alphaf(0,0, [2,2,2], [0.,0.,0.])
@@ -338,8 +422,28 @@ def alphaffi(beta=None,phi=None,epsv=None,epsa=None,out = None):
         a,f = alphaf(beta,phi,epsv,epsa)
         fi = inv(f)
     return a,f,fi
+
+
  
 def alphaE(beta,phi,epsv,epsa, mode = +1, out = None):
+    """
+    
+    Parameters
+    ----------
+    beta : float, optional
+        The beta parameter of the field (defaults to 0.)
+    phi : float, optional
+        The phi parameter of the field (defaults to 0.)
+    epsv : (...,3) array, optional
+        Dielectric tensor eigenvalues array (defaults to unity).
+    epsa : (...,3) array, optional
+        Euler rotation angles (psi, theta, phi) (defaults to (0.,0.,0.)).
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : (ndarray,ndarray), optional
+        Output arrays where results are written.
+    
+    """
     alpha,f = alphaf(beta,phi,epsv,epsa)
     e = E_mat(f,mode = mode, copy = False)
     if mode == 1:
@@ -354,6 +458,23 @@ def alphaE(beta,phi,epsv,epsa, mode = +1, out = None):
     return out
 
 def alphaEEi(beta,phi,epsv,epsa, mode = +1, out = None):
+    """
+    
+    Parameters
+    ----------
+    beta : float, optional
+        The beta parameter of the field (defaults to 0.)
+    phi : float, optional
+        The phi parameter of the field (defaults to 0.)
+    epsv : (...,3) array, optional
+        Dielectric tensor eigenvalues array (defaults to unity).
+    epsa : (...,3) array, optional
+        Euler rotation angles (psi, theta, phi) (defaults to (0.,0.,0.)).
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : (ndarray,ndarray,ndarray), optional
+        Output arrays where results are written.
+    """
     if out is None:
         alpha,E = alphaE(beta,phi,epsv,epsa, mode = mode)
         return alpha, E, inv(E)
@@ -371,7 +492,7 @@ if _numba_0_39_or_greater:
     def _phase_mat_vec(alpha,kd):
         return np.exp(NCDTYPE(1j)*kd*alpha)
 
-    def phasem(alpha,kd,out = None):
+    def _phasem(alpha,kd,out = None):
         kd = np.asarray(kd,FDTYPE)[...,None]
         out = _phase_mat_vec(alpha,kd,out)
         #if out.shape[-1] == 4:
@@ -384,11 +505,28 @@ else:
         for i in range(alpha.shape[0]):
             out[i] = np.exp(NCDTYPE(1j)*kd[0]*(alpha[i]))
                     
-    phasem = _phase_mat_vec
+    _phasem = _phase_mat_vec
 
+#to make autoapi happy...    
+def phasem(*args,**kwargs):
+    return _phasem(*args,**kwargs)
+    
 def phase_mat(alpha, kd, mode = None,  out = None):
     """Computes phase a 4x4 or 2x2 matrix from eigenvalue matrix alpha 
-    and wavenumber"""
+    and wavenumber
+    
+    Parameters
+    ----------
+
+    alpha : (...,4) array
+        The eigenvalue alpha array.
+    kd : float
+        The kd phase value (layer thickness times wavenumber in vacuum).
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : ndarray, optional
+        Output array where results are written.
+    """
     kd = np.asarray(kd, dtype = FDTYPE)
     if out is None:
         if mode is None:
@@ -407,7 +545,7 @@ def phase_mat(alpha, kd, mode = None,  out = None):
         raise ValueError("Unknown propagation mode.")
     return out 
 
-def iphase_mat(alpha, kd, cfact = 0.1, mode = "t",  out = None):
+def iphase_mat(alpha, kd, cfact = 0.1, mode = +1,  out = None):
     """Computes incoherent 4x4 phase matrix from eigenvalue matrix alpha and wavenumber"""
     if mode == "t":
         np.add(alpha[...,1::2],alpha[...,1::2].real*2*1j*cfact, out = alpha[...,1::2])
@@ -421,11 +559,18 @@ def iphase_mat(alpha, kd, cfact = 0.1, mode = "t",  out = None):
 @nb.guvectorize([(NCDTYPE[:], NFDTYPE[:])],
                     "(n)->()", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
 def poynting(fvec, out):
-    """Calculates a z-component of the poynting vector from the field vector"""
+    """Calculates a z-component of the poynting vector from the field vector
+    
+    Parameters
+    ----------
+
+    fvec : (...,4,4) array
+        Field matrix array.
+    out : ndarray, optional
+        Output array where results are written.
+    
+    """
     assert fvec.shape[0] == 4
-    #tmp1 = (fvec[0].real * fvec[1].real + fvec[0].imag * fvec[1].imag)
-    #tmp2 = (fvec[2].real * fvec[3].real + fvec[2].imag * fvec[3].imag)
-    #out[0] = tmp1-tmp2   
     out[0] = _poynting(fvec)
 
 #@nb.guvectorize([(NCDTYPE[:,:], NFDTYPE[:])],
@@ -439,7 +584,16 @@ def poynting(fvec, out):
 #        out[i] = tmp1-tmp2  
         
 def fmat2poynting(fmat, out = None):
-    """Calculates a z-component of the poynting vectors from the field matrix"""
+    """Calculates a z-component of the poynting vectors from the field matrix
+    
+    Parameters
+    ----------
+
+    fmat : (...,4,4) array
+        Field matrix array.
+    out : ndarray, optional
+        Output array where results are written.
+    """
     axes = list(range(fmat.ndim))
     n = axes.pop(-2)
     axes.append(n)
@@ -450,7 +604,16 @@ def fmat2poynting(fmat, out = None):
                     "(n,n)->(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
 def normalize_f(fmat, out):
     """Normalizes column of field matrix so that fmat2poytning of the resulted
-    matrix returns ones"""
+    matrix returns ones
+    
+    Parameters
+    ----------
+
+    fmat : (...,4,4) array
+        Field matrix array.
+    out : ndarray, optional
+        Output array where results are written.
+    """
     assert fmat.shape[0] == 4 and fmat.shape[1] == 4 
     for i in range(4):
         tmp1 = (fmat[0,i].real * fmat[1,i].real + fmat[0,i].imag * fmat[1,i].imag)
@@ -466,17 +629,40 @@ def normalize_f(fmat, out):
         out[3,i] = fmat[3,i] * n
 
 
-def intensity(fvec):
-    """Calculates absolute value of the z-component of the poynting vector"""
+def intensity(fvec,out = None):
+    """Calculates absolute value of the z-component of the poynting vector
+    
+    Parameters
+    ----------
+
+    fvec : (...,4,4) array
+        Field matrix array.
+    out : ndarray, optional
+        Output array where results are written.    
+    """
     fvec = _as_field_vec(fvec)
     p = poynting(fvec)
     return np.abs(p)
 
 
-def projection_mat(fmat, fmati = None, mode = +1):
+def projection_mat(fmat, fmati = None, mode = +1, out = None):
     """Calculates projection matrix from the given field matrix. By multiplying
     the field with this matrix you obtain only the forward (mode = +1) or
-    backward (mode = -1) propagating field,"""
+    backward (mode = -1) propagating field,
+    
+    Parameters
+    ----------
+
+    fmat : (...,4,4) array
+        Field matrix array.
+    fmati : (...,4,4)
+        The inverse of the field matrix. If not provided it is computed from `fmat`.
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : ndarray, optional
+        Output array where results are written.   
+    
+    """
     if fmati is None:
         fmati = inv(fmat)
     diag = np.zeros(fmat.shape[:-1],fmat.dtype)
@@ -486,14 +672,33 @@ def projection_mat(fmat, fmati = None, mode = +1):
         diag[...,1::2] = 1.
     else:
         raise ValueError("Unknown propagation mode.")     
-    return dotmdm(fmat,diag,fmati)    
+    return dotmdm(fmat,diag,fmati, out)    
 
 
     
 def EHz(fvec, beta = None, phi = None, epsv = None, epsa = None, out = None):
-    """Constructs the z component of the electric and magnetic fields from the
-    input field vector in a given medium. If epsv and epsa are not given, vacuum is assumed"""
+    """Constructs the z component of the electric and magnetic fields 
     
+    Parameters
+    ----------
+    fvec : (...,4,4) array
+        Field matrix array.
+    beta : float, optional
+        The beta parameter of the field (defaults to 0.)
+    phi : float, optional
+        The phi parameter of the field (defaults to 0.)
+    epsv : (...,3) array, optional
+        Dielectric tensor eigenvalues array (defaults to unity).
+    epsa : (...,3) array, optional
+        Euler rotation angles (psi, theta, phi) (defaults to (0.,0.,0.)).
+    out : (ndarray,ndarray), optional
+        Output arrays where results are written.
+        
+    Returns
+    -------
+    Ez,Hz : (ndarray,ndarray)
+        Ez and Hz arrays of shape (...,4)
+    """
     fvec = _as_field_vec(fvec)
     beta, phi = _default_beta_phi(beta, phi)
     epsv,epsa = _default_epsv_epsa(epsv, epsa)
@@ -514,24 +719,30 @@ def _EHz(fvec, beta,phi,rv,epsv,epsa,dummy,out):
     out[1] = beta[0] * frot[3]
 
 
-def T_mat(fin, fout, fini = None, fouti = None, mode = +1):
+
+def T_mat(fmatin, fmatout, fmatini = None, fmatouti = None, mode = +1):
     """Computes amplitude interface transmittance matrix.
     
     Parameters
     ----------
-    fin : ndarray
-        Input media field matrix
-    fout : ndarray
-        Output media field matrix
-    fini : ndarray, optional
-        Input media inverse of the field. 
+    fmatin : (...,4,4) array
+        Input field matrix array.
+    fmatout : (...,4,4) array
+        Output field matrix array.
+    fmatini : (...,4,4) array
+        Inverse of the input field matrix array.
+    fmatouti : (...,4,4) array, optional
+        Inverse of the output field matrix array. If not provided, it is computed
+        from `fmatout`.
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
     """
-    if fini is None:
-        fini = inv(fin)
-    if fouti is None:
-        fouti = inv(fout)
-    Sf = dotmm(fini,fout)
-    Sb = dotmm(fouti,fin)
+    if fmatini is None:
+        fmatini = inv(fmatin)
+    if fmatouti is None:
+        fmatouti = inv(fmatout)
+    Sf = dotmm(fmatini,fmatout)
+    Sb = dotmm(fmatouti,fmatin)
     out = np.zeros_like(Sf)
     if mode == +1:
         out[...,::2,::2] = inv(Sf[...,::2,::2])
@@ -544,14 +755,30 @@ def T_mat(fin, fout, fini = None, fouti = None, mode = +1):
     else:
         raise ValueError("Unknown propagation mode.")      
     
-def S_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1):
-    if overwrite_fin == True:
-        out = fin
+def S_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1):
+    """Computes the S matrix.
+    
+    Parameters
+    ----------
+    fmatin : (...,4,4) array
+        Input field matrix array.
+    fmatout : (...,4,4) array
+        Output field matrix array.
+    fmatini : (...,4,4) array
+        Inverse of the input field matrix array.
+    fmatouti : (...,4,4) array, optional
+        Inverse of the output field matrix array. If not provided, it is computed
+        from `fmatout`.
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    """
+    if overwrite_fmatin == True:
+        out = fmatin
     else:
         out = None
-    if fini is None:
-        fini = inv(fin, out = out)
-    S = dotmm(fini,fout, out = out)
+    if fmatini is None:
+        fmatini = inv(fmatin, out = out)
+    S = dotmm(fmatini,fmatout, out = out)
     if mode == +1:
         return S[...,::2,::2],S[...,1::2,0::2]
     elif mode == -1:
@@ -559,14 +786,32 @@ def S_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1):
     else:
         raise ValueError("Unknown propagation mode.")  
         
-def transmission_mat(fin, fout, fini = None, mode = +1,out = None):
-    A,B = S_mat(fin, fout, fini = fini, mode = mode)
+def transmission_mat(fmatin, fmatout, fmatini = None, mode = +1,out = None):
+    """Computes the transmission matrix.
+    
+    Parameters
+    ----------
+    fmatin : (...,4,4) array
+        Input field matrix array.
+    fmatout : (...,4,4) array
+        Output field matrix array.
+    fmatini : (...,4,4) array
+        Inverse of the input field matrix array.
+    fmatouti : (...,4,4) array, optional
+        Inverse of the output field matrix array. If not provided, it is computed
+        from `fmatout`.
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : ndarray, optional
+        Output array where results are written.
+    """
+    A,B = S_mat(fmatin, fmatout, fmatini = fmatini, mode = mode)
     if mode == +1:
-        A1 = fin[...,::2,::2]
-        A2 = fout[...,::2,::2]
+        A1 = fmatin[...,::2,::2]
+        A2 = fmatout[...,::2,::2]
     elif mode == -1:
-        A1 = fin[...,1::2,1::2]
-        A2 = fout[...,1::2,1::2]
+        A1 = fmatin[...,1::2,1::2]
+        A2 = fmatout[...,1::2,1::2]
     else:
         raise ValueError("Unknown propagation mode.")        
     Ai = inv(A, out = out)
@@ -587,21 +832,64 @@ def transmission_mat(fin, fout, fini = None, mode = +1,out = None):
 #    A1pi = inv(A1p)
 #    return dotmm(dotmm(dotmm(A1m,B,out = Ai),Ai, out = Ai),A1pi, out = Ai)
 
-def tr_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None):
-    if overwrite_fin == True:
-        er = E_mat(fin, mode = mode * (-1), copy = True)
+def tr_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1, out = None):
+    """Computes the 2x2 tr matrix.
+    
+    Parameters
+    ----------
+    fmatin : (...,4,4) array
+        Input field matrix array.
+    fmatout : (...,4,4) array
+        Output field matrix array.
+    fmatini : (...,4,4) array
+        Inverse of the input field matrix array.
+{overwrite_fmatin}
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : ndarray, optional
+        Output array where results are written.
+    """    
+    
+    if overwrite_fmatin == True:
+        er = E_mat(fmatin, mode = mode * (-1), copy = True)
     else:
-        er = E_mat(fin, mode = mode * (-1), copy = False)
-    et = E_mat(fout, mode = mode, copy = False)
-    eti,eri = Etri_mat(fin, fout, fini = fini, overwrite_fin = overwrite_fin, mode = mode, out = out)
+        er = E_mat(fmatin, mode = mode * (-1), copy = False)
+    et = E_mat(fmatout, mode = mode, copy = False)
+    eti,eri = Etri_mat(fmatin, fmatout, fmatini = fmatini, overwrite_fmatin = overwrite_fmatin, mode = mode, out = out)
     return dotmm(et,eti, out = eti), dotmm(er,eri, out = eri)
 
-def t_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None):
-    eti = Eti_mat(fin, fout, fini = fini, overwrite_fin = overwrite_fin, mode = mode, out = out)
-    et = E_mat(fout, mode = mode, copy = False)
+def t_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1, out = None):
+    """Computes the 2x2 tr matrix.
+    
+    Parameters
+    ----------
+    fmatin : (...,4,4) array
+        Input field matrix array.
+    fmatout : (...,4,4) array
+        Output field matrix array.
+    fmatini : (...,4,4) array
+        Inverse of the input field matrix array.
+{overwrite_fmatin}
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : ndarray, optional
+        Output array where results are written.
+    """     
+    eti = Eti_mat(fmatin, fmatout, fmatini = fmatini, overwrite_fmatin = overwrite_fmatin, mode = mode, out = out)
+    et = E_mat(fmatout, mode = mode, copy = False)
     return dotmm(et,eti, out = eti)
 
 def E_mat(fmat, mode = None, copy = True):
+    """Computes the E field matrix.
+    
+    Parameters
+    ----------
+    fmat : (...,4,4) array
+        Field matrix array.
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+{copy}
+    """ 
     if mode == +1:
         e = fmat[...,::2,::2]
     elif mode == -1:
@@ -617,27 +905,71 @@ def E_mat(fmat, mode = None, copy = True):
         raise ValueError("Unknown propagation mode.")
     return e.copy() if copy else e  
 
-def Eti_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None):
-    A = E_mat(fin, mode = mode, copy = False) 
+def Eti_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1, out = None):
+    """Computes the inverse of the E field matrix (no reflections).
+    
+    Parameters
+    ----------
+    fmatin : (...,4,4) array
+        Input field matrix array.
+    fmatout : (...,4,4) array
+        Output field matrix array.
+    fmatini : (...,4,4) array
+        Inverse of the input field matrix array.
+{overwrite_fmatin}
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : ndarray, optional
+        Output array where results are written.
+    """     
+    A = E_mat(fmatin, mode = mode, copy = False) 
     #Ai = inv(A, out = out)
     Ai = inv(A)
-    St,Sr = S_mat(fin, fout, fini = fini, overwrite_fin = overwrite_fin, mode = mode)
+    St,Sr = S_mat(fmatin, fmatout, fmatini = fmatini, overwrite_fmatin = overwrite_fmatin, mode = mode)
     Sti = inv(St, out = St)
     return dotmm(Sti,Ai, out = out)
 
 
 
 
-def Etri_mat(fin, fout, fini = None, overwrite_fin = False, mode = +1, out = None):
+def Etri_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1, out = None):
+    """Computes the inverse of the E field matrix (with reflections).
+    
+    Parameters
+    ----------
+    fmatin : (...,4,4) array
+        Input field matrix array.
+    fmatout : (...,4,4) array
+        Output field matrix array.
+    fmatini : (...,4,4) array
+        Inverse of the input field matrix array.
+{overwrite_fmatin}
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : ndarray, optional
+        Output array where results are written.
+    """       
     out1, out2 = out if out is not None else (None, None)
-    A = E_mat(fin, mode = mode, copy = False)
+    A = E_mat(fmatin, mode = mode, copy = False)
     Ai = inv(A, out = out1)  
-    St,Sr = S_mat(fin, fout, fini = fini, overwrite_fin = overwrite_fin, mode = mode)
+    St,Sr = S_mat(fmatin, fmatout, fmatini = fmatini, overwrite_fmatin = overwrite_fmatin, mode = mode)
     Sti = inv(St, out = St)
     ei = dotmm(Sti,Ai,out = Ai)
     return ei, dotmm(Sr,ei, out = out2)
     
-def E2H_mat(fmat, mode = +1, out = None):  
+def E2H_mat(fmat, mode = +1, out = None): 
+    """Computes the H field from the field matrix.
+    
+    Parameters
+    ----------
+    
+    fmat : (...,4,4) array
+        Field matrix array.
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : ndarray, optional
+        Output array where results are written.
+    """       
     if mode == +1:
         A = fmat[...,::2,::2]
         B = fmat[...,1::2,::2]
@@ -649,17 +981,39 @@ def E2H_mat(fmat, mode = +1, out = None):
     Ai = inv(A, out = out)
     return dotmm(B,Ai, out = Ai)  
 
-def f_iso(beta=0.,phi = 0.,n=1.):
+def f_iso(beta = 0., phi = 0., n = 1.):
     """Returns field matrix for isotropic layer of a given refractive index
-    and beta, phi parameters"""
+    and beta, phi parameters
+    
+    Parameters
+    ----------
+    
+    beta : float, optional
+        The beta parameter of the field (defaults to 0.)
+    phi : float, optional
+        The phi parameter of the field (defaults to 0.)
+    n : float
+        Refractive index of the medium (1. by default).
+    """
     epsv = refind2eps([n]*3)
     epsa = np.zeros(shape = (3,),dtype= FDTYPE)
     alpha, f = alphaf(beta,phi,epsv,epsa)    
     return f
 
-def ffi_iso(n=1,beta=0.,phi = 0.):
+def ffi_iso(beta=0.,phi = 0., n=1):
     """Returns field matrix and inverse of the field matrix for isotropic layer 
-    of a given refractive index and beta, phi parameters"""
+    of a given refractive index and beta, phi parameters
+    
+    Parameters
+    ----------
+    
+    beta : float, optional
+        The beta parameter of the field (defaults to 0.)
+    phi : float, optional
+        The phi parameter of the field (defaults to 0.)
+    n : float
+        Refractive index of the medium (1. by default).
+    """
     epsv = refind2eps([n]*3)
     epsa = np.zeros(shape = (3,),dtype= FDTYPE)
     alpha, f, fi = alphaffi(beta,phi,epsv,epsa)    
@@ -675,22 +1029,22 @@ def layer_mat(kd, epsv,epsa, beta = 0,phi = 0, cfact = 0.1, method = "4x4", fmat
     kd : float
         A sequence of phase values (layer thickness times wavenumber in vacuum).
         len(kd) must match len(epsv) and len(epsa).
-    epsv : array_like
-        Epsilon eigenvalues.
-    epsa : array_like
-        Optical axes orientation angles (psi, theta, phi).
-    beta : float
-        Beta angle of input light.
-    phi : float
-        Phi angle of input light.
+    epsv : (...,3) array, optional
+        Dielectric tensor eigenvalues array (defaults to unity).
+    epsa : (...,3) array, optional
+        Euler rotation angles (psi, theta, phi) (defaults to (0.,0.,0.)).
+    beta : float, optional
+        The beta parameter of the field (defaults to 0.)
+    phi : float, optional
+        The phi parameter of the field (defaults to 0.)
     cfact : float, optional
         Coherence factor, only used in combination with `4x4_2` method.
     method : str
-        One of `4x4` (4x4 berreman - trasnmittance + reflectance), 
-        `2x2` (2x2 jones - transmittance only), 
-        `4x4_1` (4x4, single reflections - transmittance only),
-        `2x2_1` (2x2, single reflections - transmittance only) 
-        `4x4_2`(4x4, partially coherent reflections - transmittance only) 
+        One of 4x4 (4x4 berreman - trasnmittance + reflectance), 
+        2x2 (2x2 jones - transmittance only), 
+        4x4_1 (4x4, single reflections - transmittance only),
+        2x2_1 (2x2, single reflections - transmittance only) 
+        4x4_2 (4x4, partially coherent reflections - transmittance only) 
     fmatin : ndarray, optional
         Used in compination with 2x2_1 method. Itspecifies the field matrix of 
         the input media in order to compute fresnel reflections. If not provided 
@@ -861,21 +1215,21 @@ def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, cfact = 0.01, method = "4x4", out
     kd : array_like
         A sequence of phase values (layer thickness times wavenumber in vacuum).
         len(kd) must match len(epsv) and len(epsa).
-    epsv : array_like
-        A sequence of epsilon eigenvalues.
-    epsa : array_like
-        A sequence of optical axes orientation angles (psi, theta, phi).
-    beta : float
-        Beta angle of input light.
-    phi : float
-        Phi angle of input light.
+    epsv : (...,3) array, optional
+        Dielectric tensor eigenvalues array (defaults to unity).
+    epsa : (...,3) array, optional
+        Euler rotation angles (psi, theta, phi) (defaults to (0.,0.,0.)).
+    beta : float, optional
+        The beta parameter of the field (defaults to 0.)
+    phi : float, optional
+        The phi parameter of the field (defaults to 0.)
     cfact : float
         Coherence factor, only used in combination with `4x4_r` and `4x4_2` methods.
     method : str
-        One of `4x4` (4x4 berreman), `2x2` (2x2 jones), 
-        `4x4_1` (4x4, single reflections),`2x2_1` (2x2, single reflections) 
-        `4x4_r` (4x4, incoherent to compute reflection) or 
-        `4x4_t`(4x4, incoherent to compute transmission) 
+        One of 4x4 (4x4 berreman), 2x2 (2x2 jones), 
+        4x4_1 (4x4, single reflections), 2x2_1 (2x2, single reflections) 
+        4x4_r (4x4, incoherent to compute reflection) or 
+        4x4_t (4x4, incoherent to compute transmission) 
     out : ndarray, optional
     
     Returns
@@ -932,7 +1286,21 @@ m0 = np.array([[1.,0,0,0,0,0,0,0],
                [0,0,0,0,0,0,0,1]])    
     
 def system_mat(cmat = None,fmatin = None, fmatout = None, fmatini = None, out = None):
-    """Computes a system matrix from a characteristic matrix Fin-1.C.Fout"""
+    """Computes a system matrix from a characteristic matrix Fin-1.C.Fout
+    
+    Parameters
+    ----------
+    cmat : (...,4,4) array
+        Characteristic matrix.
+    fmatin : (...,4,4) array
+        Input field matrix array.
+    fmatout : (...,4,4) array
+        Output field matrix array.
+    fmatini : (...,4,4) array
+        Inverse of the input field matrix array.
+    out : ndarray, optional
+        Output array where results are written.
+    """
     if fmatini is None:
         if fmatin is None:
             fmatin = f_iso()
@@ -959,6 +1327,13 @@ def system_mat(cmat = None,fmatin = None, fmatout = None, fmatini = None, out = 
 
 def reflection_mat(smat, out = None):
     """Computes a 4x4 reflection matrix.
+    
+    Parameters
+    ----------
+    smat : (...,4,4) array
+        System matrix.
+    out : ndarray, optional
+        Output array where results are written.
     """
     m1 = np.zeros_like(smat)
     m2 = np.zeros_like(smat)
@@ -975,6 +1350,13 @@ def reflection_mat(smat, out = None):
 
 def reflection_mat(smat, out = None):
     """Computes a 4x4 reflection matrix.
+    
+    Parameters
+    ----------
+    smat : (...,4,4) array
+        System matrix.
+    out : ndarray, optional
+        Output array where results are written.
     """
     m1 = np.zeros_like(smat)
     m2 = np.zeros_like(smat)
@@ -989,7 +1371,20 @@ def reflection_mat(smat, out = None):
 
 def fvec2E(fvec, fmat = None, fmati = None, mode = +1, inplace = False):
     """Converts field vector to E vector. If inplace == True, also 
-    makes input field forward or backward propagating. """
+    makes input field forward or backward propagating. 
+    
+    Parameters
+    ----------
+    fvec : (...,4,4) array
+        Field vector array.
+    fmat : (...,4,4) array
+        Field matrix array.
+    fmati : (...,4,4) array, optional
+        The inverse of the field matrix. If not provided it is computed from `fmat`.
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    inplace : bool, optional
+    """
     if inplace == True:
         out  = fvec
     else:
@@ -1006,7 +1401,19 @@ def fvec2E(fvec, fmat = None, fmati = None, mode = +1, inplace = False):
         
     
 def E2fvec(evec, fmat = None, mode = +1, out = None):
-    """Converts E vector to field vector"""
+    """Converts E vector to field vector
+    
+    Parameters
+    ----------
+    evec : (...,2) array
+        E field vector array.
+    fmat : (...,4,4) array
+        Field matrix array.
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : ndarray, optional
+        Output array where results are written.
+    """
     if fmat is None:
         fmat = f_iso()
     e2h = E2H_mat(fmat, mode = mode)
@@ -1017,33 +1424,61 @@ def E2fvec(evec, fmat = None, mode = +1, out = None):
     out[...,1::2] = hvec
     return out
     
-def transmit2x2(evec_in, cmat,  tmatin = None, tmatout = None, evec_out = None):
-    """Transmits E-field vector using 2x2 method.
+# def transmit2x2(evec_in, cmat,  tmatin = None, tmatout = None, evec_out = None):
+#     """Transmits E-field vector using 2x2 method.
     
-    This functions takes an E-field vector that describes the input field and
-    computes the output transmited field using the 2x2 characteristic matrix.
-    """
-    b = np.broadcast(evec_in[...,0][...,None,None],cmat)
+#     This functions takes an E-field vector that describes the input field and
+#     computes the output transmited field using the 2x2 characteristic matrix.
+    
+#     Parameters
+#     ----------
+# {evec_in}
+#     cmat : (...,4,4) array
+#         Characteristic matrix.
+# {tmatin}
+# {tmatout}
+# {evec_out}
+    
+#     """
+#     b = np.broadcast(evec_in[...,0][...,None,None],cmat)
 
-    if evec_out is not None:
-        evec_out[...] = 0 
-    else:   
-        evec_out = np.zeros(b.shape[:-2] + (2,), evec_in.dtype)
+#     if evec_out is not None:
+#         evec_out[...] = 0 
+#     else:   
+#         evec_out = np.zeros(b.shape[:-2] + (2,), evec_in.dtype)
         
-    if tmatin is not None:
-        evec = dotmv(tmatin, evec_in, out = evec_out)
-    else:
-        evec = evec_in
-    eout = dotmv(cmat, evec, out = evec_out)
-    if tmatout is not None:
-        eout = dotmv(tmatout, eout, out = evec_out)
-    return evec_out
+#     if tmatin is not None:
+#         evec = dotmv(tmatin, evec_in, out = evec_out)
+#     else:
+#         evec = evec_in
+#     eout = dotmv(cmat, evec, out = evec_out)
+#     if tmatout is not None:
+#         eout = dotmv(tmatout, eout, out = evec_out)
+#     return evec_out
 
 def transmit2x2(fvec_in, cmat, fmatout = None, tmatin = None, tmatout = None, fvec_out = None):
     """Transmits field vector using 2x2 method.
     
     This functions takes a field vector that describes the input field and
     computes the output transmited field using the 2x2 characteristic matrix.
+    
+    Parameters
+    ----------
+    fvec_in : (...,4) array
+        Input field vector array. This function will update the input array  
+        with the calculated reflected field.
+    cmat : (...,4,4) array
+        Characteristic matrix.
+    fmatout : (...,4,4) array
+        Output field matrix array.
+    tmatin : (...,2,2) array
+        The transmittance matrix from the input medium to the first layer.
+    tmatout : (...,2,2) array, optional
+        The transmittance matrix from the last layer to the output maedium.
+    fvec_out : (...,4) array, optional
+        The ouptut field vector array. This function will update the output array 
+        with the calculated transmitted field.
+    
     """
     b = np.broadcast(fvec_in[...,0][...,None,None],cmat)
     if fmatout is None:
@@ -1065,12 +1500,32 @@ def transmit2x2(fvec_in, cmat, fmatout = None, tmatin = None, tmatout = None, fv
     return fvec_out
 
 
-def transmit(fvec_in, cmat = None, fmatin = None, fmatout = None, fmatini = None, fmatouti = None, fvec_out = None):
+def transmit4x4(fvec_in, cmat = None, fmatin = None, fmatout = None, fmatini = None, fmatouti = None, fvec_out = None):
     """Transmits field vector using 4x4 method.
     
     This functions takes a field vector that describes the input field and
     computes the output transmited field and also updates the input field 
     with the reflected waves.
+   
+    Parameters
+    ----------
+    fvec_in : (...,4) array
+        Input field vector array. This function will update the input array  
+        with the calculated reflected field
+    cmat : (...,4,4) array
+        Characteristic matrix.
+    fmatin : (...,4,4) array
+        Input field matrix array.
+    fmatout : (...,4,4) array
+        Output field matrix array.
+    fmatini : (...,4,4) array
+        Inverse of the input field matrix array.
+    fmatouti : (...,4,4) array, optional
+        Inverse of the output field matrix array. If not provided, it is computed
+        from `fmatout`.
+    fvec_out : (...,4) array, optional
+        The ouptut field vector array. This function will update the output array 
+        with the calculated transmitted field.
     """
     b = np.broadcast(fvec_in[..., None],cmat[...,0:4,0:4], fmatin, fmatout)
     
@@ -1116,8 +1571,46 @@ def transmit(fvec_in, cmat = None, fmatin = None, fmatout = None, fmatini = None
     dotmv(fmatin,avec,out = fvec_in)    
     return dotmv(fmatout,bvec,out = out)
 
+transmit = transmit4x4
+
 def transfer4x4(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1., 
              method = "4x4", reflect_in = False, reflect_out = False, fvec_out = None):
+    """tranfers 4x4 field
+    
+    Parameters
+    ----------
+    fvec_in : (...,4) array
+        Input field vector array. This function will update the input array  
+        with the calculated reflected field
+    kd : float
+        The kd phase value (layer thickness times wavenumber in vacuum).
+    epsv : (...,3) array, optional
+        Dielectric tensor eigenvalues array (defaults to unity).
+    epsa : (...,3) array, optional
+        Euler rotation angles (psi, theta, phi) (defaults to (0.,0.,0.)).
+    beta : float, optional
+        The beta parameter of the field (defaults to 0.)
+    phi : float, optional
+        The phi parameter of the field (defaults to 0.)
+    nin : float
+        Input layer refractive index.
+    nout : float
+        Output layer refractive index.
+    method : str
+        Any of 4x4, 4x4_1, 4x4_2, 4x4_r.
+    reflect_in : bool
+        Defines how to treat reflections from the input media and the first layer.
+        If specified it does an incoherent reflection from the first interface.
+    reflect_out : bool
+        Defines how to treat reflections from the last layer and the output media.
+        If specified it does an incoherent reflection from the last interface.
+    fvec_out : (...,4) array, optional
+        The ouptut field vector array. This function will update the output array 
+        with the calculated transmitted field.
+    """
+    
+
+    
     if method not in ("4x4", "4x4_1","4x4_r","4x4_2"):
         raise ValueError("Unknown method!")
         
@@ -1162,7 +1655,7 @@ def transfer4x4(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 
 #        fmatout = f_iso(n = nout, beta  = beta, phi = phi)
     
     cmat = stack_mat(kd, epsv, epsa, method = method)
-    fvecf = transmit(fveci, cmat = cmat, fmatin = fmatin, fmatout = fmatout, fvec_out = fvecf)
+    fvecf = transmit4x4(fveci, cmat = cmat, fmatin = fmatin, fmatout = fmatout, fvec_out = fvecf)
 
 #    if reflect_in == True:
 #        #make fresnel reflection of the input (backward propagating) field
@@ -1218,22 +1711,23 @@ def transfer(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1.,
     
     Parameters
     ----------
-    fvec_in : ndarray
-        Input field 4-vector
-    kd : array-like
-        A sequence of propagation constant for each of the layers (layer thickness * wave number)
-    epsv : array-like
-        eps eigenvalues sequence specifying the eps eigenvalues of each of the layers
-    epsa : array-like
-        eps euler angles sequence specifying the euler rotation angles of each of the layers     
-    beta : float
-        beta parameter of the input light
-    phi : float
-        The phi  parameter of the input light
-    nin : float or complex
-        Input media refractive index (1. by default)
-    nout : float or complex
-        Output media refractive index (1. by default)
+    fvec_in : (...,4) array
+        Input field vector array. This function will update the input array  
+        with the calculated reflected field
+    kd : float
+        The kd phase value (layer thickness times wavenumber in vacuum).
+    epsv : (...,3) array, optional
+        Dielectric tensor eigenvalues array (defaults to unity).
+    epsa : (...,3) array, optional
+        Euler rotation angles (psi, theta, phi) (defaults to (0.,0.,0.)).
+    beta : float, optional
+        The beta parameter of the field (defaults to 0.)
+    phi : float, optional
+        The phi parameter of the field (defaults to 0.)
+    nin : float
+        Input layer refractive index.
+    nout : float
+        Output layer refractive index.
     method : str
         Any of 4x4, 2x2, 2x2_1 or 4x4_1, 4x4_2, 4x4_r
     reflect_in : bool
@@ -1242,7 +1736,9 @@ def transfer(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1.,
     reflect_out : bool
         Defines how to treat reflections from the last layer and the output media.
         If specified it does an incoherent reflection from the last interface.
-                
+    fvec_out : (...,4) array, optional
+        The ouptut field vector array. This function will update the output array 
+        with the calculated transmitted field.                
     """
     
     if method.startswith("2x2"):
@@ -1261,14 +1757,14 @@ def transfer(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1.,
 
 transfer1d = transfer
     
-def polarizer4x4(jones, fmat, out = None):
+def polarizer4x4(jvec, fmat, out = None):
     """Returns a polarizer matrix from a given jones vector and a field matrix. 
     
     Numpy broadcasting rules apply.
     
     Parameters
     ----------
-    jones : array_like
+    jvec : array_like
         A length two array describing the jones vector. Jones vector should
         be normalized.
     fmat : array_like
@@ -1283,30 +1779,45 @@ def polarizer4x4(jones, fmat, out = None):
     >>> pol_mat = polarizer4x4(jvec, f) #x polarizer matrix
     
     """
-    jonesmat = polarizer2x2(jones)
+    jmat = polarizer2x2(jvec)
+    return jonesmat4x4(jmat, fmat, out)
+
+def jonesmat4x4(jmat, fmat, out = None):
+    """Returns a 4x4 jones matrix from a given 2x2 jones matrix and a field matrix.
+    
+    Numpy broadcasting rules apply.
+    
+    Parameters
+    ----------
+    jmat : (...,2,2) array
+        A 2x2 jones matrix. Any of matrices in :mod:`dtmm.jones` can be used.
+    fmat : (...,4,4) array
+        A field matrix array of the isotropic medium.
+    out : ndarray, optional
+        Output array   
+    """
     fmat = normalize_f(fmat)
     fmati = inv(fmat)
-    pmat = as4x4(jonesmat)    
+    pmat = as4x4(jmat)    
     m = dotmm(fmat,dotmm(pmat,fmati, out = out), out = out)
     return m
+    
 
-def avec(jones = (1,0), amplitude = 1., mode = +1, out = None):
+def avec(jvec = (1,0), amplitude = 1., mode = +1, out = None):
     """Constructs amplitude vector.
     
     Numpy broadcasting rules apply for jones, and amplitude parameters
     
     Parameters
     ----------
-    jones : (int,int), optional
-        Jones vector that defines the polarization state (1,0) x polarization
-        by default. 
-    amplitude : float, optional
-        Amplitude, optional
-    mode : int, optional
-        Propagation mode, either +1 (default) for forward propagating mode, or
-        -1 for backward propagating mode. 
+    jvec : jonesvec
+        A jones vector, describing the polarization state of the field.
+    amplitude : complex
+        Amplitude of the field.
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
     out : ndarray, optional
-        Output array.
+        Output array where results are written.
         
     Returns
     -------
@@ -1321,11 +1832,13 @@ def avec(jones = (1,0), amplitude = 1., mode = +1, out = None):
     array([1.+0.j, 0.+0.j, 0.+0.j, 0.+0.j])
     
     X polarized light with amplitude 1 and y polarized light with amplitude 2.
-    >>> avec(jones = ((1,0),(0,1)),amplitude = (1,2))
-    array([[1.+0.j, 0.+0.j, 0.+0.j, 0.+0.j],
-           [0.+0.j, 0.+0.j, 2.+0.j, 0.+0.j]])
+    >>> b = avec(jones = ((1,0),(0,1)),amplitude = (1,2))
+    >>> b[0]
+    array([1.+0.j, 0.+0.j, 0.+0.j, 0.+0.j])
+    >>> b[1]
+    array([0.+0.j, 0.+0.j, 2.+0.j, 0.+0.j])
     """
-    jones = np.asarray(jones)
+    jones = np.asarray(jvec)
     amplitude = np.asarray(amplitude)  
     c,s = jones[...,0], jones[...,1] 
     b = np.broadcast(c, amplitude)
@@ -1350,10 +1863,24 @@ def avec(jones = (1,0), amplitude = 1., mode = +1, out = None):
     return out
 
 
-def fvec(fmat, jones = (1,0),  amplitude = 1., mode = +1, out = None):
+
+def fvec(fmat, jvec = (1,0),  amplitude = 1., mode = +1, out = None):
     """Build field vector form a given polarization state, amplitude and mode.
     
     This function calls avec and then avec2fvec, see avec for details.
+    
+    Parameters
+    ----------
+    fmat : (...,4,4) array
+        Field matrix array.
+    jvec : jonesvec
+        A jones vector, describing the polarization state of the field.
+    amplitude : complex
+        Amplitude of the field.
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : ndarray, optional
+        Output array where results are written.
     
     Examples
     --------
@@ -1371,7 +1898,7 @@ def fvec(fmat, jones = (1,0),  amplitude = 1., mode = +1, out = None):
     True
     """
     
-    a = avec(jones, amplitude, mode, out)
+    a = avec(jvec, amplitude, mode, out)
     return avec2fvec(a, fmat, out = a)
 
 
@@ -1401,7 +1928,7 @@ def fvec2avec(fvec, fmat, normalize_fmat = True, out = None):
     fmati = inv(fmat)
     return dotmv(fmati,fvec, out = out)
 
-def avec2fvec(avec, fmat,normalize_fmat = True, out = None):
+def avec2fvec(avec, fmat, normalize_fmat = True, out = None):
     """Converts amplitude vector to field vector
     
     Parameters
@@ -1426,8 +1953,10 @@ def avec2fvec(avec, fmat,normalize_fmat = True, out = None):
         fmat = normalize_f(fmat)
     return dotmv(fmat, avec, out = out)
     
-__all__ = ["alphaf","alphaffi","phasem", "phase_mat", "fvec", "avec", "fvec2avec",
-           "avec2fvec","f_iso"]
+__all__ = ["alphaf","alphaffi","phase_mat", "fvec", "avec", "fvec2avec",
+           "avec2fvec","f_iso","ffi_iso","layer_mat","poynting","intensity",
+           "transfer4x4","transmit4x4","transfer",
+           "layer_mat","system_mat","stack_mat","EHz","jonesmat4x4","polarizer4x4"]
 
 if __name__ == "__main__":
     import doctest

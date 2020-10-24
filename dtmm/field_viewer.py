@@ -12,21 +12,26 @@ import scipy.ndimage as nd
 #from dtmm.project import projection_matrix, project
 from dtmm.color import load_tcmf, specter2color
 from dtmm.diffract import diffract, field_diffraction_matrix
-from dtmm.polarization import mode_polarizer, ray_polarizer, normal_polarizer
+from dtmm.polarization import ray_jonesmat4x4, mode_jonesmat4x4
 from dtmm.field import field2specter
 from dtmm.wave import k0
 from dtmm.data import refind2eps
 from dtmm.conf import BETAMAX, CDTYPE
-from dtmm.jones import jonesvec
+from dtmm.jones import jonesvec, quarter_waveplate, half_waveplate
+from dtmm import jones
 
-from dtmm.linalg import dotmf, dotmm
+from dtmm.linalg import dotmf, dotmm, dotmv
 from dtmm.fft import fft2, ifft2
 
 #: settable viewer parameters
-VIEWER_PARAMETERS = ("focus","analyzer", "polarizer", "sample", "intensity", "cols","rows","gamma","gray")
+VIEWER_PARAMETERS = ("focus","analyzer", "polarizer", "sample", "intensity", "cols","rows","gamma","gray","aperture", "retarder")
 
 SAMPLE_LABELS = ("-90 ","-45 "," 0  ","+45 ", "+90 ")
+SAMPLE_NAMES = tuple((s.strip() for s in SAMPLE_LABELS))
 POLARIZER_LABELS = (" H  "," V  ","LCP ","RCP ","none")
+POLARIZER_NAMES = tuple((s.strip().lower() for s in POLARIZER_LABELS))
+RETARDER_LABELS = ("$\lambda/4$", "$\lambda/2$","none")
+RETARDER_NAMES = ("lambda/4", "lambda/2", "none")
 
 class CustomRadioButtons(RadioButtons):
 
@@ -140,7 +145,7 @@ def bulk_viewer(field_data, cmf=None, window=None, **parameters):
 
 
 def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None,
-                 window=None, diffraction=True, polarization_mode="normal", betamax=BETAMAX, **parameters):
+                 window=None, diffraction=True, polarization_mode="normal", betamax=BETAMAX, beta = None, **parameters):
     """
     Returns a FieldViewer object for optical microscope simulation
     
@@ -213,7 +218,7 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None,
 
         viewer = FieldViewer(field, wave_numbers, cmf, mode=mode, n=n,
                              window=window, diffraction=diffraction,
-                             polarization=polarization_mode, betamax=betamax)
+                             polarization=polarization_mode, betamax=betamax, beta = beta)
         
         viewer.set_parameters(**parameters)
     else:
@@ -223,7 +228,7 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None,
         parameters.setdefault("focus", 0)
         viewer = BulkViewer(field, wave_numbers, cmf, mode=mode, n=n,
                             window=window, diffraction=diffraction,
-                            polarization=polarization_mode, betamax=betamax)
+                            polarization=polarization_mode, betamax=betamax, beta = beta)
         viewer.set_parameters(**parameters)        
     return viewer
 
@@ -244,62 +249,86 @@ def _float_or_none(value):
     """
     return float(value) if value is not None else None
  
-    
-def _polarizer_type(value):
+def _jonesmatrix_type(value):
     if isinstance(value, str):
         name = value.lower().strip()
-        if name in ("lcp","rcp", "h", "v","x","y","none"):
+        if name in (POLARIZER_NAMES + RETARDER_NAMES + ("x","y")+RETARDER_LABELS):
+            return name, _jmat_from_name(name)
+        else:
+            raise ValueError("Not a valid jones matrix")
+    else:
+        try:
+            angle = _float_or_none(value)
+            return angle, _jmat_from_angle(angle)
+        except TypeError:
+            jmat = np.asarray(value,CDTYPE)
+            if jmat.shape != (2,2):
+                raise ValueError("Not a valid jones matrix")
+            return jmat, jmat
+        
+def _jonesvector_type(value):
+    if isinstance(value, str):
+        name = value.lower().strip()
+        if name in (POLARIZER_NAMES + ("x","y")):
             return name, _jvec_from_name(name)
         else:
-            raise ValueError("Unknown polarizer!")
+            raise ValueError("Unknown jones vector!")
     else:
         try:
             angle = _float_or_none(value)
             return angle, _jvec_from_angle(angle)
         except TypeError:
-            jvec = jonesvec(value)
+            jvec = np.asarray(value,CDTYPE)
             if jvec.shape != (2,):
                 raise ValueError("Not a valid jones vector")
             return jvec, jvec
-        
-def _jvec_from_name(name):
-    if name in ("h","x"):
-        return (1,0)
-    if name in ("v","y"):
-        return (0,1)
-    if name == "lcp":
-        return jonesvec((1,1j))
-    if name == "rcp":
-        return jonesvec((1,-1j))
+
+def _jmat_from_name(name):
+    if name in ("qplate","$\lambda/4$"):
+        return jones.quarter_waveplate(np.pi/4)
+    if name in ("hplate","$\lambda/2$"):
+        return jones.half_waveplate(np.pi/4)
     if name == "none":
         return None
+    return jones.polarizer(_jvec_from_name(name)) 
+
+def _jvec_from_name(name):
+    if name in ("h","x"):
+        return jones.jonesvec((1,0))
+    if name in ("v","y"):
+        return jones.jonesvec((0,1))
+    if name == "rcp":
+        return jones.jonesvec((1,-1j))
+    if name == "lcp":
+        return jones.jonesvec((1,1j))
+    if name == "none":
+        return None
+          
+def _jmat_from_angle(angle):
+    return jones.polarizer(_jvec_from_angle(angle)) if angle is not None else None 
 
 def _jvec_from_angle(angle):
-    if angle is None:
-        return None
-    angle = np.pi/180 * angle
-    out = jonesvec((np.cos(angle),np.sin(angle))) if angle is not None else None 
-    return out    
-        
+    return jonesvec((np.cos(np.radians(angle)),np.sin(np.radians(angle)))) if angle is not None else None 
 
-def _rotate_jonesvec(jones, phi):
-    phi = np.pi/180 * phi
-    c_rot, s_rot = np.cos(phi), np.sin(phi)    
-    R = np.array(((c_rot,-s_rot),(s_rot,c_rot)))
-    return np.dot(R,jones)
+def _is_unpolarized(field):
+    """Determines if input field is unpolarized"""
+    return True if len(field.shape) >= 5 and field.shape[-5] == 2 else False
+
 
 class FieldViewer(object): 
     """Base viewer"""  
     _updated_parameters = set()
+    _retarder = "none"
+    _retarder_jmat = None
     _rows = 1
     _cols = 1
-    _focus = None
+    _focus = 0
     _polarizer = None
-    _polarizer_jones = None
+    _polarizer_jvec = None
     _sample = None
     _sample_angle = None
-    _analyzer = None
-    _analyzer_jones = None
+    _analyzer = "none"
+    _analyzer_jmat = None
     _intensity = 1.
     _parameters = VIEWER_PARAMETERS
     _fmin = 0
@@ -309,19 +338,25 @@ class FieldViewer(object):
     gray = False
     
     def __init__(self,field,ks,cmf, mode = None,n = 1., polarization = "normal",
-                window = None, diffraction = True, betamax = BETAMAX):
+                window = None, diffraction = True, betamax = BETAMAX, beta = None):
         self.betamax = betamax
         self.diffraction = diffraction
         self.pmode = polarization
         self.mode = mode  
+        self.beta = np.asarray(beta)
         self.epsv = refind2eps([n,n,n])
         self.epsa = np.array([0.,0.,0.])
         self.ks = ks
-        self.ifield = field 
+        self.ifield = np.asarray(field)
+        if _is_unpolarized(self.ifield):
+            self.polarizer = "none"
+            self.sample = "none"
+            
         self._ffield = None
         self.window = window
         self.cmf = cmf
         self.dmat = None
+        self._aperture = None if beta is None else max(beta)
         
     @property
     def _default_fmin(self):
@@ -384,6 +419,10 @@ class FieldViewer(object):
     @sample.setter    
     def sample(self, angle):
         """Sample rotation angle in degrees, in float or as a string"""
+        if angle is not None:
+            if not _is_unpolarized(self.ifield):
+                raise ValueError("Input field must be unpolarized to use sample parameter!")
+            
         if isinstance(angle, str):
             labels = tuple((label.strip() for label in SAMPLE_LABELS))
             if angle.strip() not in labels:
@@ -393,23 +432,35 @@ class FieldViewer(object):
                     raise ValueError("sample angle must be a float or any of {}".format(labels))
         self._sample_angle = _float_or_none(angle)
         self._sample = angle
-        self._updated_parameters.add("sample")   
+        self._updated_parameters.add("sample")  
+        
+
         
     @property
-    def polarizer_jones(self):
-        return self._polarizer_jones
+    def polarizer_jvec(self):
+        return self._polarizer_jvec
     
-    @polarizer_jones.setter 
-    def polarizer_jones(self, value):
+    @polarizer_jvec.setter 
+    def polarizer_jvec(self, value):
         self.polarizer = value
         
     @property
-    def analyzer_jones(self):
-        return self._analyzer_jones
+    def analyzer_jmat(self):
+        return self._analyzer_jmat
     
-    @analyzer_jones.setter 
-    def analyzer_jones(self, value):
+    @analyzer_jmat.setter 
+    def analyzer_jmat(self, value):
         self.analyzer = value
+    
+    @property    
+    def aperture(self):
+        """Illumination field aperture"""
+        return self._aperture
+    
+    @aperture.setter    
+    def aperture(self, value):
+        self._aperture = _float_or_none(value)
+        self._updated_parameters.add("aperture")
 
 
     @property
@@ -419,9 +470,12 @@ class FieldViewer(object):
         
     @polarizer.setter 
     def polarizer(self, angle):
+        if angle is not None:
+            if not _is_unpolarized(self.ifield):
+                raise ValueError("Input field must be unpolarized to use polarizer parameter!")
         if angle is not None and self.ifield.ndim >= 5 and self.ifield.shape[-5] != 2:
             raise ValueError("Cannot set polarizer. Incompatible field shape.")
-        self._polarizer, self._polarizer_jones = _polarizer_type(angle)
+        self._polarizer, self._polarizer_jvec = _jonesvector_type(angle)
         self._updated_parameters.add("polarizer")
         
     @property
@@ -431,9 +485,22 @@ class FieldViewer(object):
         
     @analyzer.setter   
     def analyzer(self, angle):
-        self._analyzer, self._analyzer_jones = _polarizer_type(angle)
+        self._analyzer, self._analyzer_jmat = _jonesmatrix_type(angle)
         self._updated_parameters.add("analyzer")
-        
+ 
+    @property    
+    def retarder_jmat(self):
+        return self._retarder_jmat
+    
+    @property    
+    def retarder(self):
+        return self._retarder
+    
+    @retarder.setter    
+    def retarder(self, value):
+        self._retarder, self._retarder_jmat = _jonesmatrix_type(value)
+        self._updated_parameters.add("retarder")
+       
     @property
     def intensity(self):
         """Input light intensity"""
@@ -464,25 +531,29 @@ class FieldViewer(object):
         Parameters
         ----------
         fmin : float, optional
-            Minimimum value for focus setting.
+            Minimimum value for the focus setting.
         fmax : float, optional
-            Maximum value for focus setting.             
+            Maximum value for the focus setting.             
         imin : float, optional
-            Minimimum value for intensity setting.
+            Minimimum value for then intensity setting.
         imax : float, optional
-            Maximum value for intensity setting.     
+            Maximum value for then intensity setting.     
         pmin : float, optional
-            Minimimum value for polarizer angle.
+            Minimimum value for the polarizer angle.
         pmax : float, optional
-            Maximum value for polarizer angle.    
+            Maximum value for the polarizer angle.    
         smin : float, optional
-            Minimimum value for sample rotation angle.
+            Minimimum value for the sample rotation angle.
         smax : float, optional
-            Maximum value for sample rotation angle.  
+            Maximum value for the sample rotation angle.  
         amin : float, optional
-            Minimimum value for analyzer angle.
+            Minimimum value for the analyzer angle.
         amax : float, optional
-            Maximum value for analyzer angle.  
+            Maximum value for the analyzer angle.  
+        namin : float, optional
+            Minimimum value for the numerical aperture.
+        namax : float, optional
+            Maximum value for the numerical aperture.  
         """
         if fig is None:
             if ax is None:
@@ -500,89 +571,70 @@ class FieldViewer(object):
         self.sliders = {} if sliders is None else sliders
         
         if show_sliders:
-
-            def update_sample(d):
-                self.sample = d
-                self.update_plot()
-                
-            def update_focus(d):
-                self.focus = d
-                self.update_plot()
             
-            def update_intensity(d):
-                self.intensity = d
-                self.update_plot()
+            def update_slider_func(name):
+                def update(d):
+                    setattr(self,name,d)
+                    self.update_plot()
+                return update
                 
-            def update_analyzer(d):
-                self.analyzer = d
-                self.update_plot()
-    
-            def update_polarizer(d):
-                self.polarizer = d
-                self.update_plot()
-                
-            axes = [[0.25, 0.14, 0.65, 0.03],
-                    [0.25, 0.11, 0.65, 0.03],
-                    [0.25, 0.08, 0.65, 0.03],
-                    [0.25, 0.05, 0.65, 0.03],
-                    [0.25, 0.02, 0.65, 0.03]]
+            axes = [[0.25, 0.19, 0.65, 0.03],
+                    [0.25, 0.16, 0.65, 0.03],
+                    [0.25, 0.13, 0.65, 0.03],
+                    [0.25, 0.10, 0.65, 0.03],
+                    [0.25, 0.07, 0.65, 0.03],
+                    [0.25, 0.04, 0.65, 0.03],
+                    [0.25, 0.01, 0.65, 0.03],]
             
-            
-            if self.intensity is not None:
-                if self.sliders.get("intensity") is None:
-                    self.axintensity = self.fig.add_axes(axes.pop())
-                    self.sliders["intensity"] = Slider(self.axintensity, "intensity",kwargs.pop("imin",0),kwargs.pop("imax",max(10,self.intensity)),valinit = self.intensity, valfmt='%.1f')
-                self._ids5 = self.sliders["intensity"].on_changed(update_intensity)
-            if self.polarizer is not None:
-                if self.sliders.get("polarizer") is None:
-                    self.axpolarizer = self.fig.add_axes(axes.pop())
-                    if isinstance(self.polarizer, str):
-                        labels = tuple((label.strip().lower() for label in POLARIZER_LABELS))
-                        active = labels.index(self.polarizer)
-                        self.sliders["polarizer"] = CustomRadioButtons(self.axpolarizer, POLARIZER_LABELS, active = active)
-                        self.axpolarizer.set_ylabel("polarizer",rotation="horizontal",ha = "right", va = "center")
-                    else:
-                        self.sliders["polarizer"] = Slider(self.axpolarizer, "polarizer",kwargs.pop("pmin",0),kwargs.pop("pmax",90),valinit = self.polarizer, valfmt='%.1f')
-                try:
-                    self._ids4 = self.sliders["polarizer"].on_changed(update_polarizer)  
-                except AttributeError:
-                    self._ids4 = self.sliders["polarizer"].on_clicked(update_polarizer) 
+            def add_slider(name, axpos, names = None,labels = None, min_name = None, max_name = None, min_value = 0, max_value = 1, valfmt = '%.1f'):
+                func = update_slider_func(name)
+                if self.sliders.get(name) is None:
+                    ax = self.fig.add_axes(axpos)
+                    obj = getattr(self,name)
                     
+                    if isinstance(obj, str):
+                        if names is None:
+                            names = tuple((label.strip().lower() for label in labels))
+                        active = names.index(obj)
+                        self.sliders[name] = CustomRadioButtons(ax, labels, active = active)
+                        ax.set_ylabel(name,rotation="horizontal",ha = "right", va = "center")
+                    else:
+                        self.sliders[name] = Slider(ax, name,min(kwargs.pop(min_name,min_value),obj),max(kwargs.pop(max_name,max_value),obj),valinit = obj, valfmt=valfmt)
+                try:
+                    id = self.sliders[name].on_changed(func)
+                except AttributeError:
+                    id = self.sliders[name].on_clicked(func)
+                    
+                return id, ax
+
+            if self.aperture is not None:   
+                axpos = axes.pop() 
+                self._ids6, self.axaperture = add_slider("aperture", axpos, labels = POLARIZER_LABELS, min_name = "namin", max_name = "namax", min_value = 0, max_value = max(self.beta))
+                            
+            if self.intensity is not None:
+                axpos = axes.pop() 
+                self._ids5, self.axintensity = add_slider("intensity", axpos, min_name = "imin", max_name = "imax", min_value = 0, max_value = self.intensity * 10)
+ 
+            if self.polarizer is not None:
+                axpos = axes.pop() 
+                self._ids4, self.axpolarizer = add_slider("polarizer", axpos, labels = POLARIZER_LABELS, min_name = "pmin", max_name = "pmax", min_value = -90, max_value = 90)
+ 
             if self.sample is not None:
-                if self.sliders.get("sample") is None:
-                    self.axsample = self.fig.add_axes(axes.pop())
-                    if isinstance(self.sample, str):
-                        labels = tuple((label.strip().lower() for label in SAMPLE_LABELS))
-                        active = labels.index(self.sample)
-                        self.sliders["sample"] = CustomRadioButtons(self.axsample, SAMPLE_LABELS, active = active)
-                        self.axsample.set_ylabel("sample",rotation="horizontal",ha = "right", va = "center")
-                    else:
-                        self.sliders["sample"] = Slider(self.axsample, "sample",kwargs.pop("smin",-180),kwargs.pop("smax",180),valinit = self.sample, valfmt='%.1f')
-                try:
-                    self._ids3 = self.sliders["sample"].on_changed(update_sample)
-                except AttributeError:
-                    self._ids3 = self.sliders["sample"].on_clicked(update_sample)
-            
-            
+                axpos = axes.pop() 
+                self._ids3, self.axsample = add_slider("sample", axpos,labels = SAMPLE_LABELS, min_name = "smin", max_name = "smax", min_value = -180, max_value = 180)
+ 
+            if self.retarder is not None:
+                axpos = axes.pop() 
+                self._ids2, self.axretarder = add_slider("retarder", axpos, names = RETARDER_NAMES, labels = RETARDER_LABELS)
+ 
             if self.analyzer is not None:
-                if self.sliders.get("analyzer") is None:
-                    self.axanalyzer = self.fig.add_axes(axes.pop())
-                    if isinstance(self.analyzer, str):
-                        labels = tuple((label.strip().lower() for label in POLARIZER_LABELS))
-                        active = labels.index(self.analyzer)
-                        self.sliders["analyzer"] = CustomRadioButtons(self.axanalyzer, POLARIZER_LABELS, active = active)
-                        self.axanalyzer.set_ylabel("analyzer",rotation="horizontal",ha = "right", va = "center")
-                    else:
-                        self.sliders["analyzer"] = Slider(self.axanalyzer, "analyzer",kwargs.pop("amin",0),kwargs.pop("amax",90),valinit = self.analyzer, valfmt='%.1f')
-                try:
-                    self._ids2 = self.sliders["analyzer"].on_changed(update_analyzer)
-                except AttributeError:
-                    self._ids2 = self.sliders["analyzer"].on_clicked(update_analyzer)
+                axpos = axes.pop() 
+                self._ids1, self.axanalyzer = add_slider("analyzer", axpos, labels = POLARIZER_LABELS, min_name = "amin", max_name = "amax", min_value = -90, max_value = 90)
+ 
             if self.focus is not None:  
-                if self.sliders.get("focus") is None:      
-                    self.axfocus = self.fig.add_axes(axes.pop())
-                    self.sliders["focus"] = Slider(self.axfocus, "focus",kwargs.pop("fmin",self._default_fmin),kwargs.pop("fmax",self._default_fmax),valinit = self.focus, valfmt='%.1f')
-                self._ids1 = self.sliders["focus"].on_changed(update_focus)
+                axpos = axes.pop() 
+                self._ids0, self.axfocus = add_slider("focus", axpos, min_name = "fmin", max_name = "fmax", min_value = -90, max_value = 90)
+ 
             
         self.axim = self.ax.imshow(self.image, origin = kwargs.pop("origin","lower"), **kwargs)
         
@@ -620,54 +672,59 @@ class FieldViewer(object):
         self.set_parameters(**params)
         if self.ofield is None:
             recalc = True #first time only trigger calculation 
+
         if recalc or "focus" in self._updated_parameters:
             if self.diffraction == True or self.mode is not None:
                 #if mode is selected, we need to project the filed using diffraction
                 d = 0 if self.focus is None else self.focus
-                dmat = field_diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = d, 
+                self.dmat = field_diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = d, 
                                           epsv = self.epsv, epsa = self.epsa, 
                                           mode = self.mode, betamax = self.betamax)
-                
-                self.ofield = diffract(self.ifield,dmat,window = self.window,out = self.ofield)
+                recalc = True
+        if recalc or "aperture" in self._updated_parameters:
+            self.ofield = None #we have to create new memory for output field
+            if self.aperture is not None:
+                mask = self.beta <= self.aperture
+                ifield = self.ifield[mask]
+            else:
+                ifield = self.ifield
+            if self.diffraction == True or self.mode is not None: 
+                self.ofield = diffract(ifield,self.dmat,window = self.window,out = self.ofield)
             else:
                 #no diffraction at all..
                 if self.window is not None:
-                    self.ofield = self.ifield * self.window
+                    self.ofield = ifield * self.window
                 else:
-                    self.ofield = self.ifield.copy()
+                    self.ofield = ifield.copy()
             recalc = True
-        if recalc or "polarizer" in self._updated_parameters or "analyzer" in self._updated_parameters or "sample" in self._updated_parameters:
+
+        if recalc or self._has_parameter_updated("analyzer", "polarizer","sample","retarder"):
             sample = self.sample_angle
             if sample is None:
                 sample = 0.
-            if self.polarizer_jones is None:
+            if self.polarizer_jvec is None:
                 tmp = _redim(self.ofield, ndim = 5)
                 out = np.empty_like(tmp[0])
             else:
-                c,s = _rotate_jonesvec(self.polarizer_jones, sample)
-
-                #angle = -np.pi/180*(self.polarizer - sample)
-                #c,s = np.cos(angle),np.sin(angle)  
-                
+                r = jones.rotation_matrix2(-np.radians(sample))
+                c,s = dotmv(r,self.polarizer_jvec)
                 tmp = _redim(self.ofield, ndim = 6)
                 out = np.empty_like(tmp[0,0])
-            if self.analyzer_jones is not None:
-
-                #angle = -np.pi/180*(self.analyzer - sample)
-                #pmat = linear_polarizer(angle)
-                #pmat = normal_polarizer((np.cos(angle),np.sin(angle)))
-                pmat = normal_polarizer(_rotate_jonesvec(self.analyzer_jones, sample))
-                #pmat = ray_polarizer((np.cos(angle),np.sin(angle)),epsv = self.epsv, epsa = self.epsa)
-                 
+                
+            if self.analyzer_jmat is not None:
+                m = dotmm(self.analyzer_jmat,self.retarder_jmat) if self.retarder_jmat is not None else self.analyzer_jmat
+                m = jones.rotated_matrix(m,np.radians(sample))
+                pmat = ray_jonesmat4x4(m, epsv = self.epsv)
+                
             for i,data in enumerate(tmp):
-                if self.polarizer_jones is not None:
+                if self.polarizer_jvec is not None:
                     x = data[0]*c
                     y = np.multiply(data[1], s, out = out)
                     ffield = np.add(x,y, out = out)#numexpr.evaluate("x*c+y*s", out = out)
                 else: 
                     ffield = data
                     
-                if self.analyzer_jones is not None:
+                if self.analyzer_jmat is not None:
                     #pfield = apply_jones_matrix(pmat, ffield, out = out)
                     pfield = dotmf(pmat, ffield, out = out)
                 else:
@@ -695,22 +752,31 @@ class FieldViewer(object):
         self.set_parameters(**params)
         if self.ofield is None:
             recalc = True #first time only trigger calculation 
+        if self._ffield is None or recalc:
+            self._ffield = fft2(self.ifield)
+
+        if recalc or "aperture" in self._updated_parameters:
+            self.ofield = None #we have to create new memory for output field
+            if self.aperture is not None:
+                mask = self.beta <= self.aperture
+                self.ffield_masked = self.ffield[mask]
+                    
+            else:
+                self.ffield_masked = self.ffield
+            recalc = True
+
         if recalc or self._has_parameter_updated("sample", "polarizer"):
             sample = self.sample_angle if self.sample_angle is not None else 0.
-            if self.polarizer is not None:
-                if self.ffield is None:
-                    self.ffield = fft2(self.ifield)
-                    
-                c,s = _rotate_jonesvec(self.polarizer_jones, sample)
-                #angle = -np.pi/180*(self.polarizer - sample)            
-                #c,s = np.cos(angle),np.sin(angle)  
+            if self.polarizer_jvec is not None:
+                r = jones.rotation_matrix2(-np.radians(sample))
+                c,s = dotmv(r,self.polarizer_jvec)                    
                 
-                self.data = _redim(self.ffield, ndim = 6)
+                self.data = _redim(self.ffield_masked, ndim = 6)
                 x = c*self.data[:,0]
                 y = s*self.data[:,1]
                 self.data = x+y
             else:
-                self.data = _redim(self.ffield, ndim = 5)
+                self.data = _redim(self.ffield_masked, ndim = 5)
                 
         if recalc or self._has_parameter_updated("focus"):
             if self.diffraction == True or self.mode is not None:
@@ -721,17 +787,18 @@ class FieldViewer(object):
                                           mode = self.mode, betamax = self.betamax)
             else:
                 self.dmat = np.asarray(np.diag((1,1,1,1)), CDTYPE)      
-        if recalc or self._has_parameter_updated("analyzer", "sample") :
-            sample = self.sample_angle if self.sample_anlge is not None else 0.
-            if self.analyzer is not None:
-                (c,s) = _rotate_jonesvec(self.analyzer_jones, sample)
-                self.pmat = mode_polarizer(self.ifield.shape[-2:], self.ks,  jones = (c,s),
+        if recalc or self._has_parameter_updated("analyzer", "sample","retarder") :
+            sample = self.sample_angle if self.sample_angle is not None else 0.
+            if self.analyzer_jmat is not None:
+                m = dotmm(self.analyzer_jmat,self.retarder_jmat) if self.retarder_jmat is not None else self.analyzer_jmat
+                m = jones.rotated_matrix(m,np.radians(sample))
+                self.pmat = mode_jonesmat4x4(self.ifield.shape[-2:], self.ks,  m,
                                           epsv = self.epsv, epsa = self.epsa, 
                                           betamax = self.betamax) 
             else:
                 self.pmat = None
 
-        if recalc or self._has_parameter_updated("analyzer", "sample", "polarizer", "focus", "intensity") :
+        if recalc or self._has_parameter_updated("analyzer", "sample", "polarizer", "focus", "intensity","retarder","aperture") :
             tmat = None
             if self.pmat is not None and self.dmat is not None:
                 tmat = dotmm(self.pmat,self.dmat)
@@ -795,7 +862,7 @@ class FieldViewer(object):
             self.image = np.vstack(tuple((self.image for i in range (self.rows))))
             
             if self.sample_angle != 0 and self.sample_angle is not None:
-                self.image = nd.rotate(self.image, self.sample_angle, reshape = False, order = 1) 
+                self.image = nd.rotate(self.image, -self.sample_angle, reshape = False, order = 1) 
         self._updated_parameters.clear()
         return self.image
     
@@ -879,12 +946,12 @@ class BulkViewer(FieldViewer):
 
         if recalc or self._has_parameter_updated("focus"):
             if self.mode is None:
-                self.ffield = fft2(self.ifield[self.focus])
+                self._ffield = fft2(self.ifield[self.focus])
             else:
                 self.dmat = field_diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = 0, 
                                       epsv = self.epsv, epsa = self.epsa, 
                                       mode = self.mode, betamax = self.betamax)
-                self.ffield = fft2(self.ifield[self.focus])
+                self._ffield = fft2(self.ifield[self.focus])
 
             recalc = True #trigger update of self.data
 
