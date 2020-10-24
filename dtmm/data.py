@@ -10,7 +10,7 @@ import sys
 
 from dtmm.conf import FDTYPE, CDTYPE, NFDTYPE, NCDTYPE, NUMBA_CACHE,\
 NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE, DTMMConfig
-from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector, _tensor_to_matrix, rotation_angles
+from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector, _tensor_to_matrix, rotation_angles, rotation_matrix
 from dtmm.wave import betaphi
 from dtmm.fft import fft2, ifft2
 from dtmm.linalg import tensor_eig
@@ -907,6 +907,11 @@ def eps2epsva(eps):
         Eigenvalues and Euler angles arrays.
     """
     epsv, r = tensor_eig(eps)
+    return epsv, rotation_angles(r.real)
+
+def epsva2eps(epsv,epsa):
+    r = rotation_matrix(epsa)
+    rotate_tensor()
     return epsv, rotation_angles(r.real)
     
 

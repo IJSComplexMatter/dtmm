@@ -245,6 +245,12 @@ def _rotation_matrix_uniaxial(theta,phi, R):
     R[2,1] = 0.
     R[2,2] = costheta
     
+@nb.guvectorize([(NF32DTYPE[:],NF32DTYPE[:,:]),
+                 (NF64DTYPE[:],NFDTYPE[:,:])], "(n)->(n,n)")     
+def test(a,out):
+    pass
+    
+    
 
 @nb.guvectorize([(NF32DTYPE[:],NF32DTYPE[:,:]),
                  (NF64DTYPE[:],NFDTYPE[:,:])], "(n)->(n,n)", 

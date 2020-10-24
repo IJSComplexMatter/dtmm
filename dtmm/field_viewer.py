@@ -12,7 +12,7 @@ import scipy.ndimage as nd
 #from dtmm.project import projection_matrix, project
 from dtmm.color import load_tcmf, specter2color
 from dtmm.diffract import diffract, field_diffraction_matrix
-from dtmm.polarization import ray_jonesmat4x4, mode_jonesmat4x4
+from dtmm.polarization import ray_jonesmat4x4, mode_jonesmat4x4, ray_polarizer
 from dtmm.field import field2specter
 from dtmm.wave import k0
 from dtmm.data import refind2eps
