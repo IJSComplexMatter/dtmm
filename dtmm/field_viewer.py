@@ -953,5 +953,5 @@ class BulkViewer(FieldViewer):
         else:
             return self.ffield[self.focus]
     
-__all__ = ["calculate_pom_field", "field_viewer", "bulk_viewe", "FieldViewer", "BulkViewer"]
+__all__ = ["calculate_pom_field", "field_viewer", "bulk_viewer", "FieldViewer", "BulkViewer"]
     

@@ -170,8 +170,7 @@ napoleon_numpy_docstring = True
 autoapi_dirs = ['../dtmm']
 autoapi_options = ['members', 'undoc-members', 'show-inheritance', 'special-members']
 autoapi_options = ['members', 'show-inheritance']
-autoapi_ignore = ["*test_*.py"]
-autoapi_ignore = ["*test/*.py"]
+autoapi_ignore = ["*/test/*.py","*/test"]
 
 numfig = True
 
