@@ -164,7 +164,7 @@ extensions = ['sphinx.ext.autodoc',
 	'matplotlib.sphinxext.plot_directive'
     ]
 
-autoapi_keep_files = True
+autoapi_keep_files = False
 napoleon_numpy_docstring = True
 
 autoapi_dirs = ['../dtmm']
@@ -216,7 +216,7 @@ pygments_style = 'sphinx'
 # a list of builtin themes.
 #
 html_theme = 'default'
-#html_theme = 'alabaster'
+html_theme = 'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

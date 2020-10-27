@@ -25,7 +25,7 @@ Enhancements
 Changes
 ///////
 
-* removed tensor_to_matrix function form rotation.py, added tensor2mat and mat2tensor 
+* removed tensor_to_matrix function fromm rotation.py, added tensor2matrix and matrix2tensor 
   functions in data.py
 
 

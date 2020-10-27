@@ -1,11 +1,55 @@
 """
-Jones calculus helper functions.
+Jones calculus functions. Ju can use this module for jones calculus
+
+2x2 matrices
+------------
+
+* :func:`.jonesvec` : jones vector
+* :func:`.mirror` : mirror matrix
+* :func:`.polarizer` : polarizer matrix
+* :func:`.retarder` : retarder matrix
+* :func:`.quarter_waveplate` : quarter-wave plate matrix
+* :func:`.half_waveplate` : half-wave plate  matrix
+* :func:`.circular_polarizer` : circular polarizer matrix
+* :func:`.linear_polarizer` : linear polarizer matrix
+
+Conversion functions
+--------------------
+
+* :func:`.as4x4` : convert to 4x4 matrix for (...,4) field vector.
+* :func:`.rotated_matrix` : to view the matrix in rotated frame.
+
+Examples
+--------
+
+>>> j_in = jonesvec((1,1)) #input light polarized at 45
+>>> r = retarder(0.2,0.4)
+>>> p = linear_polarizer((1,0)) # x polarization
+>>> c = circular_polarizer(+1) # left handed
+>>> m = multi_dot([r,p,c])
+>>> j_out = dotmv(m,j_in) #output light E field
+>>> i = jones_intensity(j_out) #intensity
 """
 
 from dtmm.conf import CDTYPE,FDTYPE
 import numpy as np
 from dtmm.rotation import rotation_matrix2
 from dtmm.linalg import dotmv, dotmm, multi_dot
+
+def jones_intensity(jones):
+    """Computes intensity of the jones vector
+    
+    Parameters
+    ----------
+    jones : (...,2) array
+        Jones vector.
+    
+    Returns
+    -------
+    intensity : (...) float array
+        Computed intensity.
+    """
+    return (jones * np.conj(jones)).sum(-1)
 
 def jonesvec(pol, phi = 0., out = None):
     """Returns a normalized jones vector from an input length 2 vector., Additionaly,
@@ -272,18 +316,36 @@ def circular_polarizer(hand, out = None):
     return out
 
 def rotated_matrix(jmat, phi):
-    """jones matrix viewed in the rotated frame, where phi is the rotation angle"""
-    r = np.asarray(rotation_matrix2(-phi),CDTYPE)
+    """jones matrix viewed in the rotated frame, where phi is the rotation angle
+    
+    Performs (R.T).jmat.R where R is the rotation matrix.
+    
+    Numpy broadcasting rules apply.
+    
+    Parameters
+    ----------
+    jmat : (...,2,2) array
+        Jones matrix
+    phi : float
+        Rotation angle.
+        
+    Returns
+    -------
+    out : (...,2,2) array
+        Rotated jones matrix.
+    
+    """
+    r = np.asarray(rotation_matrix2(phi),CDTYPE)
     jmat = np.asarray(jmat)
     rT = np.swapaxes(r,-1,-2)
-    return multi_dot([r,jmat,rT])
+    return multi_dot([rT,jmat,r])
 
-def as4x4(jonesmat,  out = None):
+def as4x4(jmat,  out = None):
     """Converts jones 2x2 matrix to eigenfield 4x4 matrix.
     
     Parameters
     ----------
-    jonesmat : (...,2,2) array
+    jmat : (...,2,2) array
         Jones matrix
     out : ndarray, optional
         Output array in which to put the result; if provided, it
@@ -296,19 +358,17 @@ def as4x4(jonesmat,  out = None):
     """
     
     if out is None:
-        shape = jonesmat.shape[:-2] + (4,4)
-        out = np.zeros(shape, dtype = jonesmat.dtype)
+        shape = jmat.shape[:-2] + (4,4)
+        out = np.zeros(shape, dtype = jmat.dtype)
     else:
         out[...] = 0.
-    out[...,0::2,0::2] = jonesmat
+    out[...,0::2,0::2] = jmat
     
     #for back propagating waves, jones matrix is conjugate
-    out[...,1::2,1::2] = jonesmat#np.conj(jonesmat) 
+    out[...,1::2,1::2] = jmat#np.conj(jonesmat) 
 
     return out
 
-__all__ = ["polarizer","circular_polarizer","linear_polarizer", "jonesvec", "as4x4"]
-    
 if __name__ == "__main__":
     import doctest
     doctest.testmod()

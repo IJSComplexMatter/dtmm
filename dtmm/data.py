@@ -255,7 +255,7 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_
         Host refracitve index (if mask is provided)
     scale_factor : float
         The order parameter S obtained from the director length is scaled by this factor. 
-        Optical anisotropy is then epsa = S/scale_factor *(epse - epso).
+        Optical anisotropy is then `epsa = S/scale_factor * (epse - epso)`.
     thickness : ndarray
         Thickness of layers (in pixels). If not provided, this defaults to ones.
         
@@ -297,10 +297,10 @@ def Q2data(tensor, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 
         Host refracitve index (if mask is provided)
     scale_factor : float
         The order parameter S obtained from the Q tensor is scaled by this factor. 
-        Optical anisotropy is then epsa = S/scale_factor *(epse - epso).
+        Optical anisotropy is then `epsa = S/scale_factor *(epse - epso)`.
     biaxial : bool
         Describes whether data is treated as biaxial or converted to uniaxial (default).
-        If biaxial, no**2 describes the mean value of (n1**2 and n2**2) epsilon
+        If biaxial, no describes the mean value of (n1 and n2) refractive indices
         eigenavalues and ne = n3.
     thickness : ndarray, optional
         Thickness of layers (in pixels). If not provided, this defaults to ones.
@@ -397,7 +397,7 @@ def Q2eps(tensor, no = 1.5, ne = 1.6,scale_factor = 1., out = None):
         Extraordinary refractive index 
     scale_factor : float
         The order parameter S obtained from the Q tensor is scaled by this factor. 
-        Optical anisotropy is then epsa = S/scale_factor *(epse - epso).
+        Optical anisotropy is then `epsa = S/scale_factor * (epse - epso)`.
     out : ndarray, optional
         Output array 
     

@@ -13,8 +13,8 @@ from dtmm.print_tools import print_progress
 from dtmm.diffract import diffract, projection_matrix, diffraction_alphaffi
 from dtmm.field import field2intensity, field2betaphi, field2fvec
 from dtmm.fft import fft2, ifft2
-from dtmm.jones import jonesvec
-from dtmm.polarization import normal_polarizer
+from dtmm.jones import jonesvec, polarizer
+from dtmm.jones4 import ray_jonesmat4x4
 from dtmm.data import effective_data
 import numpy as np
 from dtmm.denoise import denoise_fftfield, denoise_field
@@ -100,7 +100,9 @@ def project_normalized_local(field, dmat, window = None, ref = None, out = None)
     f1 = fft2(field) 
     f2 = dotmf(dmat, f1 ,out = f1)
     f = ifft2(f2, out = f2)
-    pmat1 = normal_polarizer(jonesvec(field2fvec(f[...,::2,:,:])))
+    jmat = polarizer(jonesvec(field2fvec(f[...,::2,:,:])))
+    pmat1 = ray_jonesmat4x4(jmat)
+    #pmat1 = normal_polarizer(jonesvec(field2fvec(f[...,::2,:,:])))
     pmat2 = -pmat1
     pmat2[...,0,0] += 1
     pmat2[...,1,1] += 1 #pmat1 + pmat2 = identity by definition
@@ -499,9 +501,7 @@ def _transfer_field(field_data, optical_data, beta, phi, nin, nout,
             
         out = field_out, wavelengths, pixelsize
     return out
-
-
-        
+      
 
 def transfer_4x4(field_data, optical_data, beta = 0., 
                    phi = 0., eff_data = None, nin = 1., nout = 1., npass = 1,nstep=1,

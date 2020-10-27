@@ -12,7 +12,7 @@ import scipy.ndimage as nd
 #from dtmm.project import projection_matrix, project
 from dtmm.color import load_tcmf, specter2color
 from dtmm.diffract import diffract, field_diffraction_matrix
-from dtmm.polarization import ray_jonesmat4x4, mode_jonesmat4x4, ray_polarizer
+from dtmm.jones4 import ray_jonesmat4x4, mode_jonesmat4x4
 from dtmm.field import field2specter
 from dtmm.wave import k0
 from dtmm.data import refind2eps
@@ -615,7 +615,11 @@ class FieldViewer(object):
             if self.analyzer_jmat is not None:
                 m = dotmm(self.analyzer_jmat,self.retarder_jmat) if self.retarder_jmat is not None else self.analyzer_jmat
                 m = jones.rotated_matrix(m,np.radians(sample))
-                self._pmat = ray_jonesmat4x4(m, epsv = self.epsv)
+                if self.pmode == "mode":
+                    self._pmat = mode_jonesmat4x4(self.field.shape[-2:], self.ks, m, epsv = self.epsv)
+                else:
+                    self._pmat = ray_jonesmat4x4(m, epsv = self.epsv)
+                
             else:
                 self._pmat = None
         return self._pmat

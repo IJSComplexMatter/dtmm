@@ -40,12 +40,6 @@ Transmission/reflection calculation
 * :func:`.transmit4x4` to work with the computed system  matrix
 * :func:`.transfer4x4` or :func:`.transfer` for higher level interface 
 
-Polarization handling and analysis
-++++++++++++++++++++++++++++++++++
-
-* :func:`.polarizer4x4` to apply polarizer.
-* :func:`.jonesmat4x4` to apply general jones matrix. 
-
 Intensity and Ez Hz field
 +++++++++++++++++++++++++
 
@@ -1027,8 +1021,7 @@ def layer_mat(kd, epsv,epsa, beta = 0,phi = 0, cfact = 0.1, method = "4x4", fmat
     Parameters
     ----------
     kd : float
-        A sequence of phase values (layer thickness times wavenumber in vacuum).
-        len(kd) must match len(epsv) and len(epsa).
+        The kd phase value (layer thickness times wavenumber in vacuum).
     epsv : (...,3) array, optional
         Dielectric tensor eigenvalues array (defaults to unity).
     epsa : (...,3) array, optional
@@ -1212,7 +1205,7 @@ def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, cfact = 0.01, method = "4x4", out
     
     Parameters
     ----------
-    kd : array_like
+    kd : array of floats
         A sequence of phase values (layer thickness times wavenumber in vacuum).
         len(kd) must match len(epsv) and len(epsa).
     epsv : (...,3) array, optional
@@ -1559,8 +1552,9 @@ def transfer4x4(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 
     fvec_in : (...,4) array
         Input field vector array. This function will update the input array  
         with the calculated reflected field
-    kd : float
-        The kd phase value (layer thickness times wavenumber in vacuum).
+    kd : array of floats
+        A sequence of phase values (layer thickness times wavenumber in vacuum).
+        len(kd) must match len(epsv) and len(epsa).
     epsv : (...,3) array, optional
         Dielectric tensor eigenvalues array (defaults to unity).
     epsa : (...,3) array, optional
@@ -1691,8 +1685,9 @@ def transfer(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1.,
     fvec_in : (...,4) array
         Input field vector array. This function will update the input array  
         with the calculated reflected field
-    kd : float
-        The kd phase value (layer thickness times wavenumber in vacuum).
+    kd : array of floats
+        A sequence of phase values (layer thickness times wavenumber in vacuum).
+        len(kd) must match len(epsv) and len(epsa).
     epsv : (...,3) array, optional
         Dielectric tensor eigenvalues array (defaults to unity).
     epsa : (...,3) array, optional
@@ -1839,8 +1834,6 @@ def avec(jones = (1,0), amplitude = 1., mode = +1, out = None):
     out = np.multiply(out, amplitude[...,None] ,out = out)     
     return out
 
-
-
 def fvec(fmat, jones = (1,0),  amplitude = 1., mode = +1, out = None):
     """Build field vector form a given polarization state, amplitude and mode.
     
@@ -1938,7 +1931,7 @@ def avec2fvec(avec, fmat, normalize_fmat = True, out = None):
 __all__ = ["alphaf","alphaffi","phase_mat", "fvec", "avec", "fvec2avec",
            "avec2fvec","f_iso","ffi_iso","layer_mat","poynting","intensity",
            "transfer4x4","transmit4x4","transfer",
-           "layer_mat","system_mat","stack_mat","EHz","jonesmat4x4","polarizer4x4"]
+           "layer_mat","system_mat","stack_mat","EHz"]
 
 if __name__ == "__main__":
     import doctest
