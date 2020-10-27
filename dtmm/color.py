@@ -173,7 +173,8 @@ def specter2color(spec, cmf, norm = False, gamma = True, gray = False, out = Non
     -------
     >>> cmf = load_tcmf()
     >>> specter2color([1]*81, cmf)#should be close to 1,1,1
-    array([ 0.99994901,  1.        ,  0.99998533])
+    ... # doctest: +NORMALIZE_WHITESPACE
+    array([0.99994901, 1.        , 0.99998533])
     """
     #if isinstance(spec, list):
     #    spec = np.add.reduce(spec)
@@ -265,7 +266,8 @@ def load_tcmf(wavelengths = None, illuminant = "D65", cmf = CMF, norm = True, re
     -------
     >>> cmf = load_tcmf()
     >>> specter2color([1]*81, cmf) #should be close to 1,1,1
-    array([ 0.99994901,  1.        ,  0.99998533])
+    ... # doctest: +NORMALIZE_WHITESPACE
+    array([0.99994901, 1.        , 0.99998533])
     """
     if wavelengths is not None and len(wavelengths) == 1:
         single_wavelength = True

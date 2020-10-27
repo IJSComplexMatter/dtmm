@@ -85,6 +85,7 @@ It is important that you disable MKL's multithreading by setting the *MKL_NUM_TH
 
    >>> import mkl
    >>> mkl.set_num_threads(1)
+   2
 
 You must experiment with settings a little. Depending on the size of the field_data, number of cores, the ThreadPool version may work faster or it may work slower than mkl_fft version. If you are not sure what to use, stick with stock MKL threading and default setting of:
 

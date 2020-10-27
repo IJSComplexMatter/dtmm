@@ -56,6 +56,7 @@ HOMEDIR = get_home_dir()
 
 DTMM_CONFIG_DIR = os.path.join(HOMEDIR, ".dtmm")
 NUMBA_CACHE_DIR = os.path.join(DTMM_CONFIG_DIR, "numba_cache")
+FILE_LOCK = os.path.join(DTMM_CONFIG_DIR, "lock")
 
 if not os.path.exists(DTMM_CONFIG_DIR):
     try:
@@ -64,6 +65,24 @@ if not os.path.exists(DTMM_CONFIG_DIR):
         warnings.warn("Could not create folder in user's home directory! Is it writeable?")
         NUMBA_CACHE_DIR = ""
         
+if os.path.exists(NUMBA_CACHE_DIR):
+    #we have compiled functions.. make sure it is safe to read from this cache folder
+    if os.path.exists(FILE_LOCK):
+        #it is not safe
+        warnings.warn("There appears to be another instance of dtmm running, so caching is disabled. Try removing .dtmm/numba_cache folder if this message persists.",stacklevel=2)
+        NUMBA_CACHE_DIR = ""  
+    else:
+        #it is safe, make a file lock
+
+        f = open(FILE_LOCK, "w")
+        f.close()
+
+import atexit
+
+@atexit.register
+def cleanup():
+    if NUMBA_CACHE_DIR != "":
+        os.remove(FILE_LOCK)      
 
 CONF = os.path.join(DTMM_CONFIG_DIR, "dtmm.ini")
 CONF_TEMPLATE = os.path.join(DATAPATH, "dtmm.ini")
@@ -99,6 +118,8 @@ SCIPY_INSTALLED = is_module_installed("scipy")
 
 BETAMAX = _readconfig(config.getfloat, "core", "betamax", 0.8)
 SMOOTH = _readconfig(config.getfloat, "core", "smooth", 0.1)
+
+
     
 if NUMBA_CACHE_DIR != "":
     os.environ["NUMBA_CACHE_DIR"] = NUMBA_CACHE_DIR #set it to os.environ.. so that numba can use it
@@ -128,7 +149,9 @@ except:
 
 if read_environ_variable("DTMM_NUMBA_CACHE",
             default = _readconfig(config.getboolean, "numba", "cache", True)):
-    if NUMBA_PARALLEL == False:
+    if NUMBA_CACHE_DIR == "":
+        NUMBA_CACHE = False
+    elif NUMBA_PARALLEL == False:
         NUMBA_CACHE = True  
     else:
         try: 
@@ -417,6 +440,8 @@ class DTMMConfig(object):
         
     def __repr__(self):
         return repr(self.__dict__)
+    
+
 
 #: a singleton holding user configuration    
 DTMMConfig = DTMMConfig()

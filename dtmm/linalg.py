@@ -392,8 +392,6 @@ def tensor_eig(tensor, overwrite_x = False):
     
     eig = _tensor_eig
     
-    #eig = _tensor_eig_complex if np.iscomplex(tensor) else _tensor_eig
-    
     if tensor.shape[-1] == 6:
         matrix = np.empty(tensor.shape[0:-1] + (3,3),tensor.dtype)
         matrix[...,0,0] = tensor[...,0]
@@ -528,7 +526,7 @@ Examples
 --------
 
 >>> a = np.random.randn(4,4) + 0j
->>> ai = inv4x4(a)
+>>> ai = inv(a)
 
 >>> from numpy.linalg import inv
 >>> ai2 = inv(a)

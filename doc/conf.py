@@ -191,6 +191,18 @@ try:
     from dtmm.rotation import *
 except ImportError:
 	pass
+
+field_in = (np.ones((1,4,6,6))+0j, np.array((3.,)), 100)
+field_data_in = field_in
+field_data_out = (np.ones((1,4,6,6))+0j, np.array((3.,)), 100)
+field_bulk_data = (np.ones((1,2,1,4,6,6))+0j, np.array((3.,)), 100)
+field = field_in
+optical_data = np.array((1.,)), np.ones((1,6,6,3))*2+0j, np.zeros((1,6,6,3))
+data = optical_data
+NLAYERS, HEIGHT, WIDTH = 1,6,6
+WAVELENGTHS = [500]
+PIXELSIZE = 200
+
 '''
 
 

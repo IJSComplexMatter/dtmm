@@ -154,7 +154,7 @@ def E_tr_matrix(shape, ks, epsv_in = (1.,1.,1.), epsa_in = (0.,0.,0.),
     alpha, fout,fouti = diffraction_alphaffi(shape, ks, epsv = epsv_out, 
                             epsa = epsa_out, betamax = betamax)
     
-    return tr_mat(fin, fout, fini = fini, mode = mode, out = out)
+    return tr_mat(fin, fout, fmatini = fini, mode = mode, out = out)
 #
 #@cached_function
 #def jones_t_matrix(shape, ks, epsv_in = (1.,1.,1.), epsa_in = (0.,0.,0.),

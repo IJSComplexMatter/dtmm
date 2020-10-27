@@ -8,16 +8,16 @@ Interference and reflections
 
 By default, interference and reflections are neglected in the computation. You can enable interference by specifying how many passes to perform and using the 4x4 method
 
->>> field_out = transfer_field(field_in, optical_data, npass = 5, method = "4x4")
+>>> field_out = dtmm.transfer_field(field_in, optical_data, npass = 5, method = "4x4")
 
 or using the 2x2 method, assuming most reflections come from interlayer reflections and not from the inhomogeneities, in example, reflactions from the first air-sample interface and the last sample-air interface
 jou can do
 
->>> field_out = transfer_field(field_in, optical_data, reflection = 1, npass = 3, method = "2x2")
+>>> field_out = dtmm.transfer_field(field_in, optical_data, reflection = 1, npass = 3, method = "2x2")
 
 If reflections come from the inhomogeneities you should call
 
->>> field_out = transfer_field(field_in, optical_data, reflection = 2, npass = 3, method = "2x2")
+>>> field_out = dtmm.transfer_field(field_in, optical_data, reflection = 2, npass = 3, method = "2x2")
 
 Read further for details...
 
@@ -26,7 +26,7 @@ Read further for details...
 ++++++++++
 
 Dealing with interference can be tricky. The `DTMM` implements an adapted 4x4 transfer 
-matrix method which includes interference, however, one needs to perform multiple passes (iterations) to compute the reflections off the material. With transfer matrix method one computes the output field (the forward propagating part and the backward propagating part) given the defined input field. In a typical experiment, the forward propagating part of the input field is known - this is the input illumination light. However, the backward propagating part of the input field is not know (the reflection off the surface of the material) and it must be determined. 
+matrix method which includes interference, however, one needs to perform multiple passes (iterations) to compute the reflections from the material. With transfer matrix method one computes the output field (the forward propagating part and the backward propagating part) given the defined input field. In a typical experiment, the forward propagating part of the input field is known - this is the input illumination light. However, the backward propagating part of the input field is not know (the reflection from the surface of the material) and it must be determined. 
 
 The procedure to calculate reflections is as follows. First the method computes the output field by assuming zero reflections, so that the input field has no back propagating part. When light is transferred through the material, we compute both the forward and the backward propagating part of the output field. The back propagating part of the output field cancels all reflected waves from the material and the input light has no back propagating component of the field. To calculate reflections off the surface one needs to do it iteratively:
 
@@ -55,13 +55,13 @@ The 2x2 method is a scattering method, it is stable (contrary to the 4x4 method)
 
 There are two reflection calculation modes. In the `reflection = 1` mode, the field is Fourier transformed and mode coefficients are reflected from the interface between the effective layers (specified by the eff_data argument). If you want to calculate reflections from a stack of homogeneous layers, this gives an exact reflection calculation. For instance, to take into account reflections from the input and output interfaces, simply do
 
->>> field_out = transfer_field(field_in, optical_data, reflection = 1, npass = 3, method = "2x2")
+>>> field_out = dtmm.transfer_field(field_in, optical_data, reflection = 1, npass = 3, method = "2x2")
 
 In the example above there will be no interlayer reflections in the sample, because the optical data is seen as an isotropic effective data with a mean refractive index when treating diffraction and reflection in light propagation. But, input and output layers have different refractive indices (n=1 by default), so you will see reflections from these interfaces.
 
 In the `reflection = 2` mode, the field is reflected from the inhomogeneous layers in real space. Consequently, this is not exact if the layers are homogeneous and the input light beam has a large number of off-axis waves, but it can be used when you want to see reflections from local structures. To take into account the dependence of off-axis wave reflection coefficient with the mode coefficient you must increase the diffraction quality, e.g.:
 
->>> field_out = transfer_field(field_in, optical_data, diffraction = 5, reflection = 2, npass = 3, method = "2x2")
+>>> field_out = dtmm.transfer_field(field_in, optical_data, diffraction = 5, reflection = 2, npass = 3, method = "2x2")
 
 In the example above, reflections are cumulatively acquired from each of the interfaces in the optical data, including reflections from the input and output interfaces. If main reflections come from the input and output interfaces this will not be as accurate as `reflection = 1` mode, but it will be more accurate if reflections are mainly due to the inhomogeneities in the optical data.
 
@@ -117,7 +117,7 @@ Computation is performed in two steps. First we build a characteristic matrix of
 
 First we need to transpose the field data to field vector
 
->>> fin = dtmm.field.transpose(f)
+>>> fin = dtmm.field.field2fvec(f)
 
 Next we need to build phase constants (layer thickness times wavenumber)
 
@@ -134,7 +134,7 @@ which computes layer matrices Mi and multiplies them together so that the output
 
 That is it. You can now view this field with the field_viewer, but first you need to transpose it back to the original field data shape.
 
->>> field_data = dtmm.field.itranspose(fout),w,p
+>>> field_data = dtmm.field.fvec2field(fout),w,p
 >>> viewer = dtmm.field_viewer(field_data, diffraction = False)
 
 Note the use of diffraction= False option which tells the field viewer that computed data is not diffraction-limited (and has not been calculated with the transfer_field dfunction and diffraction>0  argument). This way, data is displayed as is, without any plane-wave decomposition and filtering (by cutting non-propagating high frequency modes). 
@@ -220,7 +220,7 @@ Viewing bulk data
 
 The field_viewer function can also be used to show bulk EM data in color. Here you will generally use it as
 
->>> viewer = dtmm.field_viewer(field_data_out, bulk_data = True)
+>>> viewer = dtmm.field_viewer(field_bulk_data, bulk_data = True)
 
 Now  the "focus" parameter has a role of selecting a layer index and the viewer shows the power of the EM field in the specified layer.
 
@@ -241,15 +241,15 @@ Diffraction
 
 Diffraction calculation can be performed with different levels of accuracy. By default, diffraction and transmission through the inhomogeneous layer is calculated in a single step by assuming a single beam. This works well for very low birefringent media. When birefringence is larger you should increase the accuracy (and computation complexity) by defining how many beams to use in the diffraction calculation. For instance,
 
->>> dtmm.transfer_field(field, data, diffraction = 3) 
+>>> out = dtmm.transfer_field(field, data, diffraction = 3) 
 
 in the diffraction calculation step, the method takes beams defined with beta parameters in a 3x3 grid of beta_x beta_y values defined between -betamax and +betamax, so a total of 9 beams (instead of a single beam when diffraction = 1). Therefore this will take significantly longer to compute. You can use any sensible integer value - this depends on the pixel size and domain size. For calculation of 100x100 grid with pixelsize of 50 nm and 500nm wavelength, the maximum sensible value is 100*50/500=10, but generally, above say diffraction = 7 you will not notice much improvement, but this depends on the material of course. In the extreme case, the most accurate calculation can be done by specifying  
 
->>> dtmm.transfer_field(field, data, diffraction = np.inf)
+>>> out = dtmm.transfer_field(field, data, diffraction = np.inf)
 
 or with a value of 
 
->>> dtmm.transfer_field(field, data, diffraction = -1) 
+>>> out = dtmm.transfer_field(field, data, diffraction = -1) 
 
 This triggers a `full` treatment of diffraction, transfers all waves within the beta < betamax. This method is very slow, and should not be used generally, except for very small samples.
 
@@ -269,21 +269,19 @@ On the betamax parameter
 
 The `betamax` parameter defines the maximum value of the plane wave `beta` parameter in the diffraction step of the calculation. When decomposing the field in plane waves, the plane wave with the beta parameter higher than the specified betamax parameter is neglected. In air, the maximum value of beta is 1. A plane wave with beta = 1 is a plane wave traveling in the lateral direction (at 90 degree with respect to the layer normal). If beta is greater than 1 in air, the plane wave is no longer a traveling wave, but it becomes an evanescent wave and the propagation becomes unstable in the 4x4 method (when `method = "4x4"` is used in the computation). In a medium with higher refractive index, the maximum value for a traveling wave is the refractive index beta=n. Generally you should use betamax < n, where n is the lowest refractive index in the optical stack (including the input and output isotropic layers). Therefore, if you should set betamax < 1 when the input and output layers are air with n=1. Some examples:
 
->>> dtmm.transfer_field(field, data, betamax = 0.99, method = '4x4') #safe
->>> dtmm.transfer_field(field, data, betamax = 1,  method = '4x4') #unsafe
->>> dtmm.transfer_field(field, data, betamax = 1.49,  method = '4x4', nin = 1.5, nout = 1.5) #safe
->>> dtmm.transfer_field(field, data, betamax = 1.6, method = '4x4', nin = 1.5, nout = 1.5) #unsafe
+>>> out = dtmm.transfer_field(field, data, betamax = 0.99, method = '4x4') #safe
+>>> out = dtmm.transfer_field(field, data, betamax = 1,  method = '4x4') #unsafe
+>>> out = dtmm.transfer_field(field, data, betamax = 1.49,  method = '4x4', nin = 1.5, nout = 1.5) #safe
+>>> out = dtmm.transfer_field(field, data, betamax = 1.6, method = '4x4', nin = 1.5, nout = 1.5) #unsafe
 
 When dealing only with forward waves (the 2x2 approach).. the method is stable, and all above examples are safe to execute:
 
->>> dtmm.transfer_field(field, data, betamax = 2, method = '2x2') #safe
+>>> out = dtmm.transfer_field(field, data, betamax = 2, method = '2x2') #safe
 
 However, there is one caveat.. when increasing the diffraction accuracy it is also better to stay in the betamax < 1 range to increase computation speed. For instance, both examples below will give similarly accurate results, but computation complexity is higher when we use higher number of waves in the diffraction calculation step:
 
->>> dtmm.transfer_field(field, data, betamax = 2, diffraction = 5) #safe but slow
->>> dtmm.transfer_field(field, data, betamax = 1, diffraction = 3) #safe and faster
-
-
+>>> out = dtmm.transfer_field(field, data, betamax = 2, diffraction = 5) #safe but slow
+>>> out = dtmm.transfer_field(field, data, betamax = 1, diffraction = 3) #safe and faster
 
 Color Conversion
 ----------------

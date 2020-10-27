@@ -993,10 +993,12 @@ def uniaxial_order(order, eps, out):
     Calculates uniaxial dielectric tensor of a material with a given orientational order parameter
     from a diagonal dielectric (eps) tensor of the same material with perfect order (order = 1)
     
-    >>> uniaxial_order(0,[1,2,3.])
-    array([ 2.+0.j,  2.+0.j,  2.+0.j])
-    >>> uniaxial_order(1,[1,2,3.])
-    array([ 1.5+0.j,  1.5+0.j,  3.0+0.j])
+    >>> uniaxial_order(0,[1,2,3.])  
+    ... # doctest: +NORMALIZE_WHITESPACE
+    array([2., 2., 2.])
+    >>> uniaxial_order(1,[1,2,3.]) 
+    ... # doctest: +NORMALIZE_WHITESPACE
+    array([1.5, 1.5, 3. ])
     """
     assert eps.shape[0] in (3,)
     _uniaxial_order(order[0], eps, out)

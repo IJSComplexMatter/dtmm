@@ -187,7 +187,7 @@ def rotation_matrix(angles, out):
     Examples
     --------
     
-    >>> a = rotation_matrix([0.12,0.245,0.7])
+    >>> a = rotation_matrix([0.12,0.245,0.78])
     
     The same can be obtained by:
         
@@ -218,7 +218,7 @@ def rotate_diagonal_tensor(R,diagonal,out = None):
     >>> R = rotation_matrix((0.12,0.245,0.78))
     >>> diag = np.array([1.3,1.4,1.5], dtype = CDTYPE)
     >>> tensor = rotate_diagonal_tensor(R, diag)
-    >>> matrix = tensor_to_matrix(tensor)
+    >>> matrix = dtmm.data.tensor2matrix(tensor)
     
     The same can be obtained by:
 
@@ -299,22 +299,7 @@ def rotate_tensor(R,tensor,out):
 @jit([(NF32DTYPE[:, :], NF32DTYPE[:], NF32DTYPE[:]),
       (NF64DTYPE[:, :], NF64DTYPE[:], NFDTYPE[:])], nopython=True, cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)
 def _rotate_vector(rotation_matrix, vector, out):
-    """
-    Rotates vector <vector> using rotation matrix <rotation_matrix>
 
-    Parameters
-    ----------
-    rotation_matrix : array
-        3x3 rotation matrix
-    vector : array
-        Input 3-vector to rotate
-    out : array
-        Output rotated 3-vector
-
-    Returns
-    -------
-
-    """
     # Rotate x values
     out0 = vector[0] * rotation_matrix[0, 0] + vector[1] * rotation_matrix[0, 1] + vector[2] * rotation_matrix[0, 2]
     # Rotate y values
