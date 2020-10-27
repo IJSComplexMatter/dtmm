@@ -87,8 +87,8 @@ Visualize the transmitted field with matplotlib plot:
 .. doctest::
 
    >>> viewer = dtmm.field_viewer(field_data_out)
-   >>> viewer.set_parameters(sample = 0, polarizer = 0,
-   ...      focus = -18, analyzer = 90)
+   >>> viewer.set_parameters(sample = 0, polarizer = "h",
+   ...      focus = -18, analyzer = "v")
    >>> fig, ax = viewer.plot() #creates matplotlib figure and axes
    >>> fig.show()
 

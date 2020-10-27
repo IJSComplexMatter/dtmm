@@ -176,6 +176,23 @@ numfig = True
 
 import os 
 
+doctest_global_setup = '''
+try:
+    import numpy as np
+    import dtmm
+    from dtmm.fft import * 
+    from dtmm.color import * 
+    from dtmm.data import * 
+    from dtmm.tmm import *
+    from dtmm.jones4 import *
+    from dtmm.jones import *
+    from dtmm.window import *
+    from dtmm.linalg import *
+    from dtmm.rotation import *
+except ImportError:
+	pass
+'''
+
 
 plot_working_directory = "examples"#os.path.abspath("../examples")
 
@@ -215,7 +232,7 @@ pygments_style = 'sphinx'
 # a list of builtin themes.
 #
 html_theme = 'default'
-html_theme = 'alabaster'
+#html_theme = 'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
