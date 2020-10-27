@@ -1,5 +1,7 @@
 """
-Diffraction functions
+Diffraction calculation functions.
+
+
 """
 from __future__ import absolute_import, print_function, division
 
@@ -25,15 +27,17 @@ def diffraction_alphaf(shape, ks, epsv = (1.,1.,1.),
     beta, phi = betaphi(shape,ks)
     epsv = np.asarray(epsv, CDTYPE)
     epsa = np.asarray(epsa, FDTYPE)
-
+    
+    mask0 = (beta >= betamax)
+    
+    
     alpha, f= alphaf(beta,phi,epsv,epsa,out = out) 
 
     out = (alpha,f)
-
-    mask0 = (beta >= betamax)
     
     f[mask0] = 0.
     alpha[mask0] = 0.
+    
 
     return out
 
@@ -47,8 +51,12 @@ def diffraction_alphaffi(shape, ks, epsv = (1.,1.,1.),
     ks = np.asarray(ks)
     ks = abs(ks)
     beta, phi = betaphi(shape,ks)
+    
+    mask0 = (beta >= betamax)
 
-    alpha, f, fi = alphaffi(beta,phi,epsv,epsa,out = out) 
+
+    alpha, f, fi = alphaffi(beta,phi,epsv,epsa, out = out) 
+
 
     out = (alpha,f,fi)
     
@@ -59,7 +67,7 @@ def diffraction_alphaffi(shape, ks, epsv = (1.,1.,1.),
 #        np.multiply(f,m[...,None,None],f)
 #    except:
 #        pass
-    mask0 = (beta >= betamax)#betamax)
+
     fi[mask0] = 0.
     f[mask0] = 0.
     alpha[mask0] = 0.
@@ -99,12 +107,16 @@ def phase_matrix(alpha, kd, mode = None, mask = None, out = None):
 
 @cached_function
 def field_diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.), mode = "b", betamax = BETAMAX, out = None):
+    """Build field diffraction matrix. 
+    """
+    
     ks = np.asarray(ks, dtype = FDTYPE)
     epsv = np.asarray(epsv, dtype = CDTYPE)
     epsa = np.asarray(epsa, dtype = FDTYPE)
     alpha, f, fi = diffraction_alphaffi(shape, ks, epsv = epsv, epsa = epsa, betamax = betamax)
     kd =ks * d
     pmat = phase_matrix(alpha, kd , mode = mode)
+    
     return dotmdm(f,pmat,fi,out = out) 
 
 @cached_function
@@ -171,11 +183,50 @@ def projection_matrix(shape, ks, epsv = (1,1,1),epsa = (0,0,0.), mode = +1, beta
     return dotmdm(f,pmat,fi,out = out)   
  
   
-def diffract(fieldv, dmat, window = None, out = None): 
-    f = fft2(fieldv, out = out)
-    f2 = dotmf(dmat, f ,out = f)
-    out = ifft2(f2, out = out)
+def diffract(field, dmat, window = None, input_fft = False, output_fft = False, out = None):
+    """Takes input field vector and diffracts it
+    
+    Parameters
+    ----------
+    field : (...,4,:,:) array
+        Input field array.
+    dmat : array
+        Diffraction matrix. Use :func:`field_diffraction_matrix`to create one
+    window : array, optional
+        A window function applied to the result
+    input_fft : bool
+        Specifies whether input field array is the Fourier transform of the field.
+        By default, input is assumed to be in real space.
+    output_fft : bool
+        Specifies whether the computed field array is the Fourier transform.
+        By default, output is assumed to be in real space.
+    out : ndarray, optional
+        If specified, store the results here.
+        
+    Returns
+    -------
+    field : (...,4,:,:) array
+        Diffracted field in real space (if output_fft == False )or in fft spaace
+        (if output_fft == True).
+            
+    """
+    if not input_fft:   
+        field = fft2(field, out = out)
+        out = field
+    if dmat is not None:
+        out = dotmf(dmat, field ,out = out)
+    else:
+        #make it work for dmat = None input... so just copy data
+        if out is None:
+            out = field.copy()
+        else:
+            if out is not field:
+                out[...] = field
+    if not output_fft:
+        out = ifft2(out, out = out)
     if window is not None:
+        if output_fft:
+            raise ValueError("Cannot use window function if ouput is fft field.")
         out = np.multiply(out,window,out = out)
     return out
 

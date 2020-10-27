@@ -137,7 +137,7 @@ Module Contents
                     in the diffraction calculation when diffraction >= 1. If not provided,
                     an effective data is build from optical_data by taking an average
                     isotropic refractive index of the material.
-   :type eff_data: Optical data tuple or None
+   :type eff_data: Optical data tuple or str
    :param ret_bulk: Whether to return bulk field instead of the transfered field (default).
    :type ret_bulk: bool, optional
 

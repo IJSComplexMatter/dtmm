@@ -1337,29 +1337,6 @@ def reflection_mat(smat, out = None):
     """
     m1 = np.zeros_like(smat)
     m2 = np.zeros_like(smat)
-    m1[...,1,1] = 1.
-    m1[...,3,3] = 1.
-    m1[...,:,0] = -smat[...,:,0]
-    m1[...,:,2] = -smat[...,:,2]
-    m2[...,0,0] = -1.
-    m2[...,2,2] = -1.
-    m2[...,:,1] = smat[...,:,1]
-    m2[...,:,3] = smat[...,:,3]
-    m1 = inv(m1)
-    return dotmm(m1,m2, out = out)
-
-def reflection_mat(smat, out = None):
-    """Computes a 4x4 reflection matrix.
-    
-    Parameters
-    ----------
-    smat : (...,4,4) array
-        System matrix.
-    out : ndarray, optional
-        Output array where results are written.
-    """
-    m1 = np.zeros_like(smat)
-    m2 = np.zeros_like(smat)
     #fill diagonals
     for i in range(smat.shape[-1]//2):
         m1[...,i*2+1,i*2+1] = 1.
@@ -1881,6 +1858,11 @@ def fvec(fmat, jones = (1,0),  amplitude = 1., mode = +1, out = None):
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
     out : ndarray, optional
         Output array where results are written.
+    
+    Returns
+    -------
+    fvec : ndarray
+        Field vector of shape (...,4).
     
     Examples
     --------

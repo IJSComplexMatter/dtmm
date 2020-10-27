@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 dtmm.conf.set_verbose(2)
 #: pixel size in nm
-PIXELSIZE = 200
+PIXELSIZE = 20
 #: compute box dimensions
 NLAYERS, HEIGHT, WIDTH = 60, 96, 96
 #: illumination wavelengths in nm
@@ -18,13 +18,12 @@ optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH),
 field_data_in = dtmm.field.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
                                             pixelsize = PIXELSIZE) 
 #: transfer input light through stack
-field_data_out = dtmm.transfer_field(field_data_in, optical_data)
+field_data_out = dtmm.transfer_field(field_data_in, optical_data, ret_bulk = True)
 
 #: visualize output field
-viewer = dtmm.field_viewer(field_data_out)
-viewer.set_parameters(polarizer = "h", analyzer = "v" ,  focus = -18)
-
-fig,ax = viewer.plot()
+viewer = dtmm.field_viewer(field_data_out, polarization_mode = "normal", bulk_data  = True)
+viewer.set_parameters(polarizer = "h", analyzer = 90 ,  focus = -18)
+fig,ax = viewer.plot(show_scalebar = True)
 
 plt.show()
 

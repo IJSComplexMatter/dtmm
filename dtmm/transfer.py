@@ -15,6 +15,7 @@ from dtmm.field import field2intensity, field2betaphi, field2fvec
 from dtmm.fft import fft2, ifft2
 from dtmm.jones import jonesvec
 from dtmm.polarization import normal_polarizer
+from dtmm.data import effective_data
 import numpy as np
 from dtmm.denoise import denoise_fftfield, denoise_field
 
@@ -334,7 +335,7 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         In multi-ray computation this option specifies whether to split 
         computation over single rays to consume less temporary memory storage.
         For large multi-ray datasets this option should be set.
-    eff_data : Optical data tuple or None
+    eff_data : Optical data tuple or str
         Optical data tuple of homogeneous layers through which light is diffracted
         in the diffraction calculation when diffraction >= 1. If not provided, 
         an effective data is build from optical_data by taking an average 
@@ -818,8 +819,11 @@ def _layers_list(optical_data, eff_data, nin, nout, nstep):
         #add input and output layers
         layers.insert(0, (1,(0., np.broadcast_to(refind2eps([nin]*3), epsv[0].shape), np.broadcast_to(np.array((0.,0.,0.), dtype = FDTYPE), epsa[0].shape))))
         layers.append((1,(0., np.broadcast_to(refind2eps([nout]*3), epsv[0].shape), np.broadcast_to(np.array((0.,0.,0.), dtype = FDTYPE), epsa[0].shape))))
-        if eff_data is None:
-            d_eff, epsv_eff, epsa_eff = _isotropic_effective_data(optical_data)
+        if eff_data is None or isinstance(eff_data, str):
+            if eff_data is None:
+                d_eff, epsv_eff, epsa_eff = _isotropic_effective_data(optical_data)
+            elif eff_data:
+                d_eff, epsv_eff, epsa_eff = effective_data(optical_data, layered = True, symmetry = eff_data)
         else:
             d_eff, epsv_eff, epsa_eff = validate_optical_data(eff_data, homogeneous = True)        
         eff_layers = [(n,(t/n, ev, ea)) for n,t,ev,ea in zip(substeps, d_eff, epsv_eff, epsa_eff)]
@@ -832,8 +836,11 @@ def _layers_list(optical_data, eff_data, nin, nout, nstep):
         #add input and output layers
         layers.insert(0, (1,(0., np.broadcast_to(refind2eps([nin,nin,nin,0,0,0]), epsv[0].shape), None)))
         layers.append((1,(0., np.broadcast_to(refind2eps([nout,nout,nout,0,0,0]), epsv[0].shape), None)))
-        if eff_data is None:
-            d_eff, epsv_eff, epsa_eff = _isotropic_effective_data(optical_data)
+        if eff_data is None or isinstance(eff_data, str):
+            if eff_data is None:
+                d_eff, epsv_eff, epsa_eff = _isotropic_effective_data(optical_data)
+            elif eff_data:
+                d_eff, epsv_eff, epsa_eff = effective_data(optical_data, layered = True, symmetry = eff_data)
         else:
             d_eff, epsv_eff, epsa_eff = validate_optical_data(eff_data, homogeneous = True)        
         eff_layers = [(n,(t/n, ev, ea)) for n,t,ev,ea in zip(substeps, d_eff, epsv_eff, epsa_eff)]

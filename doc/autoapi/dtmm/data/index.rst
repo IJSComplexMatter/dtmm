@@ -8,6 +8,13 @@
    Director and optical data creation and IO functions.
 
 
+   Conversion functions
+   --------------------
+
+   IO functions
+   ------------
+
+
 
 Module Contents
 ---------------
@@ -127,7 +134,7 @@ Module Contents
           a general rotation for arbitrary angle.
 
 
-.. function:: director2data(director, mask=None, no=1.5, ne=1.6, nhost=None, thickness=None)
+.. function:: director2data(director, mask=None, no=1.5, ne=1.6, nhost=None, scale_factor=1.0, thickness=None)
 
    Builds optical data from director data. Director length is treated as
    an order parameter. Order parameter of S=1 means that refractive indices
@@ -147,8 +154,118 @@ Module Contents
    :type ne: float
    :param nhost: Host refracitve index (if mask is provided)
    :type nhost: float
+   :param scale_factor: The order parameter S obtained from the director length is scaled by this factor.
+                        Optical anisotropy is then epsa = S/scale_factor *(epse - epso).
+   :type scale_factor: float
    :param thickness: Thickness of layers (in pixels). If not provided, this defaults to ones.
    :type thickness: ndarray
+
+   :returns: **optical_data** -- A valid optical data tuple.
+   :rtype: tuple
+
+
+.. function:: Q2data(tensor, mask=None, no=1.5, ne=1.6, nhost=None, scale_factor=1.0, biaxial=False, thickness=None)
+
+   Builds optical data from Q tensor data.
+
+   :param tensor: Q tensor with elements Q[0,0], Q[1,1], Q[2,2], Q[0,1], Q[0,2], Q[1,2]
+   :type tensor: (...,6) or (...,3,3) array
+   :param mask: If provided, this mask must be a 3D bolean mask that define voxels where
+                nematic is present. This mask is used to define the nematic part of the sample.
+                Volume not defined by the mask is treated as a host material. If mask is
+                not provided, all data points are treated as a director.
+   :type mask: ndarray, optional
+   :param no: Ordinary refractive index
+   :type no: float
+   :param ne: Extraordinary refractive index
+   :type ne: float
+   :param nhost: Host refracitve index (if mask is provided)
+   :type nhost: float
+   :param scale_factor: The order parameter S obtained from the Q tensor is scaled by this factor.
+                        Optical anisotropy is then epsa = S/scale_factor *(epse - epso).
+   :type scale_factor: float
+   :param biaxial: Describes whether data is treated as biaxial or converted to uniaxial (default).
+                   If biaxial, no**2 describes the mean value of (n1**2 and n2**2) epsilon
+                   eigenavalues and ne = n3.
+   :type biaxial: bool
+   :param thickness: Thickness of layers (in pixels). If not provided, this defaults to ones.
+   :type thickness: ndarray, optional
+
+   :returns: **optical_data** -- A valid optical data tuple.
+   :rtype: tuple
+
+
+.. function:: director2Q(director, order=1.0)
+
+   Computes Q tensor form the uniaxial director.
+
+   :param director: Director vector. The length of the vector is the square of the order
+                    parameter.
+   :type director: (...,3) array
+   :param order: In case director is normalized, this describes the order parameter.
+   :type order: float, optional
+
+   :returns: **Q** -- Q tensor with elements Q[0,0], Q[1,1], Q[2,2], Q[0,1], Q[0,2], Q[1,2]
+   :rtype: (...,6) array
+
+
+.. function:: Q2director(tensor, qlength=False)
+
+   Computes the director from tensor data
+
+   :param tensor: Tensor data.
+   :type tensor: (...,6) or (...,3,3) array
+
+   :returns: **Q** -- Q tensor with elements Q[0,0], Q[1,1], Q[2,2], Q[0,1], Q[0,2], Q[1,2]
+   :rtype: (...,6) array
+
+
+.. function:: Q2eps(tensor, no=1.5, ne=1.6, scale_factor=1.0, out=None)
+
+   Converts Q tensor to epsilon tensor
+
+   :param tensor: A 4D array describing the Q tensor. If provided as a matrix, rhe elemnents are
+                  Q[0,0], Q[1,1], Q[2,2], Q[0,1], Q[0,2], Q[1,2]
+   :type tensor: (...,6) or (...,3,3) ndarray
+   :param no: Ordinary refractive index
+   :type no: float
+   :param ne: Extraordinary refractive index
+   :type ne: float
+   :param scale_factor: The order parameter S obtained from the Q tensor is scaled by this factor.
+                        Optical anisotropy is then epsa = S/scale_factor *(epse - epso).
+   :type scale_factor: float
+   :param out: Output array
+   :type out: ndarray, optional
+
+   :returns: **eps** -- Calculated epsilon tensor.
+   :rtype: ndarray
+
+
+.. function:: eps2epsva(eps)
+
+   Computes epsilon eigenvalues (epsv) and rotation angles (epsa) from
+   epsilon tensor of shape (...,6) or represented as a (...,3,3)
+
+   :param eps: Epsilon tensor. If provided as a (3,3) matrix, the elements are
+               eps[0,0], eps[1,1], eps[2,2], eps[0,1], eps[0,2], eps[1,2]
+   :type eps: (...,3,3) or (...,6) array
+
+   :returns: **epsv, epsa** -- Eigenvalues and Euler angles arrays.
+   :rtype: ndarray, ndarray
+
+
+.. function:: epsva2eps(epsv, epsa)
+
+   Computes epsilon from eigenvalues (epsv) and rotation angles (epsa)
+
+   :param epsv: Epsilon eigenvalues array.
+   :type epsv: (...,3) array
+   :param epsa: Euler angles array.
+   :type epsa: (...,3) array
+
+   :returns: **eps** --  Epsilon tensor arrays of shape (...,6).  The elements are
+             eps[0,0], eps[1,1], eps[2,2], eps[0,1], eps[0,2], eps[1,2]
+   :rtype: ndarray
 
 
 .. function:: validate_optical_data(data, homogeneous=False)
@@ -326,7 +443,7 @@ Module Contents
 
 .. function:: director2order(data, out)
 
-   Converts director data to order parameter (length of the director)
+   Converts director data to order parameter (square root of the length of the director)
 
 
 .. function:: director2angles(data, out)
@@ -401,31 +518,29 @@ Module Contents
    :type file: file, str
 
 
-.. function:: director2Q(director)
+.. function:: tensor2matrix(tensor, out=None)
 
-   Computes Q tensor form the uniaxial director. The length of the director is
-   the order parameter
+   Converts  matrix to tensor
 
+   :param tensor: Input 3x3 array
+   :type tensor: (...,6) array
+   :param out: Output array.
+   :type out: (...,3,3) array, optional
 
-.. function:: Q2director(qtensor, qlength=False)
-
-   Computes the director form the traceless q tensor
-
-
-.. function:: Q2eps(qtensor, no=1.5, ne=1.6, scale_factor=1.0, out=None)
-
-   Converts Q tensor to epsilon tensor
+   :returns: **matrix** -- Matrix of shape (...,3,3).
+   :rtype: ndarray
 
 
-.. function:: eps2epsva(eps)
+.. function:: matrix2tensor(matrix, out=None)
 
-   Computes epsilon eigenvalues (epsv) and rotation angles (epsa) from
-   epsilon tensor of shape (...,6) or represented as a (...,3,3)
+   Converts  matrix to tensor
 
-   :param eps:
-   :type eps: (...,3,3) or (...,6) symmetric tensor
+   :param matrix: Input 3x3 array
+   :type matrix: (...,3,3) array
+   :param matrix: Output array.
+   :type matrix: (...,6) array, optional
 
-   :returns: **epsv, epsa** -- Eigenvalues and Euler angles arrays.
-   :rtype: ndarray, ndarray
+   :returns: **tensor** -- Tensor of shape (...,6).
+   :rtype: ndarray
 
 

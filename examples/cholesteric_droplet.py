@@ -8,9 +8,9 @@ It is best to take odd number of passes, so that one can check the residual fiel
 (the back propagating part) of the output field . With each iteration
 the back propagating part of the output field reduces.
 
-In this example we use a window function to shape the input light with circular 
-aperture in order to eliminate boundary effects. Also, we calculate off-axis 
-reflection; the beta parameter is not zero.
+In this example we calculate off-axis reflection; the beta parameter is not zero.
+The actual beta in the experiment differs because the illumination_data
+returns the nearest eigenwave mode.
 """
 
 import dtmm

@@ -1,5 +1,14 @@
 """
 Director and optical data creation and IO functions.
+
+
+Conversion functions
+--------------------
+
+IO functions
+------------
+
+
 """
 
 from __future__ import absolute_import, print_function, division
@@ -10,8 +19,8 @@ import sys
 
 from dtmm.conf import FDTYPE, CDTYPE, NFDTYPE, NCDTYPE, NUMBA_CACHE,\
 NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE, DTMMConfig
-from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector, _tensor_to_matrix, rotation_angles, rotation_matrix
-from dtmm.wave import betaphi
+from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector, rotation_angles, rotation_matrix, rotate_diagonal_tensor
+from dtmm.wave import betaphi, k0
 from dtmm.fft import fft2, ifft2
 from dtmm.linalg import tensor_eig
 
@@ -222,7 +231,7 @@ def rot90_director(data,axis = "+x", out = None):
     return rotate_vector(r,data_rot,out)#rotate vector in each voxel
     
     
-def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
+def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 1.,
                   thickness = None):
     """Builds optical data from director data. Director length is treated as
     an order parameter. Order parameter of S=1 means that refractive indices
@@ -244,13 +253,21 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
         Extraordinary refractive index 
     nhost : float
         Host refracitve index (if mask is provided)
+    scale_factor : float
+        The order parameter S obtained from the director length is scaled by this factor. 
+        Optical anisotropy is then epsa = S/scale_factor *(epse - epso).
     thickness : ndarray
         Thickness of layers (in pixels). If not provided, this defaults to ones.
+        
+    Returns
+    -------
+    optical_data : tuple
+        A valid optical data tuple.
         
     """
     material = np.empty(shape = director.shape, dtype = FDTYPE)
     material[...] = refind2eps([no,no,ne])[None,...] 
-    material = uniaxial_order(director2order(director), material, out = material)
+    material = uniaxial_order(director2order(director)/scale_factor, material, out = material)
     
     if mask is not None:
         material[np.logical_not(mask),:] = refind2eps([nhost,nhost,nhost])[None,...] 
@@ -258,6 +275,209 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,
     if thickness is None:
         thickness = np.ones(shape = (material.shape[0],))
     return  thickness, material, director2angles(director)
+
+def Q2data(tensor, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 1., 
+           biaxial = False, thickness = None):
+    """Builds optical data from Q tensor data. 
+    
+    Parameters
+    ----------
+    tensor : (...,6) or (...,3,3) array
+        Q tensor with elements Q[0,0], Q[1,1], Q[2,2], Q[0,1], Q[0,2], Q[1,2]
+    mask : ndarray, optional
+        If provided, this mask must be a 3D bolean mask that define voxels where
+        nematic is present. This mask is used to define the nematic part of the sample. 
+        Volume not defined by the mask is treated as a host material. If mask is 
+        not provided, all data points are treated as a director.
+    no : float
+        Ordinary refractive index
+    ne : float
+        Extraordinary refractive index 
+    nhost : float
+        Host refracitve index (if mask is provided)
+    scale_factor : float
+        The order parameter S obtained from the Q tensor is scaled by this factor. 
+        Optical anisotropy is then epsa = S/scale_factor *(epse - epso).
+    biaxial : bool
+        Describes whether data is treated as biaxial or converted to uniaxial (default).
+        If biaxial, no**2 describes the mean value of (n1**2 and n2**2) epsilon
+        eigenavalues and ne = n3.
+    thickness : ndarray, optional
+        Thickness of layers (in pixels). If not provided, this defaults to ones.
+    
+    Returns
+    -------
+    optical_data : tuple
+        A valid optical data tuple.
+    """
+    tensor = np.asarray(tensor)
+    eps = Q2eps(tensor, no = no, ne = ne,scale_factor = scale_factor)
+    
+    shape = eps.shape[:-1]
+    if eps.shape[-1] == 6:
+        shape = shape + (3,) 
+        
+    material, epsa = eps2epsva(eps)
+            
+    if not bool(biaxial):
+        material = uniaxial_order(1, material, out = material)
+    
+    if mask is not None:
+        material[np.logical_not(mask),:] = refind2eps([nhost,nhost,nhost])[None,...] 
+        
+    if thickness is None:
+        thickness = np.ones(shape = (material.shape[0],))
+    return  thickness, material, epsa
+
+
+def director2Q(director, order = 1.):
+    """Computes Q tensor form the uniaxial director. 
+    
+    Parameters
+    ----------
+    director : (...,3) array
+        Director vector. The length of the vector is the square of the order 
+        parameter.
+    order : float, optional
+        In case director is normalized, this describes the order parameter.
+        
+    Returns
+    -------
+    Q : (...,6) array
+        Q tensor with elements Q[0,0], Q[1,1], Q[2,2], Q[0,1], Q[0,2], Q[1,2]
+    """
+    S = director2order(director)
+    n = director
+    
+    out = np.empty(S.shape + (6,), S.dtype)
+    
+    d = S/3*order
+
+    out[...,0] = order*n[...,0]**2 - d
+    out[...,1] = order*n[...,1]**2 - d
+    out[...,2] = order*n[...,2]**2 - d
+    out[...,3] = order*n[...,0]*n[...,1]
+    out[...,4] = order*n[...,0]*n[...,2]
+    out[...,5] = order*n[...,1]*n[...,2]
+    
+    return out
+
+               
+def Q2director(tensor, qlength = False):
+    """Computes the director from tensor data 
+    
+    Parameters
+    ----------
+    tensor : (...,6) or (...,3,3) array
+        Tensor data.
+        
+    Returns
+    -------
+    Q : (...,6) array
+        Q tensor with elements Q[0,0], Q[1,1], Q[2,2], Q[0,1], Q[0,2], Q[1,2]
+    """
+    qeig, r = tensor_eig(tensor) #sorted eigenvalues.. qeig[2] is for the main axis (director)
+    S = qeig[...,2] * 3/2. #the S parameter of the uniaxial q tensor
+    if qlength:
+        return S[...,None] * r[...,2]
+    else:
+        return r[...,2]
+            
+def Q2eps(tensor, no = 1.5, ne = 1.6,scale_factor = 1., out = None):
+    """Converts Q tensor to epsilon tensor
+    
+    Parameters
+    ----------
+    tensor : (...,6) or (...,3,3) ndarray
+        A 4D array describing the Q tensor. If provided as a matrix, rhe elemnents are
+        Q[0,0], Q[1,1], Q[2,2], Q[0,1], Q[0,2], Q[1,2]
+    no : float
+        Ordinary refractive index
+    ne : float
+        Extraordinary refractive index 
+    scale_factor : float
+        The order parameter S obtained from the Q tensor is scaled by this factor. 
+        Optical anisotropy is then epsa = S/scale_factor *(epse - epso).
+    out : ndarray, optional
+        Output array 
+    
+    Returns
+    -------
+    eps : ndarray
+        Calculated epsilon tensor.
+    """
+
+    qtensor = np.asarray(tensor)
+
+    if qtensor.shape[-1] == 6:
+        qdiag = qtensor[...,0:3]
+        qoff = qtensor[...,3:]
+    elif qtensor.shape[-2:] == (3,3):
+        mask_off = np.array(((False,True,True),(False,False,True),(False,False,False)))
+        mask_diag = np.array(((True,False,False),(False,True,False),(False,False,True)))
+
+        qdiag = qtensor[...,mask_diag]
+        qoff = qtensor[...,mask_off]
+    else:
+        raise ValueError("input tensor must be an array of shape (...,6)")
+    epse = ne**2
+    epso = no**2
+    if out is None:
+        out = np.empty_like(qtensor)
+    #: scaled anisotropy
+    epsa = (epse-epso) / scale_factor
+    #: mean epsilon
+    epsm = (epso*2 + epse)/3.
+    
+    if qtensor.shape[-1] == 6:
+        out[...,0:3] = epsa * qdiag + epsm
+        out[...,3:] = epsa * qoff
+    else:
+        out[...,mask_diag] = epsa * qdiag + epsm
+        out[...,mask_off] = epsa * qoff
+        out[...,1,0] = out[...,0,1]
+        out[...,2,0] = out[...,0,2]
+        out[...,2,1] = out[...,1,2]
+    return out
+    
+def eps2epsva(eps):
+    """Computes epsilon eigenvalues (epsv) and rotation angles (epsa) from
+    epsilon tensor of shape (...,6) or represented as a (...,3,3)
+    
+    Parameters
+    ----------
+    eps : (...,3,3) or (...,6) array
+       Epsilon tensor. If provided as a (3,3) matrix, the elements are
+       eps[0,0], eps[1,1], eps[2,2], eps[0,1], eps[0,2], eps[1,2]
+
+    Returns
+    -------
+    epsv, epsa : ndarray, ndarray
+        Eigenvalues and Euler angles arrays.
+    """
+    epsv, r = tensor_eig(eps)
+    return epsv, rotation_angles(r.real)
+
+def epsva2eps(epsv,epsa):
+    """Computes epsilon from eigenvalues (epsv) and rotation angles (epsa) 
+    
+    Parameters
+    ----------
+    epsv : (...,3) array
+       Epsilon eigenvalues array.
+    epsa : (...,3) array
+       Euler angles array.
+
+    Returns
+    -------
+    eps : ndarray
+        Epsilon tensor arrays of shape (...,6).  The elements are
+       eps[0,0], eps[1,1], eps[2,2], eps[0,1], eps[0,2], eps[1,2]
+        
+        
+    """
+    r = rotation_matrix(epsa)
+    return rotate_diagonal_tensor(r,epsv)
 
         
 def validate_optical_data(data, homogeneous = False):
@@ -597,7 +817,7 @@ def cholesteric_droplet_data(shape, radius, pitch, hand = "left", no = 1.5, ne =
 
 @numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->()", cache = NUMBA_CACHE)
 def director2order(data, out):
-    """Converts director data to order parameter (length of the director)"""
+    """Converts director data to order parameter (square root of the length of the director)"""
     c = data.shape[0]
     if c != 3:
         raise TypeError("invalid shape")
@@ -605,7 +825,7 @@ def director2order(data, out):
     y = data[1]
     z = data[2]
     s = np.sqrt(x**2+y**2+z**2)
-    out[0] = s
+    out[0] = s**0.5
 
 @numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->(n)", cache = NUMBA_CACHE)
 def director2angles(data, out):
@@ -731,36 +951,36 @@ def _uniaxial_order(order, eps, out):
     out[2] = eps3
     
 
-@numba.njit(_EPS_DECL, cache = NUMBA_CACHE)
-def _uniaxial_order_tensor(order, eps, out):
-    m = np.empty((3,3), dtype = eps.dtype)
-    m = _tensor_to_matrix(eps, m)
+# @numba.njit(_EPS_DECL, cache = NUMBA_CACHE)
+# def _uniaxial_order_tensor(order, eps, out):
+#     m = np.empty((3,3), dtype = eps.dtype)
+#     m = _tensor_to_matrix(eps, m)
 
     
-    eps, v = np.linalg.eig(m)
+#     eps, v = np.linalg.eig(m)
     
     
-    m = (eps[0] + eps[1] + eps[2])/3.
-    delta = eps[2] - (eps[0] + eps[1])/2.
-    if order == 0.:
-        eps1 = m
-        eps3 = m
-    else:
-        eps1 = m - 1./3. *order * delta
-        eps3 = m + 2./3. * order * delta
+#     m = (eps[0] + eps[1] + eps[2])/3.
+#     delta = eps[2] - (eps[0] + eps[1])/2.
+#     if order == 0.:
+#         eps1 = m
+#         eps3 = m
+#     else:
+#         eps1 = m - 1./3. *order * delta
+#         eps3 = m + 2./3. * order * delta
         
-    eps[0] = eps1
-    eps[1] = eps1
-    eps[2] = eps3
+#     eps[0] = eps1
+#     eps[1] = eps1
+#     eps[2] = eps3
     
-    m = np.dot(v,np.dot(np.diag(eps),v.T))
+#     m = np.dot(v,np.dot(np.diag(eps),v.T))
     
-    out[0] = m[0,0]
-    out[1] = m[1,1]
-    out[2] = m[2,2]
-    out[3] = m[0,1]
-    out[4] = m[0,2]
-    out[5] = m[1,2]
+#     out[0] = m[0,0]
+#     out[1] = m[1,1]
+#     out[2] = m[2,2]
+#     out[3] = m[0,1]
+#     out[4] = m[0,2]
+#     out[5] = m[1,2]
     
     
 _EPS_DECL_VEC = ["(float32[:],float32[:],float32[:])","(float64[:],float64[:],float64[:])",
@@ -778,11 +998,12 @@ def uniaxial_order(order, eps, out):
     >>> uniaxial_order(1,[1,2,3.])
     array([ 1.5+0.j,  1.5+0.j,  3.0+0.j])
     """
-    assert eps.shape[0] in (3,6)
-    if eps.shape[0] == 3:
-        _uniaxial_order(order[0], eps, out)
-    else :
-        _uniaxial_order_tensor(order[0], eps, out)
+    assert eps.shape[0] in (3,)
+    _uniaxial_order(order[0], eps, out)
+    # if eps.shape[0] == 3:
+    #     _uniaxial_order(order[0], eps, out)
+    # else :
+    #     _uniaxial_order_tensor(order[0], eps, out)
     
 MAGIC = b"dtms" #legth 4 magic number for file ID
 VERSION = b"\x01"
@@ -790,7 +1011,6 @@ VERSION = b"\x01"
 
 #IOs fucntions
 #-------------
-
 
 def save_stack(file, optical_data):
     """Saves optical data to a binary file in ``.dtms`` format.
@@ -825,7 +1045,6 @@ def save_stack(file, optical_data):
         if own_fid == True:
             f.close()
 
-
 def load_stack(file):
     """Load optical data from a file.
     
@@ -848,6 +1067,7 @@ def load_stack(file):
             d = np.load(f)
             epsv = np.load(f)
             if f.peek(1) == b"":
+                #no more data to read.. epsa is not present
                 epsa =  None
             else:
                 epsa = np.load(f)
@@ -858,63 +1078,18 @@ def load_stack(file):
         if own_fid == True:
             f.close()
 
-def director2Q(director):
-    """Computes Q tensor form the uniaxial director. The length of the director is
-    the order parameter"""
-    pass
-    
-            
-def Q2director(qtensor, qlength = False):
-    """Computes the director form the traceless q tensor"""
-    qeig, r = tensor_eig(qtensor) #sorted eigenvalues.. qeig[2] is for the main axis (director)
-    S = qeig[...,2] * 3/2. #the S parameter of the uniaxial q tensor
-    if qlength:
-        return S[...,None] * r[...,2]
-    else:
-        return r[...,2]
-            
-def Q2eps(qtensor, no = 1.5, ne = 1.6,scale_factor = 1., out = None):
-    """Converts Q tensor to epsilon tensor"""
-    qtensor = np.asarray(qtensor)
-    if qtensor.shape[-1] == 6:
-        qdiag = qtensor[...,0:3]
-        qoff = qtensor[...,3:]
-        epse = ne**2
-        epso = no**2
-        if out is None:
-            out = np.empty_like(qtensor)
-        #: scaled anisotropy
-        epsa = (epse-epso) / scale_factor
-        #: mean epsilon
-        epsm = (epso*2 + epse)/3.
-        out[...,0:3] = epsa * qdiag + epsm
-        out[...,3:] = epsa * qoff
-        return out
-    else:
-        raise ValueError("input tensor must be an array of shape (...,6)")
-    
-def eps2epsva(eps):
-    """Computes epsilon eigenvalues (epsv) and rotation angles (epsa) from
-    epsilon tensor of shape (...,6) or represented as a (...,3,3)
-    
-    Parameters
-    ----------
-    eps : (...,3,3) or (...,6) symmetric tensor  
-
-    Returns
-    -------
-    epsv, epsa : ndarray, ndarray
-        Eigenvalues and Euler angles arrays.
-    """
-    epsv, r = tensor_eig(eps)
-    return epsv, rotation_angles(r.real)
-
-def epsva2eps(epsv,epsa):
-    r = rotation_matrix(epsa)
-    rotate_tensor()
-    return epsv, rotation_angles(r.real)
-    
-
+def filter_data(optical_data, wavelength, pixelsize, betamax = 1, symmetry = "isotropic"):
+    d, epsv, epsa = optical_data
+    k = k0(wavelength, pixelsize) 
+    epsv, epsa = filter_epsva(epsv, epsa, k, betamax )
+    if symmetry == "uniaxial":
+        uniaxial_order(1., epsv, epsv)
+    elif symmetry == "isotropic":
+        uniaxial_order(0., epsv, epsv)
+    elif symmetry != "biaxial":
+        raise ValueError("Unknown symmetry.")    
+    return d, epsv, epsa
+       
 def filter_eps(eps, k, betamax = 1):
     eps = np.moveaxis(eps,-1,-3)
     feps = fft2(eps)
@@ -925,8 +1100,122 @@ def filter_eps(eps, k, betamax = 1):
     eps = np.moveaxis(eps,-3,-1)
     return eps
 
+def filter_epsva(epsv, epsa, k, betamax = 1):
+    eps = epsva2eps(epsv,epsa)
+    eps = filter_eps(eps, k, betamax)
+    return eps2epsva(eps)
+
+def effective_data(optical_data, layered = False, symmetry = "isotropic"):
+    """Builds effective data from the optical_data.
     
+    The material epsilon is averaged over the layers.
     
+    Parameters
+    ----------
+    optical_data : tuple
+        A valid optical_data tuple
+    layered : bool
+        If specified, averaging over layers is not performed, resulting in a 
+        unique effective layer for each of the material layers. If set to False,
+        each of the layers in the output data is identical.
+    symmetry : str
+        Either 'isotropic' or 'uniaxial'. Defines the symmetry of the effective
+        layer. When set to 'isotropic', the averaging is done so that the effective 
+        layer tensor is isotropic. When set to 'uniaxial' the  effective layer tensor 
+        is an uniaxial medium.
+        
+    Returns
+    -------
+    out : tuple
+        A valid optical data tuple of the effective layers.
+    """
+    d, epsv,epsa = optical_data
+    #Whic axes are used for averaging averaging
+    axis = list(range(len(epsv.shape)-1))
+    if bool(layered):
+        #do not average over thickness axis, so pop it out.
+        axis.pop(0) 
+    axis = tuple(axis) #must be a tuple for np.mean
+
+    if symmetry == "isotropic":
+        #we can work in eigenframe
+        epsv = uniaxial_order(0,epsv)
+        epsv = epsv.mean(axis)
+        epsa = np.zeros(epsv.shape, epsa.dtype)
+    elif symmetry =="uniaxial":
+        #we must average the epsilon tensor
+        eps = epsva2eps(epsv,epsa)
+        eps = eps.mean(axis)
+        epsv, epsa = eps2epsva(eps)
+        if symmetry == "uniaxial":
+            epsv = uniaxial_order(1,epsv)
+    else:
+        raise ValueError("Only uniaxial and isotropic symmetry supported!")
+        
+    if epsv.ndim == 1:
+        #must be same lengths as d, so repeat the matereial for each layer
+        epsv = np.asarray((epsv,)*len(d)).copy()#make a copy, to have a contiguous layer
+        epsa = np.asarray((epsa,)*len(d)).copy()
+    
+    return d, epsv, epsa
+    
+def tensor2matrix(tensor, out = None):
+    """Converts  matrix to tensor
+    
+    Parameters
+    ----------
+    tensor : (...,6) array
+       Input 3x3 array
+    out : (...,3,3) array, optional
+       Output array.
+       
+    Returns
+    -------
+    matrix : ndarray
+        Matrix of shape (...,3,3).
+    """
+    tensor = np.asarray(tensor)
+    if tensor.shape[-1:] != (6,):
+        raise ValueError("Not a valid tensor.")
+    if out is None:
+        out = np.empty(shape = tensor.shape[:-1] + (3,3), dtype = tensor.dtype)
+    for i in range(3):
+        out[...,i,i] = tensor[i]
+    out[...,0,1] = tensor[...,3]
+    out[...,0,2] = tensor[...,4]
+    out[...,1,2] = tensor[...,5]
+    out[...,1,0] = tensor[...,3]
+    out[...,2,0] = tensor[...,4]
+    out[...,2,1] = tensor[...,5]   
+    return out
+    
+def matrix2tensor(matrix, out = None):
+    """Converts  matrix to tensor
+    
+    Parameters
+    ----------
+    matrix : (...,3,3) array
+       Input 3x3 array
+    matrix : (...,6) array, optional
+       Output array.
+       
+    Returns
+    -------
+    tensor : ndarray
+        Tensor of shape (...,6).
+    """
+    matrix = np.asarray(matrix)
+    if matrix.shape[-2:] != (3,3):
+        raise ValueError("Not a valid matrix.")
+    if out is None:
+        out = np.empty(shape = matrix.shape[:-2] + (6,), dtype = matrix.dtype)
+    for i in range(3):
+        out[...,i] = matrix[...,i,i]
+    out[...,3] = matrix[...,0,1]
+    out[...,4] = matrix[...,0,2]
+    out[...,5] = matrix[...,1,2]
+    return out
+
 
 #@numba.guvectorize(["(complex64[:],float32[:],complex64[:])","(complex128[:],float64[:],complex128[:])"],"(n),()->(n)")
 #def eps2ueps(eps, order, out):
@@ -955,6 +1244,7 @@ def filter_eps(eps, k, betamax = 1):
 #    """
 #    assert eps.shape[0] == 3
 #    _uniaxial_order(0., eps, out)
+
     
 if __name__ == "__main__":
     import doctest

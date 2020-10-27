@@ -33,6 +33,56 @@ POLARIZER_NAMES = tuple((s.strip().lower() for s in POLARIZER_LABELS))
 RETARDER_LABELS = ("$\lambda/4$", "$\lambda/2$","none")
 RETARDER_NAMES = ("lambda/4", "lambda/2", "none")
 
+
+def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = None, input_fft = False, out = None):
+    """Calculates polarizing optical microscope field from the input field.
+    
+    This function refocuses the field, applies polarizer and analayzers
+    
+    Parameters
+    ----------
+    field : array
+        Input array of shape (...,:,4,:,:) describing polarized field array or 
+        an array of shape (...,2,:,4,:,:) describing unpolarized (x nad y polarized)
+        field arrays. 
+    jvec : jonesvec, optional
+        Normalized jones vector describing which polarization state of the input
+        field to choose. Input field must be of unpolarized type if this parameter
+        is specified. 
+    pmat : ndarray
+       A 4x4 jones matrix describing the analyzer and retarder matrix.
+    dmat : ndarray
+       A 
+    
+    """
+    if jvec is not None:
+        if field.shape[-5] != 2:
+            raise ValueError("Invalid field shape.")
+        c,s = jvec
+        x = field[...,0,:,:,:,:]*c
+        y = np.multiply(field[...,1,:,:,:,:], s, out = out)
+        field = np.add(x,y, out = out)#numexpr.evaluate("x*c+y*s", out = out)
+    
+    if input_fft == True:
+        #we are working on fft data, applying polarizer matrix in fft space
+    
+        if pmat is not None and dmat is not None:
+            tmat = dotmm(pmat,dmat)
+        elif pmat is None and dmat is not None:
+            tmat = dmat
+        elif pmat is not None and dmat is None and input_fft == True:
+            tmat = pmat
+        else:
+            tmat = np.asarray(np.diag((1,1,1,1)), CDTYPE) 
+            
+        diffract(field,tmat,window = window, input_fft = True, out = out)
+    else:
+        diffract(field,dmat,window = window, input_fft = False, out = out)
+        #apply polarizer matrix in real space
+        if pmat is not None:
+            dotmf(pmat, field, out = out)
+    return out
+
 class CustomRadioButtons(RadioButtons):
 
     def __init__(self, ax, labels, active=0, activecolor='blue', size=49,
@@ -94,8 +144,6 @@ class CustomRadioButtons(RadioButtons):
             return
         if event.artist in self.circles:
             self.set_active(self.circles.index(event.artist))
-
-
 
 def _redim(a, ndim=1):
     """Reshapes dimensions of input array by flattenig over first few dimensions. If
@@ -229,23 +277,14 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None,
         viewer = BulkViewer(field, wave_numbers, cmf, mode=mode, n=n,
                             window=window, diffraction=diffraction,
                             polarization=polarization_mode, betamax=betamax, beta = beta)
-        viewer.set_parameters(**parameters)        
+        viewer.set_parameters(**parameters)   
+    viewer.pixel_size = pixelsize
     return viewer
 
 
 def _float_or_none(value):
     """
     Helper function to convert the passed value to a float and return it, or return None.
-
-    Parameters
-    ----------
-    value : SupportsFloat, _SupportsIndex, str, bytes, bytearray
-        A value which can be represented as a float, or None.
-
-    Returns
-    -------
-    value: float, optional
-        The passed value represented as a float, or None if it does not exist.
     """
     return float(value) if value is not None else None
  
@@ -316,7 +355,7 @@ def _is_unpolarized(field):
 
 
 class FieldViewer(object): 
-    """Base viewer"""  
+    """Field viewer. See :func:`.field_viewer`"""  
     _updated_parameters = set()
     _retarder = "none"
     _retarder_jmat = None
@@ -333,12 +372,17 @@ class FieldViewer(object):
     _parameters = VIEWER_PARAMETERS
     _fmin = 0
     _fmax = 100
+    _jvec = None
+    _pmat = None
+    _dmat = None
     ofield = None
     gamma = True
     gray = False
+    pixel_size = None
+    
     
     def __init__(self,field,ks,cmf, mode = None,n = 1., polarization = "normal",
-                window = None, diffraction = True, betamax = BETAMAX, beta = None):
+                window = None, diffraction = True, betamax = BETAMAX, beta = None, preserve_memory = False):
         self.betamax = betamax
         self.diffraction = diffraction
         self.pmode = polarization
@@ -347,8 +391,8 @@ class FieldViewer(object):
         self.epsv = refind2eps([n,n,n])
         self.epsa = np.array([0.,0.,0.])
         self.ks = ks
-        self.ifield = np.asarray(field)
-        if _is_unpolarized(self.ifield):
+        self.field = np.asarray(field)
+        if _is_unpolarized(self.field):
             self.polarizer = "none"
             self.sample = "none"
             
@@ -356,6 +400,7 @@ class FieldViewer(object):
         self.window = window
         self.cmf = cmf
         self.dmat = None
+        self.preserve_memory = False
         self._aperture = None if beta is None else max(beta)
         
     @property
@@ -372,15 +417,33 @@ class FieldViewer(object):
         return self._focus   
     
     @property
+    def masked_field(self):
+        if self.aperture is not None:
+            mask = self.beta <= self.aperture
+            return self.field[mask]
+        else:
+            return self.field
+    
+    @property
     def ffield(self):
         """Fourier transform of the field"""
         if self._ffield is None:
-            self._ffield = fft2(self.ifield)
+            self._ffield = fft2(self.field)
         return self._ffield
+
+    @property
+    def masked_ffield(self):
+        """Fourier transform of the field"""
+        if self.aperture is not None:
+            mask = self.beta <= self.aperture
+            return self.ffield[mask]
+        else:
+            return self.ffield
 
     @focus.setter     
     def focus(self, z):
         if self.diffraction == True or z is None:
+            self._dmat = None
             self._focus = _float_or_none(z)
             self._updated_parameters.add("focus")
         else:
@@ -420,7 +483,7 @@ class FieldViewer(object):
     def sample(self, angle):
         """Sample rotation angle in degrees, in float or as a string"""
         if angle is not None:
-            if not _is_unpolarized(self.ifield):
+            if not _is_unpolarized(self.field):
                 raise ValueError("Input field must be unpolarized to use sample parameter!")
             
         if isinstance(angle, str):
@@ -430,12 +493,12 @@ class FieldViewer(object):
                     angle = "0"
                 else:
                     raise ValueError("sample angle must be a float or any of {}".format(labels))
+        self._pmat = None #force recalculation of pmat
+        self._jvec = None
         self._sample_angle = _float_or_none(angle)
         self._sample = angle
         self._updated_parameters.add("sample")  
-        
-
-        
+           
     @property
     def polarizer_jvec(self):
         return self._polarizer_jvec
@@ -471,11 +534,12 @@ class FieldViewer(object):
     @polarizer.setter 
     def polarizer(self, angle):
         if angle is not None:
-            if not _is_unpolarized(self.ifield):
+            if not _is_unpolarized(self.field):
                 raise ValueError("Input field must be unpolarized to use polarizer parameter!")
-        if angle is not None and self.ifield.ndim >= 5 and self.ifield.shape[-5] != 2:
+        if angle is not None and self.field.ndim >= 5 and self.field.shape[-5] != 2:
             raise ValueError("Cannot set polarizer. Incompatible field shape.")
         self._polarizer, self._polarizer_jvec = _jonesvector_type(angle)
+        self._jvec = None
         self._updated_parameters.add("polarizer")
         
     @property
@@ -486,6 +550,7 @@ class FieldViewer(object):
     @analyzer.setter   
     def analyzer(self, angle):
         self._analyzer, self._analyzer_jmat = _jonesmatrix_type(angle)
+        self._pmat = None
         self._updated_parameters.add("analyzer")
  
     @property    
@@ -499,6 +564,7 @@ class FieldViewer(object):
     @retarder.setter    
     def retarder(self, value):
         self._retarder, self._retarder_jmat = _jonesmatrix_type(value)
+        self._pmat = None #force recalculation of pmat
         self._updated_parameters.add("retarder")
        
     @property
@@ -510,6 +576,49 @@ class FieldViewer(object):
     def intensity(self, intensity):
         self._intensity = _float_or_none(intensity)
         self._updated_parameters.add("intensity")
+    
+    @property
+    def diffraction_matrix(self):
+        """Diffraction matrix for diffraction calculation"""
+        if self._dmat is None:
+            if self.diffraction == True or self.mode is not None:
+                #if mode is selected, we need to project the filed using diffraction
+                d = 0 if self.focus is None else self.focus
+                self._dmat = field_diffraction_matrix(self.field.shape[-2:], self.ks,  d = d, 
+                                          epsv = self.epsv, epsa = self.epsa, 
+                                          mode = self.mode, betamax = self.betamax) 
+            else:
+                self._dmat = None
+        return self._dmat
+    
+    @property
+    def input_jones(self):
+        """Input field jones vector"""
+        if self._jvec is None:
+            sample = self.sample_angle
+            if sample is None:
+                sample = 0.
+            if self.polarizer_jvec is None:
+                self._jvec = None
+            else:
+                r = jones.rotation_matrix2(-np.radians(sample))
+                self._jvec = dotmv(r,self.polarizer_jvec)
+        return self._jvec
+    
+    @property
+    def output_mat(self):
+        """4x4 jones output matrix"""
+        sample = self.sample_angle
+        if sample is None:
+            sample = 0.
+        if self._pmat is None:
+            if self.analyzer_jmat is not None:
+                m = dotmm(self.analyzer_jmat,self.retarder_jmat) if self.retarder_jmat is not None else self.analyzer_jmat
+                m = jones.rotated_matrix(m,np.radians(sample))
+                self._pmat = ray_jonesmat4x4(m, epsv = self.epsv)
+            else:
+                self._pmat = None
+        return self._pmat
         
     def set_parameters(self, **kwargs):
         """Sets viewer parameters. Any of the :attr:`.VIEWER_PARAMETERS`
@@ -523,7 +632,7 @@ class FieldViewer(object):
         """Returns viewer parameters as dict"""
         return {name : getattr(self,name) for name in VIEWER_PARAMETERS}
         
-    def plot(self, fig = None,ax = None, sliders = None, show_sliders = True, **kwargs):
+    def plot(self, fig = None,ax = None, sliders = None, show_sliders = True, show_scalebar = False, **kwargs):
         """Plots field intensity profile. You can set any of the below listed
         arguments. Additionaly, you can set any argument that imshow of
         matplotlib uses (e.g. 'interpolation = "sinc"').
@@ -565,7 +674,7 @@ class FieldViewer(object):
                 
         self.ax = self.fig.add_subplot(111) if ax is None else ax
         
-        plt.subplots_adjust(bottom=0.25)  
+        plt.subplots_adjust(bottom=0.27)  
         self.calculate_image()
         
         self.sliders = {} if sliders is None else sliders
@@ -633,13 +742,63 @@ class FieldViewer(object):
  
             if self.focus is not None:  
                 axpos = axes.pop() 
-                self._ids0, self.axfocus = add_slider("focus", axpos, min_name = "fmin", max_name = "fmax", min_value = -90, max_value = 90)
+                self._ids0, self.axfocus = add_slider("focus", axpos, min_name = "fmin", max_name = "fmax", min_value = self._default_fmin, max_value = self._default_fmax)
  
             
         self.axim = self.ax.imshow(self.image, origin = kwargs.pop("origin","lower"), **kwargs)
         
+        if show_scalebar == True:
+            if self.pixel_size is None:
+                raise ValueError("You must provide pixel_size to show scale bar.")
+            try:
+                from matplotlib_scalebar.scalebar import ScaleBar
+            except ImportError:
+                raise ValueError("You must have matplotlib_scalebar installed to use this feature.")
+            
+            scalebar = ScaleBar(self.pixel_size, "nm")
+            self.ax.add_artist(scalebar)
+        
         return self.ax.figure, self.ax
+                    
+    def _calculate_diffraction(self):       
+        self.ofield = None #we have to create new memory for output field  
+        if self.preserve_memory or self.pmode == "mode" or self.diffraction_matrix is None:
+            # we calculate diffraction later or not at all
+            self.ofield = self.masked_ffield if self.pmode == "mode" else self.masked_field 
+        else:
+            if self.diffraction == True or self.mode is not None: 
+                self.ofield = diffract(self.masked_field,self.diffraction_matrix,window = self.window,out = self.ofield)
+            else:
+                #no diffraction at all..
+                if self.window is not None:
+                    self.ofield = self.masked_field * self.window
+                else:
+                    self.ofield = self.masked_field.copy()
 
+    def _calculate_specter(self):
+        jvec = self.input_jones
+        
+        input_fft = True if self.pmode == "mode" else False 
+        
+        field = self.ofield
+        
+        if jvec is None:
+            tmp = _redim(field, ndim = 5)
+            out = np.empty_like(tmp[0])
+      
+        else:
+            tmp = _redim(field, ndim = 6)
+            out = np.empty_like(tmp[0,0])
+
+        self.specter = 0.
+        
+        #we may heve calculated diffraction before, set to None if we had
+        dmat = self.diffraction_matrix if self.preserve_memory or self.pmode == "mode" else None
+        
+        for i,data in enumerate(tmp): 
+            field = calculate_pom_field(data,jvec,self.output_mat,dmat,window = self.window,input_fft = input_fft, out = out)
+            self.specter += field2specter(field)
+                                                        
     def calculate_specter(self, recalc = False, **params):
         """Calculates field specter.
         
@@ -652,87 +811,17 @@ class FieldViewer(object):
             Any additional keyword arguments that are passed dirrectly to 
             set_parameters method.
         """
-        if self.pmode == "mode":
-            return self._calculate_specter_mode(recalc = recalc, **params)
-        else:
-            return self._calculate_specter_normal(recalc = recalc, **params)
-            
-    def _calculate_specter_normal(self, recalc = False, **params):
-        """Calculates field specter.
-        
-        Parameters
-        ----------
-        recalc : bool, optional
-            If specified, it forces recalculation. Otherwise, result is calculated
-            only if calculation parameters have changed.
-        params: kwargs, optional
-            Any additional keyword arguments that are passed dirrectly to 
-            set_parameters method.
-        """
         self.set_parameters(**params)
+        
         if self.ofield is None:
             recalc = True #first time only trigger calculation 
-
-        if recalc or "focus" in self._updated_parameters:
-            if self.diffraction == True or self.mode is not None:
-                #if mode is selected, we need to project the filed using diffraction
-                d = 0 if self.focus is None else self.focus
-                self.dmat = field_diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = d, 
-                                          epsv = self.epsv, epsa = self.epsa, 
-                                          mode = self.mode, betamax = self.betamax)
-                recalc = True
-        if recalc or "aperture" in self._updated_parameters:
-            self.ofield = None #we have to create new memory for output field
-            if self.aperture is not None:
-                mask = self.beta <= self.aperture
-                ifield = self.ifield[mask]
-            else:
-                ifield = self.ifield
-            if self.diffraction == True or self.mode is not None: 
-                self.ofield = diffract(ifield,self.dmat,window = self.window,out = self.ofield)
-            else:
-                #no diffraction at all..
-                if self.window is not None:
-                    self.ofield = ifield * self.window
-                else:
-                    self.ofield = ifield.copy()
+         
+        if recalc or self._has_parameter_updated("focus","aperture"): 
+            self._calculate_diffraction()
             recalc = True
-
-        if recalc or self._has_parameter_updated("analyzer", "polarizer","sample","retarder"):
-            sample = self.sample_angle
-            if sample is None:
-                sample = 0.
-            if self.polarizer_jvec is None:
-                tmp = _redim(self.ofield, ndim = 5)
-                out = np.empty_like(tmp[0])
-            else:
-                r = jones.rotation_matrix2(-np.radians(sample))
-                c,s = dotmv(r,self.polarizer_jvec)
-                tmp = _redim(self.ofield, ndim = 6)
-                out = np.empty_like(tmp[0,0])
-                
-            if self.analyzer_jmat is not None:
-                m = dotmm(self.analyzer_jmat,self.retarder_jmat) if self.retarder_jmat is not None else self.analyzer_jmat
-                m = jones.rotated_matrix(m,np.radians(sample))
-                pmat = ray_jonesmat4x4(m, epsv = self.epsv)
-                
-            for i,data in enumerate(tmp):
-                if self.polarizer_jvec is not None:
-                    x = data[0]*c
-                    y = np.multiply(data[1], s, out = out)
-                    ffield = np.add(x,y, out = out)#numexpr.evaluate("x*c+y*s", out = out)
-                else: 
-                    ffield = data
-                    
-                if self.analyzer_jmat is not None:
-                    #pfield = apply_jones_matrix(pmat, ffield, out = out)
-                    pfield = dotmf(pmat, ffield, out = out)
-                else:
-                    pfield = ffield
-                if i == 0:
-                    self.specter = field2specter(pfield)  
-                else:
-                    self.specter += field2specter(pfield) 
+            
+        if recalc or self._has_parameter_updated("focus","aperture","analyzer", "polarizer","sample","retarder"):
+            self._calculate_specter()
             recalc = True
         
         if recalc or "intensity" in self._updated_parameters:
@@ -748,84 +837,6 @@ class FieldViewer(object):
                 return True
         return False
 
-    def _calculate_specter_mode(self, recalc = False, **params):
-        self.set_parameters(**params)
-        if self.ofield is None:
-            recalc = True #first time only trigger calculation 
-        if self._ffield is None or recalc:
-            self._ffield = fft2(self.ifield)
-
-        if recalc or "aperture" in self._updated_parameters:
-            self.ofield = None #we have to create new memory for output field
-            if self.aperture is not None:
-                mask = self.beta <= self.aperture
-                self.ffield_masked = self.ffield[mask]
-                    
-            else:
-                self.ffield_masked = self.ffield
-            recalc = True
-
-        if recalc or self._has_parameter_updated("sample", "polarizer"):
-            sample = self.sample_angle if self.sample_angle is not None else 0.
-            if self.polarizer_jvec is not None:
-                r = jones.rotation_matrix2(-np.radians(sample))
-                c,s = dotmv(r,self.polarizer_jvec)                    
-                
-                self.data = _redim(self.ffield_masked, ndim = 6)
-                x = c*self.data[:,0]
-                y = s*self.data[:,1]
-                self.data = x+y
-            else:
-                self.data = _redim(self.ffield_masked, ndim = 5)
-                
-        if recalc or self._has_parameter_updated("focus"):
-            if self.diffraction == True or self.mode is not None:
-                #if mode is selected, we need to project the field using diffraction
-                d = 0 if self.focus is None else self.focus
-                self.dmat = field_diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = d, 
-                                          epsv = self.epsv, epsa = self.epsa, 
-                                          mode = self.mode, betamax = self.betamax)
-            else:
-                self.dmat = np.asarray(np.diag((1,1,1,1)), CDTYPE)      
-        if recalc or self._has_parameter_updated("analyzer", "sample","retarder") :
-            sample = self.sample_angle if self.sample_angle is not None else 0.
-            if self.analyzer_jmat is not None:
-                m = dotmm(self.analyzer_jmat,self.retarder_jmat) if self.retarder_jmat is not None else self.analyzer_jmat
-                m = jones.rotated_matrix(m,np.radians(sample))
-                self.pmat = mode_jonesmat4x4(self.ifield.shape[-2:], self.ks,  m,
-                                          epsv = self.epsv, epsa = self.epsa, 
-                                          betamax = self.betamax) 
-            else:
-                self.pmat = None
-
-        if recalc or self._has_parameter_updated("analyzer", "sample", "polarizer", "focus", "intensity","retarder","aperture") :
-            tmat = None
-            if self.pmat is not None and self.dmat is not None:
-                tmat = dotmm(self.pmat,self.dmat)
-            if self.pmat is None and self.dmat is not None:
-                tmat = self.dmat
-            if self.pmat is not None and self.dmat is None:
-                tmat = self.pmat
-            if tmat is not None:
-                self.ofield = dotmf(tmat, self.data, out = self.ofield)
-            self.ofield = ifft2(self.ofield, out = self.ofield)
-            
-            for i,data in enumerate(self.ofield):
-                if i == 0:
-                    self.specter = field2specter(data)  
-                else:
-                    self.specter += field2specter(data) 
-                    
-            recalc = True
-
-        
-        if recalc or "intensity" in self._updated_parameters:
-            self._updated_parameters.clear()
-            self._updated_parameters.add("intensity") #trigger calculate_image call
-        else:
-            self._updated_parameters.clear()        
-            
-        return self.specter
       
     def calculate_image(self, recalc = False, **params):
         """Calculates RGB image.
@@ -845,6 +856,7 @@ class FieldViewer(object):
             if self.intensity is not None:
                 if self.intensity != 0.0:
                     if self.mode == "r":
+                        #poynting is negative, make it positive
                         norm = -1./self.intensity
                     else:
                         norm = 1./self.intensity
@@ -904,154 +916,38 @@ class BulkViewer(FieldViewer):
     
     @property
     def _default_fmax(self):
-        return len(self.ifield) -1   
-
-    @property
-    def ffield(self):
-        if self._ffield is None:
-            self._ffield = fft2(self.ifield[self.focus])
-        return self._ffield
-
-    @ffield.setter
-    def ffield(self, value):
-        self._ffield = value
+        return len(self.field) -1   
     
     @property
     def focus(self):
-        """Focus position, relative to the calculated field position."""
+        """Focus position"""
         return self._focus       
     
     @focus.setter     
     def focus(self, z):
-        self._focus = int(z)
+        #focos must be integer here, index of the layer
+        i = int(z)
+        #check is ok, raise IndexError else
+        self.field[i]
+        self._focus = i
         self._updated_parameters.add("focus")
         
-    def _calculate_specter_mode(self, recalc = False, **params):
-        self.set_parameters(**params)
-
-        if self.ofield is None:
-            recalc = True #first time only trigger calculation 
-            
-        if recalc or self._has_parameter_updated("analyzer", "sample") :
-            sample = self.sample if self.sample is not None else 0.
-            if self.analyzer is not None:
-                angle = -np.pi/180*(self.analyzer - sample)
-                c,s = np.cos(angle),np.sin(angle) 
-                self.pmat = mode_polarizer(self.ifield.shape[-2:], self.ks,  jones = (c,s),
-                                          epsv = self.epsv, epsa = self.epsa, 
-                                          betamax = self.betamax) 
-                if self.pmode != "mode":
-                    self.pmat = self.pmat[...,0:1,0:1,:,:]
-
-
-        if recalc or self._has_parameter_updated("focus"):
-            if self.mode is None:
-                self._ffield = fft2(self.ifield[self.focus])
-            else:
-                self.dmat = field_diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = 0, 
-                                      epsv = self.epsv, epsa = self.epsa, 
-                                      mode = self.mode, betamax = self.betamax)
-                self._ffield = fft2(self.ifield[self.focus])
-
-            recalc = True #trigger update of self.data
-
-        if recalc or self._has_parameter_updated("sample", "polarizer"):
-            sample = self.sample if self.sample is not None else 0.
-            if self.polarizer is not None:
-                angle = -np.pi/180*(self.polarizer - sample)            
-                c,s = np.cos(angle),np.sin(angle)  
-                
-                self.data = _redim(self.ffield, ndim = 6)
-                x = c*self.data[:,0]
-                y = s*self.data[:,1]
-                self.data = x+y
-            else:
-                self.data = _redim(self.ffield, ndim = 5)
-     
-
-        if recalc or self._has_parameter_updated("analyzer", "sample", "polarizer", "focus", "intensity") :
-            if self.dmat is not None:
-                pmat = dotmm(self.pmat,self.dmat)
-            else:
-                pmat  = self.pmat
-            self.ofield = dotmf(pmat, self.data, out = self.ofield)
-            self.ofield = ifft2(self.ofield, out = self.ofield)
-            
-            for i,data in enumerate(self.ofield):
-                if i == 0:
-                    self.specter = field2specter(data)  
-                else:
-                    self.specter += field2specter(data) 
-            recalc = True
-
-        
-        if recalc or "intensity" in self._updated_parameters:
-            self._updated_parameters.clear()
-            self._updated_parameters.add("intensity") #trigger calculate_image call
+    @property
+    def masked_field(self):
+        if self.aperture is not None:
+            mask = self.beta <= self.aperture
+            return self.field[self.focus,mask]
         else:
-            self._updated_parameters.clear()        
-            
-        return self.specter
+            return self.field[self.focus]
     
-        
-    def _calculate_specter_normal(self, recalc = False, **params):
-        self.set_parameters(**params)
-        if self.ofield is None:
-            recalc = True #first time only trigger calculation 
-        if recalc or "focus" in self._updated_parameters:
-            if self.mode is None:
-                self.ofield = self.ifield[self.focus]
-            else:
-                dmat = field_diffraction_matrix(self.ifield.shape[-2:], self.ks,  d = 0, 
-                                      epsv = self.epsv, epsa = self.epsa, 
-                                      mode = self.mode, betamax = self.betamax)
-                self.ofield = diffract(self.ifield[self.focus],dmat,window = self.window,out = self.ofield)
-            recalc = True
-
-        if recalc or "polarizer" in self._updated_parameters or "analyzer" in self._updated_parameters or "sample" in self._updated_parameters:
-            sample = self.sample
-            if sample is None:
-                sample = 0.
-            if self.polarizer is None:
-                tmp = _redim(self.ofield, ndim = 5)
-                out = np.empty_like(tmp[0])
-            else:
-                angle = -np.pi/180*(self.polarizer - sample)
-                c,s = np.cos(angle),np.sin(angle)  
-                tmp = _redim(self.ofield, ndim = 6)
-                out = np.empty_like(tmp[0,0])
-            if self.analyzer is not None:
-                angle = -np.pi/180*(self.analyzer - sample)
-                #pmat = linear_polarizer(angle)
-                pmat = ray_polarizer((np.cos(angle),np.sin(angle)),epsv = self.epsv, epsa = self.epsa)
-                
-            
-            for i,data in enumerate(tmp):
-                if self.polarizer is not None:
-                    x = data[0]*c
-                    y = np.multiply(data[1], s, out = out)
-                    ffield = np.add(x,y, out = out)#numexpr.evaluate("x*c+y*s", out = out)
-                else: 
-                    ffield = data
-                    
-                if self.analyzer is not None:
-                    pfield = dotmf(pmat, ffield, out = out)
-                else:
-                    pfield = ffield
-                if i == 0:
-                    self.specter = field2specter(pfield)  
-                else:
-                    self.specter += field2specter(pfield) 
-            recalc = True
-        
-        if recalc or "intensity" in self._updated_parameters:
-            self._updated_parameters.clear()
-            self._updated_parameters.add("intensity") #trigger calculate_image call
+    @property
+    def masked_ffield(self):
+        """Fourier transform of the field"""
+        if self.aperture is not None:
+            mask = self.beta <= self.aperture
+            return self.ffield[self.focus,mask]
         else:
-             self._updated_parameters.clear()
-        return self.specter
+            return self.ffield[self.focus]
     
-
-    
-
+__all__ = ["calculate_pom_field", "field_viewer", "bulk_viewe", "FieldViewer", "BulkViewer"]
     

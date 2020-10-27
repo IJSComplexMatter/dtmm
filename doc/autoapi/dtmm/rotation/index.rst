@@ -14,7 +14,7 @@ Module Contents
 
 .. function:: rotation_vector2(angle, out=None)
 
-   Coverts the provided angle into a rotation vector
+   Coverts the provided angle into a rotation vector (cos, sin).
 
    :param angle: Array containing the angle of rotation at different points in space
    :type angle: array
@@ -74,7 +74,7 @@ Module Contents
    True
 
 
-.. function:: rotate_diagonal_tensor(R, diagonal, output=None)
+.. function:: rotate_diagonal_tensor(R, diagonal, out=None)
 
    Rotates a diagonal tensor, based on the rotation matrix provided
 
@@ -97,9 +97,9 @@ Module Contents
    True
 
 
-.. function:: rotate_tensor(R, tensor, output=None)
+.. function:: rotate_tensor(R, tensor, out)
 
-   Rotates a tensor, based on the rotation matrix provided
+   Calculates out = R.tensor.RT of a tensor"
 
    >>> R = rotation_matrix((0.12,0.245,0.78))
    >>> tensor = np.array([1.3,1.4,1.5,0.1,0.2,0.3], dtype = CDTYPE)
@@ -117,25 +117,5 @@ Module Contents
    :param rotation_matrix:
    :param vector:
    :param out:
-
-
-.. function:: tensor_to_matrix(tensor, output=None)
-
-   Converts a symmetric tensor of shape (6,) to matrix of shape (3,3).
-
-   :param tensor: The symmetric tensor to represent as a matrix
-   :type tensor: array
-   :param output: The (3, 3) matrix representation of <tensor>
-   :type output: array
-
-
-.. function:: diagonal_tensor_to_matrix(tensor, output=None)
-
-   Converts diagonal tensor of shape (3,) to matrix of shape (3,3).
-
-   :param tensor: The diagonal tensor to represent as a matrix
-   :type tensor: array
-   :param output: The (3, 3) matrix representation of <tensor>
-   :type output: array
 
 

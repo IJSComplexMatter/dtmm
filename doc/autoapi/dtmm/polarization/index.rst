@@ -19,6 +19,15 @@ Module Contents
    of field data.
 
 
+.. function:: ray_polarizer(jones=(1, 0), beta=0, phi=0, epsv=(1.0, 1.0, 1.0), epsa=(0.0, 0.0, 0.0))
+
+   Returns a ray polarizer that should be applied in real space. Good for
+   beams that can be approximated with a single wave vector and with a direction of
+   ray propagation beta and phi parameters.
+
+   See also mode_polarizer, which is for non-planewave field data.
+
+
 .. function:: ray_jonesmat4x4(jmat, beta=0, phi=0, epsv=(1.0, 1.0, 1.0), epsa=(0.0, 0.0, 0.0))
 
    Returns a ray polarizer that should be applied in real space. Good for
