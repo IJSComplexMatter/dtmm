@@ -1,6 +1,6 @@
 """
 An example on standard 4x4 berreman for calculation of reflection
-and transmission coefficient for p and s polarizations off a single layer deposited on top of a
+and transmission coefficient for p and s polarizations from a single layer deposited on top of a
 substrate with refractive index nout. Calculation is done for multiple input angles
 (beta parameters).
 
@@ -9,7 +9,7 @@ See also berreman_reflection_reference for alternative implementation.
 
 import dtmm
 import numpy as np
-from dtmm import tmm, jones
+from dtmm import tmm, jones4
 
 #: wavelength of light in vacuum in nanometers
 wavelength = 550 
@@ -31,9 +31,9 @@ eps_layer = dtmm.refind2eps(n)
 #: substrate epsilon
 eps_out = dtmm.refind2eps(nout)
 #: ray beta parameters; beta is nin*np.sin(theta)
-betas = np.array(np.linspace(0.0,0.9999999,1000),dtype = "float32") #in case we compiled for float32, this has to be float not duouble
+betas = np.array(np.linspace(0.0,0.9999,1000),dtype = "float32") #in case we compiled for float32, this has to be float not duouble
 #: phi angle of the input light - will make a diffference for anisotropic layer
-phi = 0
+phi = 0.0
 
 _phi = 0
 
@@ -42,8 +42,8 @@ pol2 = (np.cos(_phi),np.sin(_phi))
 
 
 #: we must view them in rotated frame, with respect to the ray phi value.
-pol1 = jones.jonesvec(pol1, phi) 
-pol2 = jones.jonesvec(pol2, phi) 
+pol1 = jones4.jonesvec(pol1, phi) 
+pol2 = jones4.jonesvec(pol2, phi) 
 
 
 #build field matrices
@@ -78,11 +78,11 @@ rfvec = dotmv(mmat,fvec)
 tfvec = dotmv(pmat,tfvec) #no need to do this.. there is no backpropagating waves in the output
 tfvecin = dotmv(pmatin,fvec)
 
-y_polarizer = tmm.polarizer4x4(pol1, fout) #y == s polarization
-x_polarizer = tmm.polarizer4x4(pol2, fout) #x == p polarization
+y_polarizer = jones4.polarizer4x4(pol1, fout) #y == s polarization
+x_polarizer = jones4.polarizer4x4(pol2, fout) #x == p polarization
 
-y_polarizerin = tmm.polarizer4x4(pol1, fin) #y == s polarization
-x_polarizerin = tmm.polarizer4x4(pol2, fin) #x == p polarization
+y_polarizerin = jones4.polarizer4x4(pol1, fin) #y == s polarization
+x_polarizerin = jones4.polarizer4x4(pol2, fin) #x == p polarization
 
 
 Rss = -intensity(dotmv(y_polarizerin,rfvec))

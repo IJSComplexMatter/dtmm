@@ -5,7 +5,9 @@ V0.6.0 (In development)
 +++++++++++++++++++++++
 
 General improvements to code readibility & documentation of tmm.py module. 
-Refactoring of field_viewer.py.
+Refactoring of field_viewer.py. Because of code refactoring some lovel level functions
+were renamed or ommited, so this release partially break backward compatibility.
+See *changes* for details.
 
 New features
 ////////////
@@ -16,11 +18,17 @@ New features
   for the eps tensor). Added several new functions in data.py module.
 * Added calculate_pom_field function to field_viewer.py
 * Added show_scalebar option in FieldViewer.plot().
+* Added CMOS spectral response function to allow simulations using grayscale cameras.
+* Added simplified tcmf data generation for custom spectral data using `load_tcmf` and `load_specter`
+* Added `effective_data` function to simplify effective data construction.
+* Added an option to add illuminant data as a table to load_tcmf function to 
+  allow for custom illuminant spectra.
 
 Enhancements
 ////////////
 
 * Improved speed in tensor diagonalization procedure when working with tensor input data.
+* Improvements in the effective medium handling for the difraction step in the propagation calculation.
 
 Changes
 ///////

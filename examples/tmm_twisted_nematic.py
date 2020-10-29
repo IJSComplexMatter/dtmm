@@ -15,7 +15,7 @@ air to LC is neglected, works good for beta close to zero though.
 
 import dtmm
 import numpy as np
-from dtmm import tmm, linalg, jones
+from dtmm import tmm, linalg, jones4
 
 
 dot = linalg.dotmm
@@ -125,8 +125,8 @@ cmat = linalg.multi_dot(m, axis = 1)
 cmat2 = linalg.multi_dot(m2, axis = 1, reverse = True) 
 cmat2t = linalg.multi_dot(m2t, axis = 1, reverse = True) 
 
-jx = jones.jonesvec((1,0), phi)
-jy = jones.jonesvec((0,1), phi)
+jx = jones4.jonesvec((1,0), phi)
+jy = jones4.jonesvec((0,1), phi)
 
 #field projection matrices - used to take the forward propagating or backward propagating waves
 pmat = tmm.projection_mat(fout,mode = +1)
@@ -142,10 +142,10 @@ tfvec2r = tmm.transmit2x2(fvec, cmat2t,fmatout = fout[None,...])
 tfvec4 = tmm.transmit(fvec, cmat, fmatin = fin[None,...], fmatout = fout[None,...])
 rfvec4 = dotmv(mmat,fvec)
 
-x_polarizerin = tmm.polarizer4x4(jx, fin) 
-y_polarizerin = tmm.polarizer4x4(jy, fin) 
-x_polarizer = tmm.polarizer4x4(jx, fout) 
-y_polarizer = tmm.polarizer4x4(jy, fout) 
+x_polarizerin = jones4.polarizer4x4(jx, fin) 
+y_polarizerin = jones4.polarizer4x4(jy, fin) 
+x_polarizer = jones4.polarizer4x4(jx, fout) 
+y_polarizer = jones4.polarizer4x4(jy, fout) 
 
 intensity = tmm.intensity
 

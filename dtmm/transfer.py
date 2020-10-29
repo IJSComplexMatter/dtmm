@@ -1,5 +1,7 @@
 """
 Main top level calculation functions for light propagation through optical data.
+
+
 """
 from __future__ import absolute_import, print_function, division
 import time
@@ -317,14 +319,14 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         == 1 and to 2 if npass > 1 and diffraction > 1. See documentation for details. 
     method : str, optional
         Specifies which method to use, either '2x2' (default) or '4x4'.
-    multiray : bool, optional
+    multiray : bool
         If specified it defines if first axis of the input data is treated as multiray data
         or not. If beta and phi are not set, you must define this if your data
         is multiray so that beta and phi values are correctly determined.
     norm : int, optional
         Normalization mode used when calculating multiple reflections with 
         npass > 1 and 4x4 method. Possible values are 0, 1, 2, default value is 1.
-    smooth : float
+    smooth : float, optional
         Smoothing parameter when calculating multiple reflections with 
         npass > 1 and 4x4 method. Possible values are values above 0.Setting this
         to higher values > 1 removes noise but reduces convergence speed. Setting
@@ -337,13 +339,19 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         In multi-ray computation this option specifies whether to split 
         computation over single rays to consume less temporary memory storage.
         For large multi-ray datasets this option should be set.
-    eff_data : Optical data tuple or str
+    eff_data : Optical data tuple or symmetry, optional
         Optical data tuple of homogeneous layers through which light is diffracted
         in the diffraction calculation when diffraction >= 1. If not provided, 
-        an effective data is build from optical_data by taking an average 
-        isotropic refractive index of the material.
+        an effective data is build from optical_data by taking the mean value 
+        of the epsilon tensor. You can also provide the symmetry argument, e.g.
+        'isotropic', 'uniaxial' or 'biaxial', or a list of these values specifying
+        the symmetry of each of the layers. This argument is passed directly to 
+        the :func:`.data.effective_data` function.
     ret_bulk : bool, optional
         Whether to return bulk field instead of the transfered field (default).
+    out : ndarray, optional
+        Output array.
+    
     """
     t0 = time.time()
     verbose_level = DTMMConfig.verbose
@@ -819,13 +827,15 @@ def _layers_list(optical_data, eff_data, nin, nout, nstep):
         #add input and output layers
         layers.insert(0, (1,(0., np.broadcast_to(refind2eps([nin]*3), epsv[0].shape), np.broadcast_to(np.array((0.,0.,0.), dtype = FDTYPE), epsa[0].shape))))
         layers.append((1,(0., np.broadcast_to(refind2eps([nout]*3), epsv[0].shape), np.broadcast_to(np.array((0.,0.,0.), dtype = FDTYPE), epsa[0].shape))))
-        if eff_data is None or isinstance(eff_data, str):
+
+        try:
+            d_eff, epsv_eff, epsa_eff = validate_optical_data(eff_data, homogeneous = True)        
+        except (TypeError, ValueError):
             if eff_data is None:
                 d_eff, epsv_eff, epsa_eff = _isotropic_effective_data(optical_data)
-            elif eff_data:
-                d_eff, epsv_eff, epsa_eff = effective_data(optical_data, layered = True, symmetry = eff_data)
-        else:
-            d_eff, epsv_eff, epsa_eff = validate_optical_data(eff_data, homogeneous = True)        
+            else:
+                d_eff, epsv_eff, epsa_eff = effective_data(optical_data, symmetry = eff_data)
+                        
         eff_layers = [(n,(t/n, ev, ea)) for n,t,ev,ea in zip(substeps, d_eff, epsv_eff, epsa_eff)]
         eff_layers.insert(0, (1,(0., refind2eps([nin]*3), np.array((0.,0.,0.), dtype = FDTYPE))))
         eff_layers.append((1,(0., refind2eps([nout]*3), np.array((0.,0.,0.), dtype = FDTYPE))))
@@ -836,13 +846,15 @@ def _layers_list(optical_data, eff_data, nin, nout, nstep):
         #add input and output layers
         layers.insert(0, (1,(0., np.broadcast_to(refind2eps([nin,nin,nin,0,0,0]), epsv[0].shape), None)))
         layers.append((1,(0., np.broadcast_to(refind2eps([nout,nout,nout,0,0,0]), epsv[0].shape), None)))
-        if eff_data is None or isinstance(eff_data, str):
+
+        try:
+            d_eff, epsv_eff, epsa_eff = validate_optical_data(eff_data, homogeneous = True)        
+        except (TypeError,ValueError):
             if eff_data is None:
                 d_eff, epsv_eff, epsa_eff = _isotropic_effective_data(optical_data)
-            elif eff_data:
-                d_eff, epsv_eff, epsa_eff = effective_data(optical_data, layered = True, symmetry = eff_data)
-        else:
-            d_eff, epsv_eff, epsa_eff = validate_optical_data(eff_data, homogeneous = True)        
+            else:
+                d_eff, epsv_eff, epsa_eff = effective_data(optical_data, symmetry = eff_data)
+                    
         eff_layers = [(n,(t/n, ev, ea)) for n,t,ev,ea in zip(substeps, d_eff, epsv_eff, epsa_eff)]
         eff_layers.insert(0, (1,(0., refind2eps([nin]*3), np.array((0.,0.,0.), dtype = FDTYPE))))
         eff_layers.append((1,(0., refind2eps([nout]*3), np.array((0.,0.,0.), dtype = FDTYPE))))

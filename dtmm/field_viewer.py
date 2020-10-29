@@ -1,4 +1,24 @@
-"""Field visualizer (polarizing miscroscope simulator)"""
+"""
+Field viewer
+============
+
+MAtplotlib-based field visualizer (polarizing miscroscope simulator) and pom
+image calculation functions
+
+High level functions
+--------------------
+
+* :func:`.field_viewer` for field_data visualization (pom imaging).
+* :func:`.bulk_viewer` for bulk_data visualization. 
+* :func:`.calculate_pom_field` calculates polarizing optical microscope field.
+
+Classes
+-------
+
+* :class:`.FieldViewer` is the actual field viewer object.
+* :class:`.BulkViewer` is the actual bulk viewer object.
+
+"""
 
 from __future__ import division, print_function, absolute_import
 
@@ -50,9 +70,14 @@ def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = N
         field to choose. Input field must be of unpolarized type if this parameter
         is specified. 
     pmat : ndarray
-       A 4x4 jones matrix describing the analyzer and retarder matrix.
+       A 4x4 jones matrix describing the analyzer and retarder matrix. 
     dmat : ndarray
-       A 
+       A diffraction matrix.
+    window : array, optional
+        If specified, windowing is applied after field is diffracted.
+    input_fft : bool
+        If specified, it idicates that we are working with fft data. pmat must
+        be computed with mode_jonesmat4x4
     
     """
     if jvec is not None:
@@ -206,7 +231,8 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None,
         input field wavelengths. If provided as a string, it must match one of 
         available CMF names or be a valid path to tabulated data. See load_tcmf.
     bulk_data: bool
-        # TODO: I don't know what this value is
+        Specifies whether data is to be treated as bulk data, e.g as returned by the
+        :func:`.transfer.transfer_field` function with `ret_bulk = True`.
     n : float, optional
         Refractive index of the output material.
     mode : [ 't' | 'r' | None], optional
@@ -722,7 +748,7 @@ class FieldViewer(object):
 
             if self.aperture is not None:   
                 axpos = axes.pop() 
-                self._ids6, self.axaperture = add_slider("aperture", axpos, labels = POLARIZER_LABELS, min_name = "namin", max_name = "namax", min_value = 0, max_value = max(self.beta))
+                self._ids6, self.axaperture = add_slider("aperture", axpos, labels = POLARIZER_LABELS, min_name = "namin", max_name = "namax", min_value = 0, max_value = self.beta.max())
                             
             if self.intensity is not None:
                 axpos = axes.pop() 

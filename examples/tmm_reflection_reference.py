@@ -50,7 +50,6 @@ tss = m[...,0,0]/det
 pin = dtmm.tmm.fmat2poynting(fin)
 pout = dtmm.tmm.fmat2poynting(fout)
 
-
 Rpp = np.abs(rpp)**2 *np.abs(pin[...,1]/pin[...,0])
 Rss = np.abs(rss)**2 *np.abs(pin[...,3]/pin[...,2])
 Rps = np.abs(rps)**2 *np.abs(pin[...,1]/pin[...,2])

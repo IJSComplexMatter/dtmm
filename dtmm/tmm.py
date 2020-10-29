@@ -1,4 +1,7 @@
 """
+Transfer Matrix Method
+======================
+
 4x4 and 2x2 transfer matrix method functions for 1D calculation. 
 
 The implementation is based on standard formulation of 4x4 transfer matrix method.
@@ -268,19 +271,72 @@ def _copy_sorted(alpha,fmat, out_alpha, out_fmat):
     """Eigen modes sorting based on the computed poynting vector direction"""
     i = 0
     j = 1
+    
+    # i,j,k,l = 0,1,2,3
+    
+    # p0 = _poynting(fmat[:,0])    
+    # p1 = _poynting(fmat[:,1]) 
+    # p2 = _poynting(fmat[:,2]) 
+    # p3 = _poynting(fmat[:,3]) 
+    
+    # if p1 < p0:
+    #     p0, p1 = p1, p0
+    #     i, j = j, i
+    # if p2 < p1:
+    #     p1, p2 = p2, p1
+    #     j, k = k, j
+    # if p1 < p0:
+    #     p0, p1 = p1, p0
+    #     i, j = j, i
+    # if p3 < p2:
+    #     p3, p2 = p2, p3
+    #     k,l = l, k
+    # if p2 < p1:
+    #     p1, p2 = p2, p1
+    #     j, k = k, j        
+    # if p1 < p0:
+    #     p0, p1 = p1, p0
+    #     i, j = j, i
+
+    # out_alpha[i] = alpha[i]  
+    # out_alpha[j] = alpha[j] 
+    # out_alpha[k] = alpha[k] 
+    # out_alpha[l] = alpha[l] 
+    
+    # out_fmat[:,i] = fmat[:,i]
+    # out_fmat[:,j] = fmat[:,j]
+    # out_fmat[:,k] = fmat[:,k]
+    # out_fmat[:,l] = fmat[:,l]
+
+    
+
+    ok = True
+    
+ 
+
     for k in range(4):
         p = _poynting(fmat[:,k])
 
         if p >= 0.:
-            assert i < 4
-            out_alpha[i] = alpha[k]
-            out_fmat[:,i] = fmat[:,k]
+            if i >=4:
+                ok = False
+            if ok:
+                out_alpha[i] = alpha[k]
+                out_fmat[:,i] = fmat[:,k]
             i = i + 2
         else:
-            assert j < 4
-            out_alpha[j] = alpha[k]
-            out_fmat[:,j] = fmat[:,k] 
+            if j >=4:
+                ok = False
+            if ok : 
+                out_alpha[j] = alpha[k]
+                out_fmat[:,j] = fmat[:,k]
             j = j + 2
+    if ok == False:
+        for i in range(4):
+            #indicate that something went wrong, and that sorting was unsucesful
+            out_alpha[i] = np.nan
+            out_fmat[:,i] = 0
+            
             
 @nb.guvectorize([(NFDTYPE[:],NFDTYPE[:],NFDTYPE[:],NCDTYPE[:],NFDTYPE[:],NCDTYPE[:],NCDTYPE[:],NCDTYPE[:,:])],
                  "(),(),(m),(l),(k),(n)->(n),(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
@@ -1726,55 +1782,8 @@ def transfer(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1.,
         return transfer4x4(fvec_in, kd, epsv, epsa,  beta = beta, phi = phi, nin = nin, nout = nout, 
              method = method,  reflect_in = reflect_in, reflect_out = reflect_out, fvec_out = fvec_out)        
        
-
 transfer1d = transfer
-    
-def polarizer4x4(jones, fmat, out = None):
-    """Returns a polarizer matrix from a given jones vector and a field matrix. 
-    
-    Numpy broadcasting rules apply.
-    
-    Parameters
-    ----------
-    jones : array_like
-        A length two array describing the jones vector. Jones vector should
-        be normalized.
-    fmat : array_like
-        A field matrix array of the isotropic medium.
-    out : ndarray, optional
-        Output array
-    
-    Examples
-    --------
-    >>> f = f_iso(n = 1.) 
-    >>> jones = dtmm.jones.jonesvec((1,0)) 
-    >>> pol_mat = polarizer4x4(jones, f) #x polarizer matrix
-    
-    """
-    jmat = polarizer2x2(jones)
-    return jonesmat4x4(jmat, fmat, out)
-
-def jonesmat4x4(jmat, fmat, out = None):
-    """Returns a 4x4 jones matrix from a given 2x2 jones matrix and a field matrix.
-    
-    Numpy broadcasting rules apply.
-    
-    Parameters
-    ----------
-    jmat : (...,2,2) array
-        A 2x2 jones matrix. Any of matrices in :mod:`dtmm.jones` can be used.
-    fmat : (...,4,4) array
-        A field matrix array of the isotropic medium.
-    out : ndarray, optional
-        Output array   
-    """
-    fmat = normalize_f(fmat)
-    fmati = inv(fmat)
-    pmat = as4x4(jmat)    
-    m = dotmm(fmat,dotmm(pmat,fmati, out = out), out = out)
-    return m
-    
-
+        
 def avec(jones = (1,0), amplitude = 1., mode = +1, out = None):
     """Constructs amplitude vector.
     
@@ -1872,9 +1881,9 @@ def fvec(fmat, jones = (1,0),  amplitude = 1., mode = +1, out = None):
     >>> np.allclose(ma,m)
     True
     """
-    
-    a = avec(jones, amplitude, mode, out)
-    return avec2fvec(a, fmat, out = a)
+    #a.shape != out.shape in general, so we are not using out argument here
+    a = avec(jones, amplitude, mode)
+    return avec2fvec(a, fmat, out = out)
 
 
 def fvec2avec(fvec, fmat, normalize_fmat = True, out = None):

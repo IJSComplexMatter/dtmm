@@ -1,7 +1,7 @@
 """
 A low level example on standard 4x4 berreman for calculation of reflection
 and transmission coefficient for left- and right- handed polarizations off a 
-left-handed cholesteric structure - a reflection mirror for right-handed light
+right-handed cholesteric structure - a reflection mirror for left-handed light
 """
 
 import dtmm
@@ -62,8 +62,8 @@ phi = 0.
 
 #build field matrices
 a,f,fi = dtmm.tmm.alphaffi(beta,phi,eps_layers, eps_angles)
-aout,fout,fiout = dtmm.tmm.alphaffi(beta,phi,eps_out, eps_angles[0]) #eps_angles does nothing because eps_out is isotropic
-ain,fin,fiin = dtmm.tmm.alphaffi(beta,phi,eps_in, eps_angles[0])#eps_angles does nothing because eps_in is isotropic
+aout,fout,fiout = dtmm.tmm.alphaffi(beta,phi,eps_out) #eps_angles does nothing because eps_out is isotropic
+ain,fin,fiin = dtmm.tmm.alphaffi(beta,phi,eps_in)#eps_angles does nothing because eps_in is isotropic
 
 #now build layer matrices
 
@@ -83,8 +83,8 @@ m = dotmdm(f,p,fi)
 cmat = dtmm.linalg.multi_dot(m, axis = 1) 
 
 
-jleft = dtmm.jonesvec((1,1j), phi)
-jright = dtmm.jonesvec((1,-1j), phi)
+jleft = dtmm.jones4.jonesvec((1,1j), phi)
+jright = dtmm.jones4.jonesvec((1,-1j), phi)
 
 
 #field projection matrices - used to take the forward propagating or backward propagating waves
@@ -98,20 +98,18 @@ tfvec = dtmm.tmm.transmit(fvec, cmat, fmatin = fin[None,...], fmatout = fout[Non
 rfvec = dotmv(mmat,fvec)
 #tfvec = dotmv(pmat,tfvec) #no need to do this.. there is no backpropagating waves in the output
 
-l_polarizerin = dtmm.tmm.polarizer4x4(jleft,fin) #x == s polarization
-r_polarizerin = dtmm.tmm.polarizer4x4(jright,fin) #y == p polarization
-l_polarizer = dtmm.tmm.polarizer4x4(jleft,fout) #x == s polarization
-r_polarizer = dtmm.tmm.polarizer4x4(jright,fout) #y == p polarization
+l_polarizerin = dtmm.jones4.polarizer4x4(jleft,fin) #x == s polarization
+r_polarizerin = dtmm.jones4.polarizer4x4(jright,fin) #y == p polarization
+l_polarizer = dtmm.jones4.polarizer4x4(jleft,fout) #x == s polarization
+r_polarizer = dtmm.jones4.polarizer4x4(jright,fout) #y == p polarization
 
 Rll = dtmm.tmm.intensity(dotmv(l_polarizerin,rfvec))
 Rrl = dtmm.tmm.intensity(dotmv(r_polarizerin,rfvec))
 Tll = dtmm.tmm.intensity(dotmv(l_polarizer,tfvec))
 Trl = dtmm.tmm.intensity(dotmv(r_polarizer,tfvec))
 
-
 fvec = dtmm.tmm.fvec(fin,jones = jright)
 fvec = np.array([fvec]*nwavelengths)
-
 
 tfvec = dtmm.tmm.transmit(fvec, cmat, fmatin = fin[None,...], fmatout = fout[None,...])
 rfvec = dotmv(mmat,fvec)

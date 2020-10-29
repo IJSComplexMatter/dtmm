@@ -1,14 +1,34 @@
 """
 Director and optical data creation and IO functions.
 
-
 Conversion functions
 --------------------
+
+* :func:`.director2data` generates optical data from director.
+* :func:`.Q2data` generates optical data from the Q tensor.
+* :func:`.director2order` computes order parameter from directo length.
+* :func:`.director2Q` computes uniaxial Q tensor.
+* :func:`.Q2irector` computes an effective uniaxial director from a biaxial Q tensor.
+* :func:`.director2angles` computes Euler rotation angles from the director.
+* :func:`.angles2director` computes the director from Euler rotation angles.
+* :func:`.Q2eps` converts Q tensor to epsilon tensor.
+* :func:`.eps2epsva` converts epsilon tensor to epsilon eigenvalues and Euler angles.
+* :func:`.epsva2eps` converts epsilon eigenvalues and Euler angles to epsilon tensor.
+* :func:`.tensor2matrix` convert tensor to matrix.
+* :func:`.matrix2tensor` convert matrix to tensor.
+* :func:`.refind2eps` convert refractive index eigenvalues to epsilon eigenvalues.
+* :func:`.uniaxial_order` creates uniaxial tensor from a biaxial eigenvalues.
+* :func:`.eig_symmetry` creates effective tensor of given symmetry.
+* :func:`.effective_data` computes effective (mean layers) 1D data from 3D data.
 
 IO functions
 ------------
 
-
+* :func:`.read_director` reads 3D director data.
+* :func:`.read_tensor`  reads 3D tensor data.
+* :func:`.read_raw`  reads any raw data.
+* :func:`.load_stack` loads optical data.
+* :func:`.save_stack` saves optical data.
 """
 
 from __future__ import absolute_import, print_function, division
@@ -58,14 +78,14 @@ def read_director(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder
     try:
         i,j,k,c = shape
     except:
-        raise TypeError("shape must be director data shape (z,x,y,n)")
+        raise TypeError("shape must be director data shape (z,y,x,n)")
     data = read_raw(file, shape, dtype, sep = sep, endian = endian)
     return raw2director(data, order, nvec)
 
-def read_Q(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder, order = "zyxn"):
-    """Reads raw Q tensor data from a binary or text file. 
+def read_tensor(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder, order = "zyxn"):
+    """Reads raw tensor data from a binary or text file. 
     
-    A convinient way to read Q tensor data from file. Q tensor is assumed to be
+    A convinient way to read tensor data from file.
 
     
     Parameters
@@ -94,9 +114,9 @@ def read_Q(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder, order
     try:
         i,j,k,c = shape
     except:
-        raise TypeError("shape must be 3D tensor data shape (z,x,y,n)")
+        raise TypeError("shape must be 3D tensor data shape (z,y,x,n)")
     data = read_raw(file, shape, dtype, sep = sep, endian = endian)
-    return raw2director(data, order) #no swapping of Q tensor element, so we can use raw2director
+    return raw2director(data, order) #no swapping of Q tensor elements, so we can use raw2director
 
 def rotate_director(rmat, data, method = "linear",  fill_value = (0.,0.,0.), norm = True, out = None):
     """
@@ -473,8 +493,6 @@ def epsva2eps(epsv,epsa):
     eps : ndarray
         Epsilon tensor arrays of shape (...,6).  The elements are
        eps[0,0], eps[1,1], eps[2,2], eps[0,1], eps[0,2], eps[1,2]
-        
-        
     """
     r = rotation_matrix(epsa)
     return rotate_diagonal_tensor(r,epsv)
@@ -531,8 +549,6 @@ def validate_optical_data(data, homogeneous = False):
         raise ValueError("Incompatible shapes for angles and material")
  
     return thickness.copy(), material.copy(), angles.copy()
-
-
     
 def raw2director(data, order = "zyxn", nvec = "xyz"):
     """Converts raw data to director array.
@@ -610,27 +626,13 @@ def read_raw(file, shape, dtype, sep = "", endian = sys.byteorder):
         raise ValueError("Endian should be either 'little' or 'big'")
     else:
         return a.reshape(shape).byteswap(True)
-   
-#def refind(n1 = 1, n3 = None, n2 = None):
-#    """Returns material array (eps)."""
-#    if n3 is None:
-#        if n2 is None:
-#            n3 = n1
-#            n2 = n1
-#        else:
-#            raise ValueError("Both n2, and n3 must be set")
-#    if n2 is None:
-#        n2 = n1
-#    return np.array([n1,n2,n3])
-    
+       
 def _r3(shape):
     """Returns r vector array of given shape."""
-    #nz,ny,nx = [l//2 for l in shape]
     az, ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
     zz,yy,xx = np.meshgrid(az,ay,ax, indexing = "ij")
     return xx, yy, zz
-    #r = ((xx/(nx*scale))**2 + (yy/(ny*scale))**2 + (zz/(nz*scale))**2) ** 0.5 
-    #return r
+
     
 def sphere_mask(shape, radius, offset = (0,0,0)):
     """Returns a bool mask array that defines a sphere.
@@ -915,12 +917,6 @@ def _refind2eps(refind, out):
     out[1] = refind[1]**2
     out[2] = refind[2]**2
 
-# @numba.guvectorize(_REFIND_DECL,"(n)->(n)", cache = NUMBA_CACHE)  
-# def refind2eps(refind, out):
-#     """Converts three eigen (complex) refractive indices to three eigen dielectric tensor elements"""
-#     assert refind.shape[0] == 3
-#     _refind2eps(refind, out)
-
 _REFIND_DECL = [NF32DTYPE(NF32DTYPE), NFDTYPE(NF64DTYPE),NC64DTYPE(NC64DTYPE), NCDTYPE(NC128DTYPE)]
 
 @numba.vectorize(_REFIND_DECL, cache = NUMBA_CACHE)  
@@ -932,80 +928,97 @@ _EPS_DECL = [(NF32DTYPE,NF32DTYPE[:],NF32DTYPE[:]), (NF64DTYPE, NF64DTYPE[:],NFD
              (NF32DTYPE,NC64DTYPE[:],NC64DTYPE[:]), (NF64DTYPE, NC128DTYPE[:],NCDTYPE[:])
              ]
 
-    
-#_EPS_DECL = ["(float32,float32[:],float32[:])","(float64,float64[:],float64[:])",
-#             "(float32,complex64[:],complex64[:])","(float64,complex128[:],complex128[:])"]
 @numba.njit(_EPS_DECL, cache = NUMBA_CACHE)
 def _uniaxial_order(order, eps, out):
-    m = (eps[0] + eps[1] + eps[2])/3.
-    delta = eps[2] - (eps[0] + eps[1])/2.
-    if order == 0.:
-        eps1 = m
-        eps3 = m
+    if order >= 0.:
+        m = (eps[0] + eps[1] + eps[2])/3.
+        delta = eps[2] - (eps[0] + eps[1])/2.
+        if order == 0.:
+            eps1 = m
+            eps3 = m
+        else:
+            eps1 = m - 1./3. *order * delta
+            eps3 = m + 2./3. * order * delta
+        eps2 = eps1
     else:
-        eps1 = m - 1./3. *order * delta
-        eps3 = m + 2./3. * order * delta
+        eps1 = eps[0]
+        eps2 = eps[1]
+        eps3 = eps[2]
 
     out[0] = eps1
-    out[1] = eps1
+    out[1] = eps2
     out[2] = eps3
-    
 
-# @numba.njit(_EPS_DECL, cache = NUMBA_CACHE)
-# def _uniaxial_order_tensor(order, eps, out):
-#     m = np.empty((3,3), dtype = eps.dtype)
-#     m = _tensor_to_matrix(eps, m)
-
-    
-#     eps, v = np.linalg.eig(m)
-    
-    
-#     m = (eps[0] + eps[1] + eps[2])/3.
-#     delta = eps[2] - (eps[0] + eps[1])/2.
-#     if order == 0.:
-#         eps1 = m
-#         eps3 = m
-#     else:
-#         eps1 = m - 1./3. *order * delta
-#         eps3 = m + 2./3. * order * delta
-        
-#     eps[0] = eps1
-#     eps[1] = eps1
-#     eps[2] = eps3
-    
-#     m = np.dot(v,np.dot(np.diag(eps),v.T))
-    
-#     out[0] = m[0,0]
-#     out[1] = m[1,1]
-#     out[2] = m[2,2]
-#     out[3] = m[0,1]
-#     out[4] = m[0,2]
-#     out[5] = m[1,2]
-    
     
 _EPS_DECL_VEC = ["(float32[:],float32[:],float32[:])","(float64[:],float64[:],float64[:])",
              "(float32[:],complex64[:],complex64[:])","(float64[:],complex128[:],complex128[:])"]
 @numba.guvectorize(_EPS_DECL_VEC ,"(),(n)->(n)", cache = NUMBA_CACHE)
-def uniaxial_order(order, eps, out):
+def uniaxial_order(order, eig, out):
     """
     uniaxial_order(order, eps)
     
-    Calculates uniaxial dielectric tensor of a material with a given orientational order parameter
-    from a diagonal dielectric (eps) tensor of the same material with perfect order (order = 1)
+    Calculates uniaxial (or isotropic) eigen tensor from a diagonal biaxial eigen tensor.
     
-    >>> uniaxial_order(0,[1,2,3.])  
-    ... # doctest: +NORMALIZE_WHITESPACE
-    array([2., 2., 2.])
-    >>> uniaxial_order(1,[1,2,3.]) 
-    ... # doctest: +NORMALIZE_WHITESPACE
-    array([1.5, 1.5, 3. ])
+    Parameters
+    ----------
+    order : float
+        The order parameter. 1.: uniaxial, 0.: isotropic. If order is negative
+        no change is made (biaxial case). 
+    eig : array
+        Array of shape (...,3), the eigenvalues. The eigenvalue [2] is treated 
+        as the extraordinary axis for the uniaxial order. 
+    out :ndarray, optional
+        Output array.
+        
+    Parameters
+    ----------
+    out : ndarray
+        Effective eigenvalues based on the provided symmetry (order) argument    
+    
+    >>> np.allclose(uniaxial_order(0,[1,2,3.]) , (2,2,2)) 
+    True
+    >>> uniaxial_order(1,[1,2,3.], (1.5,1.5,3)) 
+    True
+    >>> uniaxial_order(-1,[1,2,3.], (1,2,3))  #negative, so no change
+    True
+    >>> np.allclose(uniaxial_order(0.5,[1,2,3.]), (1.75,1.75,2.5)) #scale accordingly
+    True
     """
-    assert eps.shape[0] in (3,)
-    _uniaxial_order(order[0], eps, out)
-    # if eps.shape[0] == 3:
-    #     _uniaxial_order(order[0], eps, out)
-    # else :
-    #     _uniaxial_order_tensor(order[0], eps, out)
+    assert eig.shape[0] in (3,)
+    _uniaxial_order(order[0], eig, out)
+    
+    
+def eig_symmetry(order, eig, out = None):
+    """Takes the ordered diagonal values of the tensor and converts it to 
+    uniaxial or isotropic tensor, or keeps it as biaxial.
+
+    Broadcasting rules apply.
+    
+    Parameters
+    ----------
+    order : int or array 
+        Integer describing the symmetry 0 : isotropic, 1 : uniaxial, 2 : biaxial.
+        If specified as an array it mast be broadcastable. See :func:`uniaxial_order`.
+    eig : array
+        Array of shape (...,3), the eigenvalues. The eigenvalue [2] is treated 
+        as the extraordinary axis for the uniaxial order. 
+    out :ndarray, optional
+        Output array.
+        
+    Parameters
+    ----------
+    out : ndarray
+        Effective eigenvalues based on the provided symmetry (order) argument
+        
+    See Also
+    --------
+    :func:`.uniaxial_order` for scalled order adjustment.
+    """
+    order = np.asarray(order, int)
+    mask = order > 1
+    #if order is negative... it is not applied in uniaxial_order function... so it remains biaxial
+    order[mask] = -1
+    return uniaxial_order(order ,eig, out)  
     
 MAGIC = b"dtms" #legth 4 magic number for file ID
 VERSION = b"\x01"
@@ -1107,7 +1120,30 @@ def filter_epsva(epsv, epsa, k, betamax = 1):
     eps = filter_eps(eps, k, betamax)
     return eps2epsva(eps)
 
-def effective_data(optical_data, layered = False, symmetry = "isotropic"):
+_symmetry_key_maps = {"isotropic" : 0, "uniaxial" : 1,  "biaxial" : 2}
+
+def _symmetry_arg_to_int(arg):
+    if isinstance(arg, str):
+        try:
+            return _symmetry_key_maps[arg]
+        except KeyError:
+            raise ValueError("Invalid symmetry argument.")
+    elif arg in (0,1,2,-1):
+        return arg
+    else:
+        raise ValueError("Invalid symmetry argument.")
+        
+def _parse_symmetry_argument(arg):
+    if isinstance(arg, str):
+        return _symmetry_arg_to_int(arg)
+    else:
+        try:
+            return tuple((_parse_symmetry_argument(a) for a in arg))
+        except TypeError:
+            return _symmetry_arg_to_int(arg)
+        
+
+def effective_data(optical_data, symmetry = 0):
     """Builds effective data from the optical_data.
     
     The material epsilon is averaged over the layers.
@@ -1116,15 +1152,14 @@ def effective_data(optical_data, layered = False, symmetry = "isotropic"):
     ----------
     optical_data : tuple
         A valid optical_data tuple
-    layered : bool
-        If specified, averaging over layers is not performed, resulting in a 
-        unique effective layer for each of the material layers. If set to False,
-        each of the layers in the output data is identical.
-    symmetry : str
-        Either 'isotropic' or 'uniaxial'. Defines the symmetry of the effective
-        layer. When set to 'isotropic', the averaging is done so that the effective 
-        layer tensor is isotropic. When set to 'uniaxial' the  effective layer tensor 
-        is an uniaxial medium.
+
+    symmetry : str, int or array 
+        Either 'isotropic' or 0,  'uniaxial' or 1 or 'biaxial' or 2 .
+        Defines the symmetry of the effective layer. When set to 'isotropic', 
+        the averaging is done so that the effective layer tensor is isotropic. 
+        When set to 'uniaxial' the  effective layer tensor is an uniaxial medium. 
+        If it is an array, it defines the symmetry of each individual layers
+        independetly.
         
     Returns
     -------
@@ -1134,26 +1169,22 @@ def effective_data(optical_data, layered = False, symmetry = "isotropic"):
     d, epsv,epsa = optical_data
     #Whic axes are used for averaging averaging
     axis = list(range(len(epsv.shape)-1))
-    if bool(layered):
+    
+    order = np.asarray(_parse_symmetry_argument(symmetry),int)
+    
+    if order.ndim != 0:
+        if len(order) != len(d):
+            raise ValueError("Shape of the symmetry argument is incompatible.")
         #do not average over thickness axis, so pop it out.
         axis.pop(0) 
-    axis = tuple(axis) #must be a tuple for np.mean
-
-    if symmetry == "isotropic":
-        #we can work in eigenframe
-        epsv = uniaxial_order(0,epsv)
-        epsv = epsv.mean(axis)
-        epsa = np.zeros(epsv.shape, epsa.dtype)
-    elif symmetry =="uniaxial":
-        #we must average the epsilon tensor
-        eps = epsva2eps(epsv,epsa)
-        eps = eps.mean(axis)
-        epsv, epsa = eps2epsva(eps)
-        if symmetry == "uniaxial":
-            epsv = uniaxial_order(1,epsv)
-    else:
-        raise ValueError("Only uniaxial and isotropic symmetry supported!")
         
+    axis = tuple(axis) #must be a tuple for np.mean
+    eps0 = epsva2eps(epsv,epsa)
+    
+    eps = eps0.mean(axis)
+    epsv, epsa = eps2epsva(eps)
+    eig_symmetry(order, epsv, out = epsv)
+     
     if epsv.ndim == 1:
         #must be same lengths as d, so repeat the matereial for each layer
         epsv = np.asarray((epsv,)*len(d)).copy()#make a copy, to have a contiguous layer
@@ -1217,36 +1248,6 @@ def matrix2tensor(matrix, out = None):
     out[...,4] = matrix[...,0,2]
     out[...,5] = matrix[...,1,2]
     return out
-
-
-#@numba.guvectorize(["(complex64[:],float32[:],complex64[:])","(complex128[:],float64[:],complex128[:])"],"(n),()->(n)")
-#def eps2ueps(eps, order, out):
-#    """
-#    eps2ueps(eps, order)
-#    
-#    Calculates uniaxial dielectric tensor of a material with a given orientational order parameter
-#    from a diagonal dielectric (eps) tensor of the same material with perfect order (order = 1)
-#    
-#    >>> eps2ueps([1,2,3.],0)
-#    array([ 2.+0.j,  2.+0.j,  2.+0.j])
-#    >>> eps2ueps([1,2,3.],1)
-#    array([ 1.5+0.j,  1.5+0.j,  3.0+0.j])
-#    """
-#    assert eps.shape[0] == 3
-#    _uniaxial_order(order[0], eps, out)
-#    
-#@numba.guvectorize(["(complex64[:],complex64[:])","(complex128[:],complex128[:])"],"(n)->(n)")
-#def eps2ieps(eps, out):
-#    """
-#    eps2ieps(eps)
-#    
-#    Calculates isotropic dielectric tensor of a material with a given orientational order parameter order=0
-#    from a diagonal dielectric (eps) tensor of the same material with perfect order (order = 1)
-#
-#    """
-#    assert eps.shape[0] == 3
-#    _uniaxial_order(0., eps, out)
-
     
 if __name__ == "__main__":
     import doctest

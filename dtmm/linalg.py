@@ -10,56 +10,7 @@ import numpy as np
 if not NUMBA_PARALLEL:
     prange = range
     
-@njit([(NFDTYPE[:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:,:]),(NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE)
-def _sort_eigvec(eps,r, epsout, rout):
-    """Eigen modes sorting based on eigenvalues. Finds extraordinary axis,
-    performs cyclic permutation of axes to move the extraordinary axis to 3"""
-    e0 = eps[0]#.real #real part of the refractive index
-    e1 = eps[1]#.real
-    e2 = eps[2]#.real
-    
-    m2 = np.abs(e1-e0)
-    m1 = np.abs(e2-e0)
-    m0 = np.abs(e2-e1)
-    
-    #assume extraordinary is 2    
-    i,j,k = 0,1,2
-    
-    #if we need to move eigenavlue to axis 2... do a cyclical permutation, to preserve right-handed coordinate system
-    if m2 > m1 or m2 > m0:
-        if m1 > m0:
-            #extraordinary is 0
-            i,j,k = 1,2,0
-        else:
-            #extraordinary is 1
-            i,j,k = 2,0,1
-            
-    #perform sorting
 
-    eps0 = eps[i]
-    eps1 = eps[j]
-    eps2 = eps[k]
-    
-    r00 = r[i,0]
-    r01 = r[i,1]
-    r02 = r[i,2]
-    
-    r10 = r[j,0]
-    r11 = r[j,1]
-    r12 = r[j,2]
-    
-    r20 = r[k,0]
-    r21 = r[k,1]
-    r22 = r[k,2]
-    
-    rout[0] = (r00,r01,r02)
-    rout[1] = (r10,r11,r12)
-    rout[2] = (r20,r21,r22)
-          
-    epsout[0] = eps0
-    epsout[1] = eps1
-    epsout[2] = eps2
-       
     
 
 @njit([NFDTYPE(NFDTYPE[:]),NFDTYPE(NCDTYPE[:])], cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)        
@@ -217,12 +168,61 @@ def _eigvec1(a00,a11,a22,a01,a02,a12,vec0,eval1, vec1, tmp1, tmp2):
                 
             for i in range(3):
                 vec1[i] = m11* u[i] - m01 * v[i]   
-  
+ 
+    
+@njit([(NFDTYPE[:],NFDTYPE[:,:],NFDTYPE[:],NFDTYPE[:,:]),(NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath=NUMBA_FASTMATH)
+def _sort_eigvec(eps,r, epsout, rout):
+    """Eigen modes sorting based on eigenvalues. Finds extraordinary axis,
+    performs cyclic permutation of axes to move the extraordinary axis to 3"""
+    e0 = eps[0]#.real #real part of the refractive index
+    e1 = eps[1]#.real
+    e2 = eps[2]#.real
+    
+    m2 = np.abs(e1-e0)
+    m1 = np.abs(e2-e0)
+    m0 = np.abs(e2-e1)
+    
+    #assume extraordinary is 2    
+    i,j,k = 0,1,2
+    
+    #if we need to move eigenavlue to axis 2... do a cyclical permutation, to preserve right-handed coordinate system
+    if m2 > m1 or m2 > m0:
+        if m1 > m0:
+            #extraordinary is 0
+            i,j,k = 1,2,0
+        else:
+            #extraordinary is 1
+            i,j,k = 2,0,1
+            
+    #perform sorting
+
+    eps0 = eps[i]
+    eps1 = eps[j]
+    eps2 = eps[k]
+    
+    r00 = r[i,0]
+    r01 = r[i,1]
+    r02 = r[i,2]
+    
+    r10 = r[j,0]
+    r11 = r[j,1]
+    r12 = r[j,2]
+    
+    r20 = r[k,0]
+    r21 = r[k,1]
+    r22 = r[k,2]
+    
+    rout[0] = (r00,r01,r02)
+    rout[1] = (r10,r11,r12)
+    rout[2] = (r20,r21,r22)
+          
+    epsout[0] = eps0
+    epsout[1] = eps1
+    epsout[2] = eps2
+        
     
 _EIG_DECL = [(NFDTYPE[:,:],boolean[:],NFDTYPE[:],NFDTYPE[:,:]), (NCDTYPE[:,:],boolean[:],NCDTYPE[:], NCDTYPE[:,:])]         
 
-
-   
 @guvectorize(_EIG_DECL, '(m,m),()->(m),(m,m)', target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)   
 def _tensor_eig(tensor, is_real, eig,vec):
     """Computes eigenvalues of a tensor using analytical noniterative algorithm
@@ -426,8 +426,6 @@ def _inv2x2(src, dst):
     dst : array
         (2, 2) output array to store the invert input array
 
-    Returns
-    -------
 
     """
     # Extract individual elements
@@ -515,24 +513,24 @@ def _inv4x4(src,dst):
 def inv(mat, out):
     """inv(mat), gufunc
     
-Calculates inverse of a 4x4 complex matrix or 2x2 complex matrix
-
-Parameters
-----------
-mat : ndarray
-   Input array
-
-Examples
---------
-
->>> a = np.random.randn(4,4) + 0j
->>> ai = inv(a)
-
->>> from numpy.linalg import inv
->>> ai2 = inv(a)
-
->>> np.allclose(ai2,ai)
-True
+    Calculates inverse of a 4x4 complex matrix or 2x2 complex matrix
+    
+    Parameters
+    ----------
+    mat : ndarray
+       Input array
+    
+    Examples
+    --------
+    
+    >>> a = np.random.randn(4,4) + 0j
+    >>> ai = inv(a)
+    
+    >>> from numpy.linalg import inv
+    >>> ai2 = inv(a)
+    
+    >>> np.allclose(ai2,ai)
+    True
     """
     if mat.shape[0] == 2:
         _inv2x2(mat,out)

@@ -1,11 +1,17 @@
-"""Diffractive transfer matrix method"""
+"""Diffractive transfer matrix method
+
+
+"""
 
 __version__ = "0.6.0.dev"
 
-from .linalg import * 
-from .wave import *
-from .field import *
+import dtmm.conf
+import numpy as np
+import time
 from .window import *
+from .wave import *
+from .linalg import * 
+from .field import *
 from .data import expand, rot90_director, rotate_director, cholesteric_droplet_data,load_stack, save_stack, read_raw, sphere_mask, director2data, validate_optical_data, angles2director, director2angles, read_director, refind2eps, nematic_droplet_data, nematic_droplet_director
 from .color import *
 from .tmm import *

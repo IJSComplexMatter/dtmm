@@ -1,5 +1,9 @@
 """
 Configuration and constants
+===========================
+
+dtmm configuration functions and constants
+
 """
 
 from __future__ import absolute_import, print_function, division
@@ -55,34 +59,36 @@ def get_home_dir():
 HOMEDIR = get_home_dir()
 
 DTMM_CONFIG_DIR = os.path.join(HOMEDIR, ".dtmm")
+
 NUMBA_CACHE_DIR = os.path.join(DTMM_CONFIG_DIR, "numba_cache")
-FILE_LOCK = os.path.join(DTMM_CONFIG_DIR, "lock")
+
 
 if not os.path.exists(DTMM_CONFIG_DIR):
     try:
         os.makedirs(DTMM_CONFIG_DIR)
     except:
-        warnings.warn("Could not create folder in user's home directory! Is it writeable?")
+        warnings.warn("Could not create folder in user's home directory! Is it writeable?",stacklevel=2)
         NUMBA_CACHE_DIR = ""
-        
-if os.path.exists(NUMBA_CACHE_DIR):
-    #we have compiled functions.. make sure it is safe to read from this cache folder
-    if os.path.exists(FILE_LOCK):
-        #it is not safe
-        warnings.warn("There appears to be another instance of dtmm running, so caching is disabled. Try removing .dtmm/numba_cache folder if this message persists.",stacklevel=2)
-        NUMBA_CACHE_DIR = ""  
-    else:
-        #it is safe, make a file lock
 
-        f = open(FILE_LOCK, "w")
-        f.close()
+#FILE_LOCK = os.path.join(DTMM_CONFIG_DIR, "lock")        
+# if os.path.exists(NUMBA_CACHE_DIR):
+#     #we have compiled functions.. make sure it is safe to read from this cache folder
+#     if os.path.exists(FILE_LOCK):
+#         #it is not safe
+#         warnings.warn("There appears to be another instance of dtmm running, so caching is disabled. Try removing .dtmm/numba_cache folder if this message persists.",stacklevel=2)
+#         NUMBA_CACHE_DIR = ""  
+#     else:
+#         #it is safe, make a file lock
 
-import atexit
+#         f = open(FILE_LOCK, "w")
+#         f.close()
 
-@atexit.register
-def cleanup():
-    if NUMBA_CACHE_DIR != "":
-        os.remove(FILE_LOCK)      
+# import atexit
+
+# @atexit.register
+# def cleanup():
+#     if NUMBA_CACHE_DIR != "":
+#         os.remove(FILE_LOCK)      
 
 CONF = os.path.join(DTMM_CONFIG_DIR, "dtmm.ini")
 CONF_TEMPLATE = os.path.join(DATAPATH, "dtmm.ini")
@@ -120,9 +126,23 @@ BETAMAX = _readconfig(config.getfloat, "core", "betamax", 0.8)
 SMOOTH = _readconfig(config.getfloat, "core", "smooth", 0.1)
 
 
+#setting environment variables does not seem to work properly in numba...
+#disable cache dir until I figure out how to do it properly.
     
-if NUMBA_CACHE_DIR != "":
-    os.environ["NUMBA_CACHE_DIR"] = NUMBA_CACHE_DIR #set it to os.environ.. so that numba can use it
+# if NUMBA_CACHE_DIR != "":
+#     os.environ["NUMBA_CACHE_DIR"] = NUMBA_CACHE_DIR #set it to os.environ.. so that numba can use it
+
+# def wait_until_cache_is_set(timeout = 1):
+#     import subprocess, time
+#     t = time.time()
+#     while True:
+#         print()
+#         out = subprocess.run(["printenv"], capture_output=True, text = True)
+#         if out.find("NUMBA_CACHE_DIR") != -1:
+#             break
+#         if time.time()-t > timeout:
+#             NUMBA_CACHE_DIR = ""
+
 
 if read_environ_variable("DTMM_TARGET_PARALLEL",
             default = _readconfig(config.getboolean, "numba", "parallel", False)):

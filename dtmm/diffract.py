@@ -7,12 +7,12 @@ from __future__ import absolute_import, print_function, division
 
 from dtmm.conf import cached_function, BETAMAX, FDTYPE, CDTYPE
 from dtmm.wave import betaphi
-from dtmm.window import tukey
 from dtmm.data import refind2eps
-from dtmm.tmm import phase_mat, polarizer4x4, alphaffi, alphaf,  transmission_mat, alphaEEi, tr_mat, t_mat
+from dtmm.tmm import phase_mat,  alphaffi, alphaf,  alphaEEi, tr_mat
 from dtmm.linalg import dotmdm, dotmf
 from dtmm.fft import fft2, ifft2
-from dtmm.jones import jonesvec
+
+
 import numpy as np
 
 

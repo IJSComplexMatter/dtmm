@@ -1,4 +1,24 @@
-"""Rotation matrices"""
+"""Rotation matrices and conversion functions.
+
+Rotation matrices
+-----------------
+
+:func:`rotation_vector2` : 2D rotation vector.
+:func:`rotation_matrix2` : 2D rotation matrix.
+:func:`rotation_matrix_z` : 3D rotation matrix around z.
+:func:`rotation_matrix_x` : 3D rotation matrix around x.
+:func:`rotation_matrix_y` : 3D rotation matrix around y.
+:func:`rotation_matrix` : general 3D rotation matrix from Euler angles.
+
+Conversion functions
+--------------------
+
+:func:`rotate_diagonal_tensor` for 3D diagonal tensor rotation.
+:func:`rotate_tensor` for 3D tensor rotation.
+:func:`rotate_vector` for 3D vector rotation.
+:func:`rotation_angles` fConverts rotation matrix to Euler angles
+
+"""
 
 from __future__ import absolute_import, print_function, division
 
@@ -208,6 +228,23 @@ def rotation_matrix(angles, out):
                  (NF64DTYPE[:,:],NFDTYPE[:])], "(n,n)->(n)", 
                  target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def rotation_angles(matrix, out):
+    """Computes Euler rotation angles from rotation matrix.
+    
+    Numpy broadcasting rules apply.
+    
+    Parameters
+    ----------
+    matrix : (..., 3,3) array
+        Rotation matrix
+    out : ndarray, optional
+        Output array
+    
+    Returns
+    -------
+    angles : (...,3) ndarray
+        Euler angles : psi (z rotation), theta (x rotation), phi (z rotation). 
+    """
+    
     if len(matrix) != 3:
         raise ValueError("Invalid input data shape")
     _rotation_angles(matrix, out)
