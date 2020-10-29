@@ -89,7 +89,7 @@ Alternative approach is to build the the epsilon tensor from the Q tensor like
 
    >>> eps = Q2eps(Q, no = 1.5, ne = 1.6, scale_factor = 1.)
 
-Here the `scale_factor` argument defines the scaling of the effective uniaxial order parameter S. The above function performs :math:`\eps_a = (\eps_e-\eps_o) / s` where s is the scale factor. The mean value is set to :math:`(2\eps_o + \eps_e)/3.`. Then dielectric tensor is computed from the diagonal and off-diagonal elements of Q as `\eps = Q_{diag} \eps_a + I\eps_m + Q_{offdiag} \eps_a`.
+Here the `scale_factor` argument defines the scaling of the effective uniaxial order parameter S. The above function performs :math:`\varepsilon_a = (\varepsilon_e-\varepsilon_o) / s` where s is the scale factor. The mean value is set to :math:`(2\varepsilon_o + \varepsilon_e)/3.`. Then dielectric tensor is computed from the diagonal and off-diagonal elements of Q as `\varepsilon = Q_{diag} \varepsilon_a + I\varepsilon_m + Q_{offdiag} \varepsilon_a`.
 
 Next, we need to convert the epsilon tensor to eigenvalue and Euler angles matrices with
 
