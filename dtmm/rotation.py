@@ -270,7 +270,7 @@ def rotate_diagonal_tensor(R,diagonal,out = None):
     >>> np.allclose(matrix2,matrix)
     True
     """
-
+    diagonal = np.asarray(diagonal)
     tensor = np.empty(shape = diagonal.shape[:-1] + (6,), dtype = diagonal.dtype)
     tensor[...,0:3] = diagonal
     tensor[...,3:] = 0
@@ -374,6 +374,7 @@ def rotate_vector(rotation_matrix, vector, out):
     vector : ndarray
         Rotated vector.
     """
+    vector = np.asarray(vector)
     # Ensure size is correct size
     if len(vector) != 3:
         raise ValueError("Invalid input data shape")

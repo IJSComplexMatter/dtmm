@@ -1,8 +1,7 @@
 """
 A low level example on standard 4x4 berreman for calculation of reflection
-and transmission coefficient for p and s polarizations off a 
-double left- and right-hand cholesteric structure - a 100% reflection mirror
-with pitch that correspond to 540nm 
+and transmission coefficient for p and s polarizations fromm a 
+right-hand cholesteric structure - a 50% reflection mirror for p and s polarizations
 """
 
 import dtmm
@@ -86,7 +85,7 @@ tsp = -m[...,2,0]/det
 tpp = m[...,2,2]/det
 tss = m[...,0,0]/det
 
-#you need poynting vector to calculate total reflectance and transmittance
+#you need the poynting vector to calculate total reflectance and transmittance
 pin = dtmm.tmm.fmat2poynting(fin)
 pout = dtmm.tmm.fmat2poynting(fout)
 
@@ -112,6 +111,6 @@ if __name__ == "__main__":
     plt.plot(wavelengths,Tss+Rss+Tps+Rps, "--", label = "Tss+Rss+Tps+Rps")
     plt.plot(wavelengths,Tpp+Rpp + Rsp + Tsp, "-.",label = "Tpp+Rpp+Tsp+Rsp")
     
-    plt.xlabel("beta")
+    plt.xlabel("wavelength")
     
     plt.legend()

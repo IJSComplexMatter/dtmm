@@ -1639,7 +1639,7 @@ def transfer4x4(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 
 
     
     if method not in ("4x4", "4x4_1","4x4_r","4x4_2"):
-        raise ValueError("Unknown method!")
+        raise ValueError("Unknown method '{}'!".format(method))
         
         
     fveci = fvec_in

@@ -8,14 +8,14 @@ A a typical LCD, the LC material is covered by a thick glass. Thick glass
 cannot be simulated by the 4x4 method, so here we show results of transmission
 through a LC film in air (input and output refractive index is 1). The 4x4
 gives strong interference, while the 2x2 method with reflections inlcudes single
-reflection from both of the interfaces. The 2x2 method wothoud reflections
-works poorly at high beta values, because depolarization of the field coming from
+reflection from both of the interfaces. The 2x2 method without reflections
+works poorly at high beta values because depolarization of the field coming from
 air to LC is neglected, works good for beta close to zero though.
 """
 
 import dtmm
 import numpy as np
-from dtmm import tmm, linalg, jones
+from dtmm import tmm, linalg, jones4
 
 
 dot = linalg.dotmm
@@ -32,7 +32,7 @@ thickness = 4
 #: number of layers (should be high enough...) 
 nlayers = 100
 #: which wavelengths to compute
-wavelengths = np.linspace(400,700, 100)
+wavelengths = np.linspace(400,700, 200)
 # input layer ref. index 
 nin = 1.
 # output refractive index
@@ -125,8 +125,8 @@ cmat = linalg.multi_dot(m, axis = 1)
 cmat2 = linalg.multi_dot(m2, axis = 1, reverse = True) 
 cmat2t = linalg.multi_dot(m2t, axis = 1, reverse = True) 
 
-jx = jones.jonesvec((1,0), phi)
-jy = jones.jonesvec((0,1), phi)
+jx = jones4.jonesvec((1,0), phi)
+jy = jones4.jonesvec((0,1), phi)
 
 #field projection matrices - used to take the forward propagating or backward propagating waves
 pmat = tmm.projection_mat(fout,mode = +1)
@@ -142,10 +142,10 @@ tfvec2r = tmm.transmit2x2(fvec, cmat2t,fmatout = fout[None,...])
 tfvec4 = tmm.transmit(fvec, cmat, fmatin = fin[None,...], fmatout = fout[None,...])
 rfvec4 = dotmv(mmat,fvec)
 
-x_polarizerin = tmm.polarizer4x4(jx, fin) 
-y_polarizerin = tmm.polarizer4x4(jy, fin) 
-x_polarizer = tmm.polarizer4x4(jx, fout) 
-y_polarizer = tmm.polarizer4x4(jy, fout) 
+x_polarizerin = jones4.polarizer4x4(jx, fin) 
+y_polarizerin = jones4.polarizer4x4(jy, fin) 
+x_polarizer = jones4.polarizer4x4(jx, fout) 
+y_polarizer = jones4.polarizer4x4(jy, fout) 
 
 intensity = tmm.intensity
 

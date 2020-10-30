@@ -1,7 +1,7 @@
 """
 A low level example on standard 4x4 berreman for calculation of reflection
 and transmission coefficient for left- and right- handed polarizations off a 
-right-handed cholesteric structure - a reflection mirror for left-handed light
+right-handed cholesteric structure - a reflection mirror for left-handed light.
 """
 
 import dtmm

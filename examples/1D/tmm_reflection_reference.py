@@ -1,16 +1,17 @@
 """
 A low level example on standard 4x4 berreman for calculation of reflection
-and transmission coefficient for p and s polarizations off a single layer deposited on top of a
-substrate with refractive index nout. 
+and transmission coefficient for p and s polarizations from a single layer 
+deposited on top of a substrate with refractive index nout. 
 
-This is a reference implementation... for testing. Reflection coefficients
-are computed with eigenfield amplitudes instead of total field as done
-in berreman_reflection_simple. Results of both calculation must be identical
-for any type of material parameters.
+This is a reference implementation... See also tmm_reflection.py 
+Reflection coefficients are computed with eigenfield amplitudes instead of 
+total field as done in tmm_reflection.py. Results of both calculation must be 
+identical for any type of material parameters.
 """
 
 import dtmm
 import numpy as np
+
 
 from tmm_reflection import betas, phi, eps_layer, eps_angles, eps_in, eps_out, kd
 
@@ -24,7 +25,8 @@ ain,fin,fiin = dtmm.tmm.alphaffi(betas,phi,eps_in, eps_angles)#eps_angles does n
 dot = dtmm.linalg.dotmm
 dotd = dtmm.linalg.dotmd
 dotmdm = dtmm.linalg.dotmdm
-#p = dtmm.tmm.phasem(a,-kd)
+
+
 p = np.exp(-1j*a*kd)
 
 #characteristic matrix

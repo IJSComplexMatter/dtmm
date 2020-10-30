@@ -8,7 +8,7 @@ Conversion functions
 * :func:`.Q2data` generates optical data from the Q tensor.
 * :func:`.director2order` computes order parameter from directo length.
 * :func:`.director2Q` computes uniaxial Q tensor.
-* :func:`.Q2irector` computes an effective uniaxial director from a biaxial Q tensor.
+* :func:`.Q2director` computes an effective uniaxial director from a biaxial Q tensor.
 * :func:`.director2angles` computes Euler rotation angles from the director.
 * :func:`.angles2director` computes the director from Euler rotation angles.
 * :func:`.Q2eps` converts Q tensor to epsilon tensor.
@@ -25,10 +25,22 @@ IO functions
 ------------
 
 * :func:`.read_director` reads 3D director data.
-* :func:`.read_tensor`  reads 3D tensor data.
-* :func:`.read_raw`  reads any raw data.
+* :func:`.read_tensor` reads 3D tensor data.
+* :func:`.read_raw` reads any raw data.
 * :func:`.load_stack` loads optical data.
 * :func:`.save_stack` saves optical data.
+
+Data creation
+-------------
+
+* :func:`.nematic_droplet_data` builds sample data.
+* :func:`.nematic_droplet_director` builds sample director.
+* :func:`.cholesteric_droplet_data` builds sample data.
+* :func:`.cholesteric_director` builds sample director.
+* :func:`.expand` expands director data.
+* :func:`.sphere_mask` builds a masking array.
+* :func:`.rot90_director` rotates director by 90 degrees
+* :func:`.rotate_director` rotates data by any angle
 """
 
 from __future__ import absolute_import, print_function, division
@@ -310,9 +322,9 @@ def Q2data(tensor, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 
         Volume not defined by the mask is treated as a host material. If mask is 
         not provided, all data points are treated as a director.
     no : float
-        Ordinary refractive index
+        Ordinary refractive index (when biaxial = False)
     ne : float
-        Extraordinary refractive index 
+        Extraordinary refractive index (when biaxial = False)
     nhost : float
         Host refracitve index (if mask is provided)
     scale_factor : float
@@ -320,7 +332,7 @@ def Q2data(tensor, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 
         Optical anisotropy is then `epsa = S/scale_factor *(epse - epso)`.
     biaxial : bool
         Describes whether data is treated as biaxial or converted to uniaxial (default).
-        If biaxial, no describes the mean value of (n1 and n2) refractive indices
+        If biaxial, no describes the mean value of n1 and n2 refractive indices
         eigenavalues and ne = n3.
     thickness : ndarray, optional
         Thickness of layers (in pixels). If not provided, this defaults to ones.
@@ -390,6 +402,9 @@ def Q2director(tensor, qlength = False):
     ----------
     tensor : (...,6) or (...,3,3) array
         Tensor data.
+    qlength : bool
+        Specifies whether the length of the director is set to the S parameter
+        or not. If not, director is scalled to unity length.
         
     Returns
     -------
@@ -476,6 +491,12 @@ def eps2epsva(eps):
         Eigenvalues and Euler angles arrays.
     """
     epsv, r = tensor_eig(eps)
+    # r is in general complex for complex eps. But, if a complex tensor is a rotated diagonal,
+    # the eigenvectors should be real. Test it here.
+    if not np.allclose(r,r.real):
+        import warnings
+        warnings.warn("Input tensor is not normal, because eigevectors are not real. Results are unpredictive!", stacklevel = 2)
+    
     return epsv, rotation_angles(r.real)
 
 def epsva2eps(epsv,epsa):
