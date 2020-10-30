@@ -3,8 +3,11 @@
 Tutorial
 ========
 
+3D simulations
+--------------
+
 Interference and reflections
-----------------------------
+++++++++++++++++++++++++++++
 
 By default, interference and reflections are neglected in the computation. You can enable interference by specifying how many passes to perform and using the 4x4 method
 
@@ -21,9 +24,8 @@ If reflections come from the inhomogeneities you should call
 
 Read further for details...
 
-
 4x4 method
-++++++++++
+''''''''''
 
 Dealing with interference can be tricky. The `DTMM` implements an adapted 4x4 transfer 
 matrix method which includes interference, however, one needs to perform multiple passes (iterations) to compute the reflections from the material. With transfer matrix method one computes the output field (the forward propagating part and the backward propagating part) given the defined input field. In a typical experiment, the forward propagating part of the input field is known - this is the input illumination light. However, the backward propagating part of the input field is not know (the reflection from the surface of the material) and it must be determined. 
@@ -49,7 +51,7 @@ In highly reflective media, the solution may not converge. You must play with th
 * with `norm` = 2, during each even step, a reference non-reflecting and non-interfering wave is transferred through the stack. This reference wave is then used to normalize the forward propagating part of the output field. Because of the additional reference wave calculation this procedure is slower, but it was found to work well in any material (even cholesterics).
 
 2x2 method
-++++++++++
+''''''''''
 
 The 2x2 method is a scattering method, it is stable (contrary to the 4x4 method) and it can also be used to compute interference. When npass>1, the method calculates fresnel reflections from the layers and stores intermediate results. As such, it is much more memory intensive as the 4x4 method (where intermediate results are not stored in memory). However, it is prone to greater numerical noise when dealing with highly reflecting media, such us cholesterics. Also, large number of passes are required for highly reflective media, so it can be used for weakly reflecting material only.
 
@@ -66,10 +68,10 @@ In the `reflection = 2` mode, the field is reflected from the inhomogeneous laye
 In the example above, reflections are cumulatively acquired from each of the interfaces in the optical data, including reflections from the input and output interfaces. If main reflections come from the input and output interfaces this will not be as accurate as `reflection = 1` mode, but it will be more accurate if reflections are mainly due to the inhomogeneities in the optical data.
 
 Examples
-++++++++
+''''''''
 
 Surface reflections
-'''''''''''''''''''
+///////////////////
 
 In this example we calculate reflection and transmission of a spatially narrow light beam  that passes a two micron thick isotropic layer of high refractive index of n = 4 at an angle of beta = 0.4. Already at three passes, the residual data is almost gone.
 
@@ -81,7 +83,7 @@ One clearly sees beam walking and multiple reflections and interference from bot
 
 
 Cholesterics
-''''''''''''
+////////////
 
 In this example, we use multiple passes to compute reflections of the cholesteric
 droplet. For cholesterics one should take the `norm` = 2 argument in the
@@ -97,14 +99,14 @@ In the example below, we simulated propagation of right-handed light with beta p
    Reflection and transmission properties of a cholesterol droplet.
 
 Standard TMM - no diffraction
------------------------------
++++++++++++++++++++++++++++++
 
 You can use the `dtmm` package for 1D calculation. There are two options. Either you create a single pixel optical data that describes your 1D material and use the functions covered so far, or you do a standard Berreman or Jones calculation by computing the transfer matrices, and the reflectance and transmittance coefficients with functions found in :mod:`dtmm.tmm`. For coherent  reflection calculation of complex 1D material this may be better/faster than using the :func:`dtmm.transfer.transfer_field`. Note that the diffractive method uses iterative algorithm to calculate coherent effects. With a standard 4x4 method in 1D case, these are done in a single step. 
 
 In the :mod:`dtmm.tmm` module you will find low-level implementation of the TMM method, and some high level function to simplify computations and use. Here we go through the high level API, while for some details on the implementation you should read the source code of the examples below.
 
 Basics
-++++++
+''''''
 
 Computation is performed in two steps. First we build a characteristic matrix of the stack, then we calculate transmitted (and reflected) field from a given field vector. Field vector now is a single 4-component vector. We will demonstrate the use on a 3D data that we were working on till now.
 
@@ -141,13 +143,10 @@ Note the use of diffraction= False option which tells the field viewer that comp
 
 The :func:`stack_mat` takes an optional parameter `method` which can take a string value of "4x4", "2x2" or "4x2". The "4x4" is for standard Berreman - interference enabled calculation, The "4x2" method is for a 4x4 method, but with interference disabled by setting the phase matrix element to zeros for back propagating waves. This method is equivalent to method = "2x2" and reflection = 2  arguments in the :func:`dtmm.transfer.transfer_field`. The "2x2" method is for jones calculation. This method is equivalent to method = "2x2" and reflection = 0  arguments in the :func:`dtmm.transfer.transfer_field`. 
 
-Examples
-++++++++
+Nematic droplet example
+'''''''''''''''''''''''
 
 See the source code of the examples to see additional details.
-
-Nematic droplet
-'''''''''''''''
 
 An example of a nematic droplet with planar director orientation, computed using 4x4 method with interference, 4x4 method without interference (single reflection) and 2x2 method with no reflections at all. All of these examples could be computed with transfer_field functions and diffraction = False argument... and the results of both methods should be identical (up to numerical precision).
 
@@ -155,8 +154,16 @@ An example of a nematic droplet with planar director orientation, computed using
 
    An example of extended jones calculation, berreman 4x4 with interference and with interference disabled methods to compute transmission of a white light through the nematic droplet with a planar director alignment, viewed between crossed polarizers.
 
+2D simulations
+--------------
+
+todo...
+
+1D simulations
+--------------
+
 Single layer 1D
-'''''''''''''''
++++++++++++++++
 
 In this example, we calculate reflections off a single 2 micron thick layer of material with refractive index of 1.5. See the source code for additional detail of the example below.
 
@@ -165,7 +172,7 @@ In this example, we calculate reflections off a single 2 micron thick layer of m
    Reflection and transmission properties of a single layer material. 
 
 Cholesteric 1D
-''''''''''''''
+++++++++++++++
 
 In this example we calculate reflections off a cholesteric material. See the source code for additional details of the example below.
 
@@ -174,7 +181,7 @@ In this example we calculate reflections off a cholesteric material. See the sou
    Reflection and transmission properties of a cholesteric LC with a reflection band at 550 nm.
 
 Twisted nematic 1D
-''''''''''''''''''
+++++++++++++++++++
 
 In this example we compute the transmittance through 90 degree twisted nematic configured in first minimum condition (4 micron cell, refractive index anisotropy of 0.12). Here we demonstrate and show differences between the 4x4 approach and two versions of 2x2 approach - with reflections and without.
 
