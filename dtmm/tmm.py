@@ -81,6 +81,24 @@ if NUMBA_PARALLEL == False:
 
 sqrt = np.sqrt
 
+# available mode parameters.
+_mode_int = {"r" : +1, "t" : +1, 1 : 1, -1 : -1}
+_mode_int_none = {"b" : None, None : None}
+_mode_int_none.update(_mode_int)
+
+def _mode_to_int_or_none(mode):
+    try:
+        return _mode_int_none[mode]
+    except KeyError:
+        raise ValueError("Invalid propagation mode '{}'.".format(mode))
+
+def _mode_to_int(mode):
+    try :
+        return _mode_int[mode]
+    except KeyError:
+        raise ValueError("Invalid propagation mode '{}'.".format(mode))
+
+
 @nb.njit([(NFDTYPE,NCDTYPE[:],NCDTYPE[:,:])])                                                                
 def _auxiliary_matrix(beta,eps,Lm):
     """Computes all elements of the auxiliary matrix of shape 4x4."""
@@ -332,6 +350,7 @@ def _copy_sorted(alpha,fmat, out_alpha, out_fmat):
                 out_fmat[:,j] = fmat[:,k]
             j = j + 2
     if ok == False:
+        print("Could not sort eigenvectors! Proceed with caution!")
         for i in range(4):
             #indicate that something went wrong, and that sorting was unsucesful
             out_alpha[i] = np.nan
@@ -494,6 +513,7 @@ def alphaE(beta,phi,epsv,epsa, mode = +1, out = None):
         Output arrays where results are written.
     
     """
+    mode = _mode_to_int(mode)
     alpha,f = alphaf(beta,phi,epsv,epsa)
     e = E_mat(f,mode = mode, copy = False)
     if mode == 1:
@@ -525,6 +545,7 @@ def alphaEEi(beta,phi,epsv,epsa, mode = +1, out = None):
     out : (ndarray,ndarray,ndarray), optional
         Output arrays where results are written.
     """
+    mode = _mode_to_int(mode)
     if out is None:
         alpha,E = alphaE(beta,phi,epsv,epsa, mode = mode)
         return alpha, E, inv(E)
@@ -577,6 +598,7 @@ def phase_mat(alpha, kd, mode = None,  out = None):
     out : ndarray, optional
         Output array where results are written.
     """
+    mode = _mode_to_int_or_none(mode)
     kd = np.asarray(kd, dtype = FDTYPE)
     if out is None:
         if mode is None:
@@ -597,12 +619,11 @@ def phase_mat(alpha, kd, mode = None,  out = None):
 
 def iphase_mat(alpha, kd, cfact = 0.1, mode = +1,  out = None):
     """Computes incoherent 4x4 phase matrix from eigenvalue matrix alpha and wavenumber"""
-    if mode == "t":
+    mode = _mode_to_int(mode)
+    if mode == +1:
         np.add(alpha[...,1::2],alpha[...,1::2].real*2*1j*cfact, out = alpha[...,1::2])
-    elif mode == "r":
-        np.add(alpha[...,::2],-alpha[...,::2].real*2*1j*cfact, out = alpha[...,::2])
     else:
-        raise ValueError("Unknown propagation mode.")    
+        np.add(alpha[...,::2],-alpha[...,::2].real*2*1j*cfact, out = alpha[...,::2])
     return phase_mat(alpha, kd, mode = None, out = out)
 
 
@@ -685,8 +706,8 @@ def intensity(fvec,out = None):
     Parameters
     ----------
 
-    fvec : (...,4,4) array
-        Field matrix array.
+    fvec : (...,4) array
+        Field vector array.
     out : ndarray, optional
         Output array where results are written.    
     """
@@ -713,15 +734,14 @@ def projection_mat(fmat, fmati = None, mode = +1, out = None):
         Output array where results are written.   
     
     """
+    mode = _mode_to_int(mode)
     if fmati is None:
         fmati = inv(fmat)
     diag = np.zeros(fmat.shape[:-1],fmat.dtype)
     if mode == 1:
         diag[...,0::2] = 1.
-    elif mode == -1:
-        diag[...,1::2] = 1.
     else:
-        raise ValueError("Unknown propagation mode.")     
+        diag[...,1::2] = 1.   
     return dotmdm(fmat,diag,fmati, out)    
 
 
@@ -787,6 +807,7 @@ def T_mat(fmatin, fmatout, fmatini = None, fmatouti = None, mode = +1):
     mode : int
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
     """
+    mode = _mode_to_int(mode)
     if fmatini is None:
         fmatini = inv(fmatin)
     if fmatouti is None:
@@ -798,13 +819,11 @@ def T_mat(fmatin, fmatout, fmatini = None, fmatouti = None, mode = +1):
         out[...,::2,::2] = inv(Sf[...,::2,::2])
         out[...,1::2,1::2] = Sb[...,1::2,1::2]
         return out
-    elif mode == -1:
+    else:
         out[...,1::2,1::2] = inv(Sf[...,1::2,1::2])
         out[...,::2,::2] = (Sb[...,::2,::2])
         return out
-    else:
-        raise ValueError("Unknown propagation mode.")      
-    
+   
 def S_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1):
     """Computes the S matrix.
     
@@ -822,6 +841,7 @@ def S_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1):
     mode : int
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
     """
+    mode = _mode_to_int(mode)
     if overwrite_fmatin == True:
         out = fmatin
     else:
@@ -831,10 +851,9 @@ def S_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1):
     S = dotmm(fmatini,fmatout, out = out)
     if mode == +1:
         return S[...,::2,::2],S[...,1::2,0::2]
-    elif mode == -1:
-        return S[...,1::2,1::2],S[...,0::2,1::2]
     else:
-        raise ValueError("Unknown propagation mode.")  
+        return S[...,1::2,1::2],S[...,0::2,1::2]
+
         
 def transmission_mat(fmatin, fmatout, fmatini = None, mode = +1,out = None):
     """Computes the transmission matrix.
@@ -855,15 +874,14 @@ def transmission_mat(fmatin, fmatout, fmatini = None, mode = +1,out = None):
     out : ndarray, optional
         Output array where results are written.
     """
+    mode = _mode_to_int(mode)
     A,B = S_mat(fmatin, fmatout, fmatini = fmatini, mode = mode)
     if mode == +1:
         A1 = fmatin[...,::2,::2]
         A2 = fmatout[...,::2,::2]
-    elif mode == -1:
-        A1 = fmatin[...,1::2,1::2]
-        A2 = fmatout[...,1::2,1::2]
     else:
-        raise ValueError("Unknown propagation mode.")        
+        A1 = fmatin[...,1::2,1::2]
+        A2 = fmatout[...,1::2,1::2]      
     Ai = inv(A, out = out)
     A1i = inv(A1)
     return dotmm(dotmm(A2,Ai, out = Ai),A1i, out = Ai)
@@ -896,10 +914,10 @@ def tr_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1,
 {overwrite_fmatin}
     mode : int
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
-    out : ndarray, optional
-        Output array where results are written.
+    out : (ndarray,ndarray), optional
+        Output arrays where results are written.
     """    
-    
+    mode = _mode_to_int(mode)
     if overwrite_fmatin == True:
         er = E_mat(fmatin, mode = mode * (-1), copy = True)
     else:
@@ -924,7 +942,7 @@ def t_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1, 
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
     out : ndarray, optional
         Output array where results are written.
-    """     
+    """   
     eti = Eti_mat(fmatin, fmatout, fmatini = fmatini, overwrite_fmatin = overwrite_fmatin, mode = mode, out = out)
     et = E_mat(fmatout, mode = mode, copy = False)
     return dotmm(et,eti, out = eti)
@@ -938,21 +956,20 @@ def E_mat(fmat, mode = None, copy = True):
         Field matrix array.
     mode : int
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
-{copy}
+
     """ 
+    mode = _mode_to_int_or_none(mode)
     if mode == +1:
         e = fmat[...,::2,::2]
     elif mode == -1:
         e = fmat[...,::2,1::2]
-    elif mode is None:
+    else:
         ep = fmat[...,::2,::2]
         en = fmat[...,::2,1::2]
         out = np.zeros_like(fmat)
         out[...,::2,::2] = ep
         out[...,1::2,1::2] = en
         return out 
-    else:
-        raise ValueError("Unknown propagation mode.")
     return e.copy() if copy else e  
 
 def Eti_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1, out = None):
@@ -978,8 +995,6 @@ def Eti_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1
     St,Sr = S_mat(fmatin, fmatout, fmatini = fmatini, overwrite_fmatin = overwrite_fmatin, mode = mode)
     Sti = inv(St, out = St)
     return dotmm(Sti,Ai, out = out)
-
-
 
 
 def Etri_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1, out = None):
@@ -1008,7 +1023,7 @@ def Etri_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +
     return ei, dotmm(Sr,ei, out = out2)
     
 def E2H_mat(fmat, mode = +1, out = None): 
-    """Computes the H field from the field matrix.
+    """Computes the H field matrix from the field matrix.
     
     Parameters
     ----------
@@ -1019,15 +1034,14 @@ def E2H_mat(fmat, mode = +1, out = None):
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
     out : ndarray, optional
         Output array where results are written.
-    """       
+    """ 
+    mode = _mode_to_int(mode)      
     if mode == +1:
         A = fmat[...,::2,::2]
         B = fmat[...,1::2,::2]
-    elif mode == -1:
+    else:
         A = fmat[...,::2,1::2]
         B = fmat[...,1::2,1::2]
-    else:
-        raise ValueError("Unknown propagation mode.") 
     Ai = inv(A, out = out)
     return dotmm(B,Ai, out = Ai)  
 
@@ -1095,7 +1109,7 @@ def layer_mat(kd, epsv,epsa, beta = 0,phi = 0, cfact = 0.1, method = "4x4", fmat
         2x2_1 (2x2, single reflections - transmittance only) 
         4x4_2 (4x4, partially coherent reflections - transmittance only) 
     fmatin : ndarray, optional
-        Used in compination with 2x2_1 method. Itspecifies the field matrix of 
+        Used in combination with 2x2_1 method. It specifies the field matrix of 
         the input media in order to compute fresnel reflections. If not provided 
         it reverts to 2x2 with no reflections.
         
@@ -1411,6 +1425,7 @@ def fvec2E(fvec, fmat = None, fmati = None, mode = +1, inplace = False):
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
     inplace : bool, optional
     """
+    mode = _mode_to_int(mode)
     if inplace == True:
         out  = fvec
     else:
@@ -1420,11 +1435,9 @@ def fvec2E(fvec, fmat = None, fmati = None, mode = +1, inplace = False):
     pmat = projection_mat(fmat, fmati = fmati, mode = mode)
     if mode == +1:
         return dotmv(pmat,fvec, out = out)[...,::2]
-    elif mode == -1:
-        return dotmv(pmat,fvec, out = out)[...,1::2]
     else:
-        raise ValueError("Unknown mode!")
-        
+        return dotmv(pmat,fvec, out = out)[...,1::2]
+
     
 def E2fvec(evec, fmat = None, mode = +1, out = None):
     """Converts E vector to field vector
@@ -1819,6 +1832,7 @@ def avec(jones = (1,0), amplitude = 1., mode = +1, out = None):
     >>> b[1]
     array([0.+0.j, 0.+0.j, 2.+0.j, 0.+0.j])
     """
+    mode = _mode_to_int(mode)
     jones = np.asarray(jones)
     amplitude = np.asarray(amplitude)  
     c,s = jones[...,0], jones[...,1] 
@@ -1832,14 +1846,12 @@ def avec(jones = (1,0), amplitude = 1., mode = +1, out = None):
         out[...,2] = s
         out[...,1] = 0.
         out[...,3] = 0.
-    elif mode == -1:
+    else:
         out[...,1] = c
         out[...,3] = s 
         out[...,0] = 0.
         out[...,2] = 0.
-    else:
-        raise ValueError("Unknown propagation mode.")
-        
+
     out = np.multiply(out, amplitude[...,None] ,out = out)     
     return out
 

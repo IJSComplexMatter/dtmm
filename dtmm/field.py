@@ -8,12 +8,12 @@ import numpy as np
 
 from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_TARGET, NUMBA_CACHE, BETAMAX , DTMMConfig
 from dtmm.wave import planewave, betaphi, wave2eigenwave
-from dtmm.diffract import diffracted_field
+from dtmm.diffract import diffracted_field, diffraction_alphaf
 from dtmm.window import aperture
 from dtmm.fft import fft2, ifft2, fft, ifft
 from dtmm.wave import betaxy, eigenmask, eigenmask1
 from dtmm.window import blackman
-from dtmm.tmm import alphaf 
+from dtmm.tmm import alphaf ,fvec2E, E2fvec
 from dtmm.tmm import fvec as field4
 from dtmm.data import refind2eps
 from dtmm.jones import jonesvec
@@ -29,16 +29,128 @@ sqrt = np.sqrt
 def field2fvec(field):
     """transposes field array from shape (..., k,n,m) to (...,n,m,k)."""
     return np.moveaxis(field,-3,-1)
-    #taxis = list(range(field.ndim))
-    #taxis.append(taxis.pop(-3))
-    #return field.transpose(taxis) 
 
 def fvec2field(vec):
     """transposes vector from shape (..., n,m,k) to (...,k,n,m)"""
     return np.moveaxis(vec,-1,-3)
-    #taxis = list(range(vec.ndim))
-    #taxis.insert(-2,taxis.pop(-1))
-    #return vec.transpose(taxis) 
+
+def field2jones(field, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0.,0.,0.), mode = +1, input_fft = False, output_fft = False, betamax = BETAMAX):
+    """Converts (..., 4,n,m) field array to (..., 2,n,m) jones array
+    
+    The conversion is done either in reciprocal space (default) or in real space,
+    if you provide the beta or phi parameter.
+    
+    Parameters
+    ----------
+    field : ndarray
+        Input field array data of shape (..., 4,n,m).
+    ks : array
+        A list of k-values (wave numbers).
+    beta : float, optional
+        If set, it defines the field beta parameter, conversion is then done
+        in real space.
+    phi : float, optional
+        If set, it defines the field phi parameter, conversion is then done
+        in real space.
+    epsv : array
+        The epsilon eigenvalues of the medium
+    epsv : array
+        The Euler rotation angles.
+    mode : [+1 | -1]
+        Propagation mode, +1 (forward) by default 
+    input_fft : bool
+        Specifies whether input array is fft data or not.
+    output_fft : bool
+        Specifies whether output array is fft data or not.
+    betamax : float
+        Defines the betamax parameter if transformation is done in Fourier space.
+        
+    Returns
+    -------
+    jones : ndarray
+        Output jones array of shape (..., 2,n,m).
+    """
+    modal = beta is None and phi is None
+    
+    field = np.asarray(field)
+    out = np.empty(field.shape[:-3] + (2,) + field.shape[-2:], field.dtype)
+    if input_fft == False and modal:
+        field = fft2(field)  
+    elif input_fft == True and not modal:
+        field = ifft2(field) 
+    shape = field.shape[-3:]
+    if modal:
+        a,fmat = diffraction_alphaf(shape, ks, epsv, epsa, betamax = betamax)
+    else:
+        a, fmat, = alphaf(beta,phi,epsv,epsa) 
+    fvec = field2fvec(field)
+    evec = field2fvec(out)
+    evec[...] = fvec2E(fvec, fmat = fmat, mode = mode)
+    if output_fft == False and modal:
+        ifft2(out, out = out)
+    elif output_fft == True and not modal:
+        fft2(out, out = out)
+    return out
+
+def jones2field(jones, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0.,0.,0.),  mode = +1, input_fft = False, output_fft = False, betamax = BETAMAX):
+    """Converts (..., 2,n,m) jones array to (..., 4,n,m) field array
+    
+    The conversion is done either in reciprocal space (default) or in real space,
+    if you provide the beta or phi parameter.
+    
+    Parameters
+    ----------
+    jones : ndarray
+        Input jones array data of shape (..., 2,n,m).
+    ks : array
+        A list of k-values (wave numbers).
+    beta : float, optional
+        If set, it defines the field beta parameter, conversion is then done
+        in real space.
+    phi : float, optional
+        If set, it defines the field phi parameter, conversion is then done
+        in real space.
+    epsv : array
+        The epsilon eigenvalues of the medium
+    epsv : array
+        The Euler rotation angles.
+    mode : [+1 | -1]
+        Propagation mode, +1 (forward) by default 
+    input_fft : bool
+        Specifies whether input array is fft data or not.
+    output_fft : bool
+        Specifies whether output array is fft data or not.
+    betamax : float
+        Defines the betamax parameter if transformation is done in Fourier space.
+        
+    Returns
+    -------
+    field : ndarray
+        Output field array of shape (..., 4,n,m).
+    """
+
+    jones= np.asarray(jones)
+    modal = beta is None and phi is None
+    
+    out = np.empty(jones.shape[:-3] + (4,) + jones.shape[-2:], jones.dtype)
+    if input_fft == False and modal:
+        jones = fft2(jones)   
+    elif input_fft == True and not modal:
+        jones = ifft2(jones)  
+        
+    shape = jones.shape[-3:]
+    if modal:
+        a,fmat = diffraction_alphaf(shape, ks, epsv, epsa, betamax = betamax)
+    else:
+        a, fmat, = alphaf(beta,phi,epsv,epsa) 
+    fvec = field2fvec(out)
+    jvec = field2fvec(jones)
+    E2fvec(jvec, fmat = fmat, mode = mode, out = fvec)
+    if output_fft == False and modal:
+        ifft2(out, out = out)
+    elif output_fft == True and not modal:
+        fft2(out, out = out)
+    return out
 
 def _field2modes(field, k0, betamax = BETAMAX):
     f = fft2(field)
@@ -47,12 +159,13 @@ def _field2modes(field, k0, betamax = BETAMAX):
     return np.moveaxis(f,-2,-1)
 
 def field2modes(field, k0, betamax = BETAMAX):
-    """Converts field array to modes array.
+    """Converts 2D field array to modes array.
     
     Parameters
     ----------
     field : ndarray or tuple of ndarrays
-        Input field array (or tuple of input fields for each wavenumber)
+        Input field array (or tuple of input fields for each wavenumber). The 
+        shape of the input arrays must be (...,4,:,:) representing.
     k0 : float or a sequence of floats
         Defines the wavenumber. Fol multi-wavelength data, this must be a
         sequence of wawenumbers
@@ -91,14 +204,14 @@ def ffield2modes(ffield, k0, betamax = BETAMAX):
         return mask, tuple((np.moveaxis(ffield[...,i,:,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
     
 
-
 def field2modes1(field, k0, betamax = BETAMAX):
     """Converts field array to modes array.
     
     Parameters
     ----------
     field : ndarray or tuple of ndarrays
-        Input field array (or tuple of input fields for each wavenumber)
+        Input field array (or tuple of input fields for each wavenumber). The 
+        shape of the input arrays must be (...,4,:) representing.
     k0 : float or a sequence of floats
         Defines the wavenumber. Fol multi-wavelength data, this must be a
         sequence of wawenumbers

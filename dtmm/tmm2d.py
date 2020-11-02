@@ -1,41 +1,26 @@
 """
-4x4 and 2x2 transfer matrix method functions. 
+4x4 and 2x2 transfer matrix method functions for 2d data
 """
 
 from __future__ import absolute_import, print_function, division
-
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, FDTYPE, NUMBA_TARGET, BETAMAX, \
-                        NUMBA_PARALLEL, NUMBA_CACHE, NUMBA_FASTMATH, DTMMConfig
-from dtmm.rotation import  _calc_rotations_uniaxial, _calc_rotations, _rotate_diagonal_tensor
-from dtmm.linalg import _dotr2m, dotmdm, dotmm, inv, dotmv, _dotr2v, bdotmm, bdotmd, bdotdm
-from dtmm.data import refind2eps
-from dtmm.rotation import rotation_vector2
+from dtmm.conf import  BETAMAX, CDTYPE, DTMMConfig
+from dtmm.linalg import dotmdm, inv, dotmv, bdotmm, bdotmd, bdotdm
 from dtmm.print_tools import print_progress
 
 import dtmm.tmm as tmm
-from dtmm.tmm import alphaf, alphaffi, phase_mat
+from dtmm.tmm import alphaffi, phase_mat
+
 from dtmm.wave import eigenbeta1, eigenindices1, eigenmask1, eigenwave1, betaxy2beta, mask2beta1, mask2indices1,betaxy2phi
 from dtmm.wave import k0 as wavenumber
 from dtmm.field import field2modes1, modes2field1
-from dtmm.jones import polarizer as polarizer2x2
-from dtmm.jones import as4x4
 from dtmm.fft import mfft
-
-import numba as nb
-from numba import prange
-import time
-
-if NUMBA_PARALLEL == False:
-    prange = range
-
-sqrt = np.sqrt
 
 def layer_mat2d(k0, d, epsv,epsa, betay = 0., method = "4x4", mask = None):
     """Computes characteristic matrix of a single layer M=F.P.Fi,
     
-    Numpy broadcasting rules apply
+    Numpy broadcasting rules apply.
     
     Parameters
     ----------
@@ -85,10 +70,16 @@ def _layer_mat2d(k0,d,epsv,epsa, mask, betaxs, betay,indices, method):
         pmat = phase_mat(alpha,-kd)
         if method == "4x4_1":
             pmat[...,1::2] = 0.
+        elif method != "4x4":
+            raise ValueError("Unsupported method!")
 
         wave = eigenwave1(shape, indices[j], amplitude = 1.)
-
+        
+        #m is shape (...,4,4)
         m = dotmdm(f,pmat,fi) 
+        
+        #wave is shape (...) make it broadcastable to (...,4,4)
+
         mw = m*wave[...,None,None]
         mf = mfft(mw, overwrite_x = True)
         mf = mf[mask,...]
@@ -99,7 +90,6 @@ def _layer_mat2d(k0,d,epsv,epsa, mask, betaxs, betay,indices, method):
         #    out[i,j,:,:] = mfj
 
     return out
-
 
 def stack_mat2d(k,d,epsv,epsa, betay = 0., method = "4x4" ,mask = None):
     n = len(d)
@@ -112,6 +102,7 @@ def stack_mat2d(k,d,epsv,epsa, betay = 0., method = "4x4" ,mask = None):
     for i in range(n):
         print_progress(i,n,level = verbose_level) 
         mat = layer_mat2d(k,d[i],epsv[i],epsa[i], betay = betay, mask = mask, method = method)
+
         if i == 0:
             if isinstance(mat, tuple):
                 out = tuple((m.copy() for m in mat))
@@ -122,11 +113,10 @@ def stack_mat2d(k,d,epsv,epsa, betay = 0., method = "4x4" ,mask = None):
                 out = tuple((bdotmm(o,m) for o,m in zip(out,mat)))
             else:
                 out = bdotmm(out,mat)
-      
+
     print_progress(n,n,level = verbose_level) 
 
     return out 
-
 
 def f_iso2d(shape, k0, n = 1., betay = 0, betamax = BETAMAX):
     k0 = np.asarray(k0)
@@ -168,24 +158,13 @@ def system_mat2d(fmatin, cmat, fmatout):
     else:
         return _system_mat2d(fmatin, cmat, fmatout)
 
-
 def _reflection_mat2d(smat):
     """Computes a 4x4 reflection matrix.
     """
-
     shape = smat.shape[0:-4] + (smat.shape[-4] * 4,smat.shape[-4] * 4)  
-    smat = np.rollaxis(smat, -2,-3)
+    smat = np.moveaxis(smat, -2,-3)
     smat = smat.reshape(shape)
-    m1 = np.zeros_like(smat)
-    m2 = np.zeros_like(smat)
-    #fill diagonals
-    for i in range(smat.shape[-1]//2):
-        m1[...,i*2+1,i*2+1] = 1.
-        m2[...,i*2,i*2] = -1.
-    m1[...,:,0::2] = -smat[...,:,0::2]
-    m2[...,:,1::2] = smat[...,:,1::2]
-    m1 = inv(m1)
-    return dotmm(m1,m2)
+    return tmm.reflection_mat(smat)
 
 def reflection_mat2d(smat):
     verbose_level = DTMMConfig.verbose
@@ -202,9 +181,8 @@ def reflection_mat2d(smat):
     else:
         return _reflection_mat2d(smat)
 
-
-def _transmit2d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None):
-    """Transmits field vector using 4x4 method.
+def _reflect2d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None):
+    """Transmits/reflects field vector using 4x4 method.
     
     This functions takes a field vector that describes the input field and
     computes the output transmited field and also updates the input field 
@@ -235,8 +213,8 @@ def _transmit2d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None):
     return dotmv(fmat_out,bvec,out = out)
 
 
-def transmit2d(fvecin, fmatin, rmat, fmatout, fvecout = None):
-    """Transmits field vector using 4x4 method.
+def reflect2d(fvecin, fmatin, rmat, fmatout, fvecout = None):
+    """Transmits/reflects field vector using 4x4 method.
     
     This functions takes a field vector that describes the input field and
     computes the output transmited field vector and also updates the input field 
@@ -248,19 +226,24 @@ def transmit2d(fvecin, fmatin, rmat, fmatout, fvecout = None):
     if isinstance(fvecin, tuple):
         n = len(fvecin)
         if fvecout is None:
-            return tuple((_transmit2d(fvecin[i], fmatin[i], rmat[i], fmatout[i]) for i in range(n)))
+            return tuple((_reflect2d(fvecin[i], fmatin[i], rmat[i], fmatout[i]) for i in range(n)))
         else:
-            return tuple((_transmit2d(fvecin[i], fmatin[i], rmat[i], fmatout[i], fvecout[i]) for i in range(n)))
+            return tuple((_reflect2d(fvecin[i], fmatin[i], rmat[i], fmatout[i], fvecout[i]) for i in range(n)))
     else:
-        return _transmit2d(fvecin, fmatin, rmat, fmatout, fvecout)
-    
+        return _reflect2d(fvecin, fmatin, rmat, fmatout, fvecout)
 
-def transfer2d(field_data_in, optical_data, betay = 0., nin = 1., nout = 1., method = "4x4", betamax = BETAMAX):
+
+def transfer2d(field_data_in, optical_data, betay = 0., nin = 1., nout = 1., method = "4x4", betamax = BETAMAX, field_out = None):
     
     f,w,p = field_data_in
     shape = f.shape[-1]
     d,epsv,epsa = optical_data
     k0 = wavenumber(w, p)
+    
+    if field_out is not None:
+        mask, fmode_out = field2modes1(field_out,k0, betamax = betamax)
+    else:
+        fmode_out = None
     
     mask, fmode_in = field2modes1(f,k0, betamax = betamax)
     
@@ -271,10 +254,12 @@ def transfer2d(field_data_in, optical_data, betay = 0., nin = 1., nout = 1., met
     smat = system_mat2d(fmatin = fmatin, cmat = cmat, fmatout = fmatout)
     rmat = reflection_mat2d(smat)
     
-    fmode_out = transmit2d(fmode_in, rmat = rmat, fmatin = fmatin, fmatout = fmatout)
+    fmode_out = reflect2d(fmode_in, rmat = rmat, fmatin = fmatin, fmatout = fmatout, fvecout = fmode_out)
     
     field_out = modes2field1(mask, fmode_out)
     f[...] = modes2field1(mask, fmode_in)
     
     return field_out,w,p
+
+        
     

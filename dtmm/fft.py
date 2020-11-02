@@ -324,10 +324,10 @@ def ifft(a, overwrite_x = False):
     a = np.asarray(a, dtype = CDTYPE)      
     libname = DTMMConfig["fftlib"]    
     if libname == "mkl_fft":
-        return mkl_fft.fft(a, overwrite_x = overwrite_x)
+        return mkl_fft.ifft(a, overwrite_x = overwrite_x)
     elif libname == "scipy":
-        return spfft.fft(a,  overwrite_x = overwrite_x)
+        return spfft.ifft(a,  overwrite_x = overwrite_x)
     elif libname == "numpy":
-        return npfft.fft(a)
+        return npfft.ifft(a)
     else: #default implementation is numpy
-        return npfft.fft(a)
+        return npfft.ifft(a)

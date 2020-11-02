@@ -8,7 +8,7 @@ from __future__ import absolute_import, print_function, division
 from dtmm.conf import cached_function, BETAMAX, FDTYPE, CDTYPE
 from dtmm.wave import betaphi
 from dtmm.data import refind2eps
-from dtmm.tmm import phase_mat,  alphaffi, alphaf,  alphaEEi, tr_mat
+from dtmm.tmm import phase_mat,  alphaffi, alphaf,  alphaEEi, tr_mat, alphaE
 from dtmm.linalg import dotmdm, dotmf
 from dtmm.fft import fft2, ifft2
 
@@ -75,7 +75,6 @@ def diffraction_alphaffi(shape, ks, epsv = (1.,1.,1.),
     
     return out
 
-
 @cached_function
 def E_diffraction_alphaEEi(shape, ks, epsv = (1,1,1), 
                             epsa = (0.,0.,0.), mode = +1, betamax = BETAMAX, out = None):
@@ -91,6 +90,23 @@ def E_diffraction_alphaEEi(shape, ks, epsv = (1,1,1),
     j[mask0] = 0.
     alpha[mask0] = 0.
     out = (alpha,j,ji)
+    return out
+
+
+@cached_function
+def E_diffraction_alphaE(shape, ks, epsv = (1,1,1), 
+                            epsa = (0.,0.,0.), mode = +1, betamax = BETAMAX, out = None):
+
+    ks = np.asarray(ks)
+    ks = abs(ks)
+    beta, phi = betaphi(shape,ks)
+
+    mask0 = (beta >= betamax)#betamax)
+            
+    alpha, j = alphaE(beta,phi,epsv,epsa, mode = mode, out = out) 
+    j[mask0] = 0.
+    alpha[mask0] = 0.
+    out = (alpha,j)
     return out
 
   
@@ -119,6 +135,40 @@ def field_diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.)
     
     return dotmdm(f,pmat,fi,out = out) 
 
+#@cached_function
+def field_thick_cover_diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.), d_cover = 0, epsv_cover = (1.,1.,1.), epsa_cover = (0.,0.,0.), mode = "b", betamax = BETAMAX, out = None):
+    """Build field diffraction matrix. 
+    """
+    
+    ks = np.asarray(ks, dtype = FDTYPE)
+    epsv = np.asarray(epsv, dtype = CDTYPE)
+    epsa = np.asarray(epsa, dtype = FDTYPE)
+    alpha, f, fi = diffraction_alphaffi(shape, ks, epsv = epsv, epsa = epsa, betamax = betamax)
+    alpha0, f0 = diffraction_alphaf(shape, ks, epsv = epsv_cover ,epsa = epsa_cover, betamax = betamax)
+    
+    
+    alphac = alpha0 - alpha / 1.5
+    alphac = alphac - alphac[...,0,0,:][...,None,None,:]
+    
+    #offset = (alphac.mean(axis = (-2,-3)))[...,None,None,:]
+    
+    #alphac = alphac - offset
+    
+    
+    
+    kd = ks * d_cover
+    
+    pmatc = phase_matrix(alphac, kd , mode = mode)
+
+    kd = ks * d
+    
+    pmat = phase_matrix(alpha, kd , mode = mode)
+    
+    pmat = pmat * pmatc
+    
+    return dotmdm(f,pmat,fi,out = out) 
+
+
 @cached_function
 def E_diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.), mode = +1, betamax = BETAMAX, out = None):
     ks = np.asarray(ks, dtype = FDTYPE)
@@ -128,6 +178,24 @@ def E_diffraction_matrix(shape, ks,  d = 1., epsv = (1,1,1), epsa = (0,0,0.), mo
     kd =ks * d
     pmat = phase_matrix(alpha, kd)
     return dotmdm(j,pmat,ji,out = out) 
+
+@cached_function
+def E_cover_diffraction_matrix(shape, ks,  n = 1., d_cover = 0, n_cover = 1.5, mode = +1, betamax = BETAMAX, out = None):
+    ks = np.asarray(ks, dtype = FDTYPE)
+    epsv = np.asarray(refind2eps((n,)*3),CDTYPE)
+    epsa = np.asarray((0.,0.,0.), dtype = FDTYPE)
+    epsv_cover = np.asarray(refind2eps((n_cover,)*3),CDTYPE)
+    epsa_cover = np.asarray((0.,0.,0.), dtype = FDTYPE)    
+    alpha, j = E_diffraction_alphaE(shape, ks, epsv = epsv, epsa = epsa, mode = mode, betamax = betamax)
+    alpha0, j0, j0i = E_diffraction_alphaEEi(shape, ks, epsv = epsv_cover, epsa = epsa_cover, mode = mode, betamax = betamax)
+
+    alphac = alpha0 - alpha * n / n_cover
+    alphac = alphac - alphac[...,0,0,:][...,None,None,:]     
+    
+    kd =ks * d_cover
+    pmat = phase_matrix(alphac, kd)
+    return dotmdm(j,pmat,j0i,out = out) 
+
 
 
 #@cached_function

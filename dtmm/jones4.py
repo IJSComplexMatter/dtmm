@@ -21,7 +21,7 @@ from __future__ import absolute_import, print_function, division
 
 from dtmm.conf import cached_result, BETAMAX, FDTYPE, CDTYPE
 from dtmm.wave import betaphi
-from dtmm.tmm import alphaf,normalize_f
+from dtmm.tmm import alphaf,normalize_f, E2H_mat
 from dtmm.linalg import  dotmf, inv, dotmm
 from dtmm.fft import fft2, ifft2
 #make this module a drop-in replacement for jones module
@@ -30,6 +30,13 @@ from dtmm.jones import *
 import numpy as np
 
 from dtmm.diffract import diffraction_alphaf
+
+def as2x2(pmat, fmat, mode = +1, out = None):
+    """Converts jones 4x4 matrix to 2x2 E-field matrix"""
+    H = E2H_mat(fmat, mode = mode)
+    out = dotmm(pmat[...,::2,1::2], H, out)
+    out += pmat[...,::2,::2] 
+    return out
 
 def polarizer4x4(jones, fmat, out = None):
     """Returns a 4x4 polarizer matrix for applying in eigenframe.
@@ -44,7 +51,7 @@ def polarizer4x4(jones, fmat, out = None):
     fmat : (...,4,4) array
         A field matrix array of the isotropic medium.
     out : ndarray, optional
-        Output array
+        Output array.
 
     Returns
     -------
@@ -145,6 +152,56 @@ def mode_jonesmat4x4(shape, k, jmat, epsv = (1.,1.,1.),
     return pmat
 
 @cached_result
+def mode_jonesmat2x2(shape, k, jmat, epsv = (1.,1.,1.), 
+                            epsa = (0.,0.,0.), mode = +1, betamax = BETAMAX):
+    """Returns a mode polarizer for fft of the field data in the laboratory frame.
+    
+    This is the most general set of jones matrices for E-field data. It is meant
+    to be used in FFT space.
+    
+    Parameters
+    ----------
+    shape : (int,int)
+        Shape of the 2D crossection of the field data.
+    k : float or array of floats
+        Wavenumber at which to compute the mode matrices.
+    jmat : (2,2) array
+        A 2x2 jones matrix that needs to be converted to 4x4 mode matrices.
+    epsv : array
+        Medium epsilon eigenvalues
+    epsa : array
+        Medium epsilon euler angles
+    mode : int
+        PRopagatin mode, either +1 or -1
+    betamax : float
+        The betamax parameter
+        
+    Returns
+    -------
+    pmat : (:,:,2,2) array
+        Output matrix. Shape of the matirx is shape + (2,2) or len(ks) + shape + (2,2) 
+        if k is an array. 
+        
+    See Also
+    --------
+    ray_jonesmat2x2 : for applying the jones matrix in the real space.
+    """
+    ks = np.asarray(k, FDTYPE)
+    ks = abs(ks)
+    epsv = np.asarray(epsv, CDTYPE)
+    epsa = np.asarray(epsa, FDTYPE)
+    beta, phi = betaphi(shape,ks)
+    alpha, f = diffraction_alphaf(shape, ks, epsv = epsv, 
+                            epsa = epsa, betamax = betamax)
+
+    beta, phi = betaphi(shape,ks)
+    
+    #matrix viewed in the eigenframe
+    jmat = rotated_matrix(jmat, phi)
+    pmat = jonesmat4x4(jmat, f)
+    return as2x2(pmat,f,mode)
+
+@cached_result
 def ray_jonesmat4x4(jmat, beta = 0, phi = 0, epsv = (1.,1.,1.), 
                             epsa = (0.,0.,0.),):
     """Returns a ray polarizer for field data in the laboratory frame.
@@ -188,43 +245,89 @@ def ray_jonesmat4x4(jmat, beta = 0, phi = 0, epsv = (1.,1.,1.),
 
     return pmat
 
-def apply_mode_jonesmat4x4(pmat,field, out = None):
+@cached_result
+def ray_jonesmat2x2(jmat, beta = 0, phi = 0, epsv = (1.,1.,1.), 
+                            epsa = (0.,0.,0.),mode = +1):
+    """Returns a ray polarizer for E-field data in the laboratory frame.
+    
+    Numpy broadcasting rules apply.
+    
+    Parameters
+    ----------
+    jmat : (...,2,2) array
+        A 2x2 jones matrix that needs to be converted to 2x2 mode matrices.
+    beta : float
+        The beta parameter of the beam.
+    phi : float
+        The phi parameter of the beam.
+    epsv : (...,3) array
+        Medium epsilon eigenvalues
+    epsa : (...,3) array
+        Medium epsilon euler angles
+    betamax : float
+        The betamax parameter
+        
+    Returns
+    -------
+    pmat : (...,2,2) array
+        Output matrix.
+        
+    See Also
+    --------
+    mode_jonesmat2x2 : for applying the jones matrix in the fft space.
+    jonesmat2x2 : for applying the jones matrix in the eigenframe.
+    """
+    epsv = np.asarray(epsv, CDTYPE)
+    epsa = np.asarray(epsa, FDTYPE)
+    beta = np.asarray(beta, FDTYPE)
+    phi = np.asarray(phi, FDTYPE)
+    
+    alpha, f = alphaf(beta, phi, epsv, epsa)
+    
+    jmat = rotated_matrix(jmat, phi)
+    pmat = jonesmat4x4(jmat, f)
+    
+    return as2x2(pmat, f, mode)
+
+def apply_mode_jonesmat(pmat,field, out = None):
     """Multiplies matrix with field data in fft space.
     
     Parameters
     ----------
-    pmat : (...,:,:,4,4) array
-        A 4x4 jones matrix for field data
-    field : (...,4,:,:) array
-        Field data array.
+    pmat : array 
+        A 4x4 jones matrix of shape (...,:,:,4,4) for field data or
+        2x2 jones matrix of shape (...,:,:,2,2) for E-field data or
+    field :  array
+        Field data array of shape (...,4,:,:) or (...,2,:,:).
     out : ndarray, optional
         If specified, the results are written here.
         
     Returns
     -------
-    out : ndarray
-        Computed field array of shape (...,4,:,:).
+    out : array
+        Computed field array of shape (...,4,:,:) or (...,2,:,:).
     """
     fft = fft2(field, out = out)
     pfft = dotmf(pmat, fft ,out  = fft)
     return ifft2(fft, out = pfft)
 
-def apply_ray_jonesmat4x4(pmat,field, out = None):
+def apply_ray_jonesmat(pmat,field, out = None):
     """Multiplies matrix with field data in real space.
     
     Parameters
     ----------
-    pmat : (...,4,4) array
-        A 4x4 jones matrix for field data
-    field : (...,4,:,:) array
-        Field data array.
-    out : ndarray, optional
+    pmat : array
+        A 4x4 jones matrix of shape (...,4,4) for field data or
+        2x2 jones matrix of shape (...,2,2) for E-field data or
+    field : array
+        Field data array of shape (...,4,:,:) or (...,2,:,:).
+    out : array, optional
         If specified, the results are written here.
         
     Returns
     -------
     out : ndarray
-        Computed field array of shape (...,4,:,:).
+        Computed field array of shape (...,4,:,:) or (...,2,:,:).
     """
     return dotmf(pmat, field ,out  = out)
 
@@ -233,11 +336,12 @@ def apply_jonesmat(pmat, field, out = None):
     
     Parameters
     ----------
-    pmat : (...,4,4) array
-        A 4x4 jones matrix for field data
-    field : (...,4) array
-        Field vector array.
-    out : ndarray, optional
+    pmat : ndarray
+        A 4x4 jones matrix of shape (...,4,4) for field data or
+        2x2 jones matrix of shape (...,2,2) for E-field data or
+    field : array
+        Field vector array of shape (...,4) or (...,2).
+    out : array, optional
         If specified, the results are written here.
         
     Returns

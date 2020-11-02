@@ -1,40 +1,30 @@
 """
-4x4 and 2x2 transfer matrix method functions. 
+4x4 and 2x2 transfer matrix method functions for 3d calculation. 
 """
 
 from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, CDTYPE, FDTYPE, NUMBA_TARGET, BETAMAX, \
-                        NUMBA_PARALLEL, NUMBA_CACHE, NUMBA_FASTMATH, DTMMConfig
-from dtmm.rotation import  _calc_rotations_uniaxial, _calc_rotations, _rotate_diagonal_tensor
-from dtmm.linalg import _dotr2m, dotmdm, dotmm, inv, dotmv, _dotr2v, bdotmm, bdotmd, bdotdm
-from dtmm.data import refind2eps
-from dtmm.rotation import rotation_vector2
+from dtmm.conf import CDTYPE,DTMMConfig, BETAMAX
+
+from dtmm.linalg import dotmm, inv, dotmv,  bdotmm, bdotmd, bdotdm, dotmdm
 from dtmm.print_tools import print_progress
 
 import dtmm.tmm as tmm
 from dtmm.tmm import alphaf, alphaffi, phase_mat
-from dtmm.wave import eigenbeta, eigenphi,eigenindices, eigenmask, eigenwave, betaphi, mask2beta, mask2phi, mask2indices
+from dtmm.wave import eigenbeta, eigenphi,eigenindices, eigenmask, eigenwave,mask2beta, mask2phi, mask2indices
 from dtmm.wave import k0 as wavenumber
 from dtmm.field import field2modes, modes2field
-from dtmm.jones import polarizer as polarizer2x2
-from dtmm.jones import as4x4
-from dtmm.fft import mfft2, mifft2
 
-import numba as nb
-from numba import prange
-import time
+from dtmm.fft import mfft2
 
-from dtmm.matrix import corrected_field_diffraction_matrix, second_field_diffraction_matrix,\
-                            first_field_diffraction_matrix, first_corrected_Epn_diffraction_matrix, \
-                            second_corrected_Epn_diffraction_matrix,\
-                            corrected_Epn_diffraction_matrix2
-if NUMBA_PARALLEL == False:
-    prange = range
 
-sqrt = np.sqrt
+# from dtmm.matrix import corrected_field_diffraction_matrix, second_field_diffraction_matrix,\
+#                             first_field_diffraction_matrix, first_corrected_Epn_diffraction_matrix, \
+#                             second_corrected_Epn_diffraction_matrix,\
+#                             corrected_Epn_diffraction_matrix2
+
 
 def layer_mat3d(k0, d, epsv,epsa, mask = None, method = "4x4"):
     """Computes characteristic matrix of a single layer M=F.P.Fi,
@@ -78,66 +68,6 @@ def layer_mat3d(k0, d, epsv,epsa, mask = None, method = "4x4"):
         out = (_layer_mat3d(k0[i],d,epsv,epsa, mask[i],betas[i], phis[i],indices[i],method) for i in range(len(k0)))
         return tuple(out)
 
-
-def _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis,indices, method):   
-    n = len(betas)
-    kd = k0*d/2.
-    shape = epsv.shape[-3],epsv.shape[-2]
-    if method.startswith("2x2"):
-        out = np.empty(shape = (n, n, 2, 2), dtype = CDTYPE)
-    else:
-        out = np.empty(shape = (n, n, 4, 4), dtype = CDTYPE)
-
-
-
-    for j,(beta,phi) in enumerate(zip(betas,phis)):    
-        if method.startswith("2x2"):
-            alpha,fmat = alphaf(beta,phi,epsv,epsa)
-            f = tmm.E_mat(fmat, mode = +1, copy = False)
-            fi = inv(f)
-            pmat = phase_mat(alpha[...,::2],kd)
-        else:
-        
-            alpha,f,fi = alphaffi(beta,phi,epsv,epsa)
-            pmat = phase_mat(alpha,-kd)
-            if method == "4x4_1":
-                pmat[...,1::2] = 0.
-
-        wave = eigenwave(shape, indices[j,0],indices[j,1], amplitude = 1.)
-
-        m = dotmdm(f,pmat,fi) 
-        mw = m*wave[...,None,None]
-        
-        #dmat = corrected_Epn_diffraction_matrix2(shape, -k0, beta,phi, d=d,
-        #                         epsv = (1.5,1.5,1.5), epsa = (0.,0.,0.))
-        
-        dmat = corrected_field_diffraction_matrix(shape, -k0, beta,phi, d=d,
-                                 epsv = (1.5,1.5,1.5), epsa = (0.,0.,0.))
-# 
-        mf = mfft2(mw, overwrite_x = True)
-        
-        mf = dotmm(dmat,mf)
-        m2 = mifft2(mf, overwrite_x = True)
-        mw = dotmm(m,m2)
-        
-        
-        
-        mf = mfft2(mw, overwrite_x = True)
-        #dmat = first_field_diffraction_matrix(shape, -k0, beta, phi,d/2, 
-        #                                  epsv = (1.5,1.5,1.5),
-        #                            epsa = (0.,0.,0.)) 
-        #mf = dotmm(dmat,mf)
-        
-
-        mf = mf[mask,...]
-        
-        out[:,j,:,:] = mf
-
-        #for i,mfj in enumerate(mf):
-        #    out[i,j,:,:] = mfj
-
-    return out
-
 def _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis,indices, method):   
     n = len(betas)
     kd = k0*d#/2.
@@ -147,7 +77,6 @@ def _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis,indices, method):
     else:
         out = np.empty(shape = (n, n, 4, 4), dtype = CDTYPE)
 
-
     for j,(beta,phi) in enumerate(zip(betas,phis)):    
         if method.startswith("2x2"):
             alpha,fmat = alphaf(beta,phi,epsv,epsa)
@@ -155,66 +84,12 @@ def _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis,indices, method):
             fi = inv(f)
             pmat = phase_mat(alpha[...,::2],kd)
         else:
-        
             alpha,f,fi = alphaffi(beta,phi,epsv,epsa)
             pmat = phase_mat(alpha,-kd)
             if method == "4x4_1":
                 pmat[...,1::2] = 0.
-
-        wave = eigenwave(shape, indices[j,0],indices[j,1], amplitude = 1.)
-
-        m = dotmdm(f,pmat,fi) 
-        mw = m*wave[...,None,None]
-        
-#        dmat = corrected_field_diffraction_matrix(shape, -k0, beta,phi, d=d,
-#                                 epsv = (1.5,1.5,1.5), epsa = (0.,0.,0.))
-# 
-#        mf = mfft2(mw, overwrite_x = True)
-#        
-#        mf = dotmm(dmat,mf)
-#        m2 = mifft2(mf, overwrite_x = True)
-#        mw = dotmm(m,m2)
-        
-        
-        
-        mf = mfft2(mw, overwrite_x = True)
-        dmat = second_field_diffraction_matrix(shape, -k0, beta, phi,d/2, 
-                                          epsv = (1.5,1.5,1.5),
-                                    epsa = (0.,0.,0.), betamax = 1.4) 
-        mf = dotmm(dmat,mf)
-        
-
-        mf = mf[mask,...]
-        
-        out[:,j,:,:] = mf
-
-        #for i,mfj in enumerate(mf):
-        #    out[i,j,:,:] = mfj
-
-    return out
-
-def _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis,indices, method):   
-    n = len(betas)
-    kd = k0*d#/2.
-    shape = epsv.shape[-3],epsv.shape[-2]
-    if method.startswith("2x2"):
-        out = np.empty(shape = (n, n, 2, 2), dtype = CDTYPE)
-    else:
-        out = np.empty(shape = (n, n, 4, 4), dtype = CDTYPE)
-
-
-    for j,(beta,phi) in enumerate(zip(betas,phis)):    
-        if method.startswith("2x2"):
-            alpha,fmat = alphaf(beta,phi,epsv,epsa)
-            f = tmm.E_mat(fmat, mode = +1, copy = False)
-            fi = inv(f)
-            pmat = phase_mat(alpha[...,::2],kd)
-        else:
-        
-            alpha,f,fi = alphaffi(beta,phi,epsv,epsa)
-            pmat = phase_mat(alpha,-kd)
-            if method == "4x4_1":
-                pmat[...,1::2] = 0.
+            if method != "4x4":
+                raise ValueError("Unsupported method.")
 
         wave = eigenwave(shape, indices[j,0],indices[j,1], amplitude = 1.)
 
@@ -223,25 +98,23 @@ def _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis,indices, method):
                 
         mf = mfft2(mw, overwrite_x = True)
         
-        dd = np.linspace(0,1.,10)*d
+        #dd = np.linspace(0,1.,10)*d
         
-        dmat = 0.
+        # dmat = 0.
         
-        for dm in dd:
+        # for dm in dd:
         
-            dmat = dmat + second_field_diffraction_matrix(shape, -k0, beta, phi,dm, 
-                                          epsv = (1.5,1.5,1.5),
-                                    epsa = (0.,0.,0.), betamax = 1.4) /len(dd)
+        #     dmat = dmat + second_field_diffraction_matrix(shape, -k0, beta, phi,dm, 
+        #                                   epsv = (1.5,1.5,1.5),
+        #                             epsa = (0.,0.,0.), betamax = 1.4) /len(dd)
             
-        mf = dotmm(dmat,mf)
+        # mf = dotmm(dmat,mf)
         
 
         mf = mf[mask,...]
         
         out[:,j,:,:] = mf
 
-        #for i,mfj in enumerate(mf):
-        #    out[i,j,:,:] = mfj
 
     return out
 
@@ -326,20 +199,10 @@ def system_mat3d(fmatin, cmat, fmatout):
 def _reflection_mat3d(smat):
     """Computes a 4x4 reflection matrix.
     """
-
     shape = smat.shape[0:-4] + (smat.shape[-4] * 4,smat.shape[-4] * 4)  
-    smat = np.rollaxis(smat, -2,-3)
+    smat = np.moveaxis(smat, -2,-3)
     smat = smat.reshape(shape)
-    m1 = np.zeros_like(smat)
-    m2 = np.zeros_like(smat)
-    #fill diagonals
-    for i in range(smat.shape[-1]//2):
-        m1[...,i*2+1,i*2+1] = 1.
-        m2[...,i*2,i*2] = -1.
-    m1[...,:,0::2] = -smat[...,:,0::2]
-    m2[...,:,1::2] = smat[...,:,1::2]
-    m1 = inv(m1)
-    return dotmm(m1,m2)
+    return tmm.reflection_mat(smat)
 
 def reflection_mat3d(smat):
     verbose_level = DTMMConfig.verbose
@@ -357,8 +220,8 @@ def reflection_mat3d(smat):
         return _reflection_mat3d(smat)
 
 
-def _transmit3d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None):
-    """Transmits field vector using 4x4 method.
+def _reflect3d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None):
+    """Reflects/Transmits field vector using 4x4 method.
     
     This functions takes a field vector that describes the input field and
     computes the output transmited field and also updates the input field 
@@ -389,8 +252,8 @@ def _transmit3d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None):
     return dotmv(fmat_out,bvec,out = out)
 
 
-def transmit3d(fvecin, fmatin, rmat, fmatout, fvecout = None):
-    """Transmits field vector using 4x4 method.
+def reflect3d(fvecin, fmatin, rmat, fmatout, fvecout = None):
+    """Transmits/reflects field vector using 4x4 method.
     
     This functions takes a field vector that describes the input field and
     computes the output transmited field vector and also updates the input field 
@@ -402,23 +265,25 @@ def transmit3d(fvecin, fmatin, rmat, fmatout, fvecout = None):
     if isinstance(fvecin, tuple):
         n = len(fvecin)
         if fvecout is None:
-            return tuple((_transmit3d(fvecin[i], fmatin[i], rmat[i], fmatout[i]) for i in range(n)))
+            return tuple((_reflect3d(fvecin[i], fmatin[i], rmat[i], fmatout[i]) for i in range(n)))
         else:
-            return tuple((_transmit3d(fvecin[i], fmatin[i], rmat[i], fmatout[i], fvecout[i]) for i in range(n)))
+            return tuple((_reflect3d(fvecin[i], fmatin[i], rmat[i], fmatout[i], fvecout[i]) for i in range(n)))
     else:
-        return _transmit3d(fvecin, fmatin, rmat, fmatout, fvecout)
+        return _reflect3d(fvecin, fmatin, rmat, fmatout, fvecout)
     
 
-def transfer3d(field_data_in, optical_data, nin = 1., nout = 1., method = "4x4", betamax = BETAMAX):
+def transfer3d(field_data_in, optical_data, nin = 1., nout = 1., method = "4x4", betamax = BETAMAX, field_out = None):
     
     f,w,p = field_data_in
     shape = f.shape[-2:]
     d,epsv,epsa = optical_data
     k0 = wavenumber(w, p)
     
-    
-    
-    
+    if field_out is not None:
+        mask, fmode_out = field2modes(field_out,k0, betamax = betamax)
+    else:
+        fmode_out = None
+   
 #    if optical_data[1].shape[-2] == 1:
 #        #2D data
 #        ff = fft2(f)
@@ -439,7 +304,7 @@ def transfer3d(field_data_in, optical_data, nin = 1., nout = 1., method = "4x4",
     smat = system_mat3d(fmatin = fmatin, cmat = cmat, fmatout = fmatout)
     rmat = reflection_mat3d(smat)
     
-    fmode_out = transmit3d(fmode_in, rmat = rmat, fmatin = fmatin, fmatout = fmatout)
+    fmode_out = reflect3d(fmode_in, rmat = rmat, fmatin = fmatin, fmatout = fmatout, fvecout = fmode_out)
     
     field_out = modes2field(mask, fmode_out)
     f = modes2field(mask, fmode_in, out = f)
