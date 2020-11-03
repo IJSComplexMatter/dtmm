@@ -1,5 +1,6 @@
 """
-Jones calculus functions. Ju can use this module for jones calculus
+Jones calculus functions. You can use this module for simple normal incidence
+jones calculus.
 
 2x2 matrices
 ------------

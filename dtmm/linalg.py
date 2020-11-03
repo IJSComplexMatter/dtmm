@@ -230,8 +230,10 @@ def _tensor_eig(tensor, is_real, eig,vec):
     Input array is overwritten.
     """
     
-    #tolerance, if norm of th offdiagonal elements is smaller than this, treat the
-    #tensor as a diagonal tensor.
+    #if norm of the offdiagonal elements is smaller than this, treat the
+    #tensor as a diagonal tensor. This improves handling of real diagonal epsilon 
+    #data treated as complex data, where the complex part introduces unwanted
+    # rotations of the eigenframe, in particular when working with floats.
     normtol = 1e-12
     
     m1 = max(abs(tensor[0,0]),abs(tensor[1,1]))

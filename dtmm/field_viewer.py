@@ -665,7 +665,7 @@ class FieldViewer(object):
     @property
     def masked_field(self):
         if self.aperture is not None:
-            mask = self.beta <= self.aperture
+            mask = self.viewer_options.beta <= self.aperture
             return self.field[mask]
         else:
             return self.field
@@ -674,7 +674,7 @@ class FieldViewer(object):
     def masked_ffield(self):
         """Fourier transform of the field"""
         if self.aperture is not None:
-            mask = self.beta <= self.aperture
+            mask = self.viewer_options.beta <= self.aperture
             return self.ffield[mask]
         else:
             return self.ffield
@@ -944,7 +944,7 @@ class FieldViewer(object):
 
             if self.aperture is not None:   
                 axpos = axes.pop() 
-                self._ids6, self.axaperture = add_slider("aperture", axpos, labels = POLARIZER_LABELS, min_name = "namin", max_name = "namax", min_value = 0, max_value = self.beta.max())
+                self._ids6, self.axaperture = add_slider("aperture", axpos, labels = POLARIZER_LABELS, min_name = "namin", max_name = "namax", min_value = 0, max_value = self.viewer_options.beta.max())
                             
             if self.intensity is not None:
                 axpos = axes.pop() 
@@ -1171,7 +1171,7 @@ class BulkViewer(FieldViewer):
     @property
     def masked_field(self):
         if self.aperture is not None:
-            mask = self.beta <= self.aperture
+            mask = self.viewer_options.beta <= self.aperture
             return self.field[self.focus,mask]
         else:
             return self.field[self.focus]
@@ -1180,7 +1180,7 @@ class BulkViewer(FieldViewer):
     def masked_ffield(self):
         """Fourier transform of the field"""
         if self.aperture is not None:
-            mask = self.beta <= self.aperture
+            mask = self.viewer_options.beta <= self.aperture
             return self.ffield[self.focus,mask]
         else:
             return self.ffield[self.focus]
@@ -1243,7 +1243,7 @@ class POMViewer(FieldViewer):
             vp = self.viewer_options
             epsv = vp.epsv
             if self._jones is None:
-                self._fjones = field2jones(self._field, vp.wavenumbers, epsv = epsv, mode = vp.propagation_mode, output_fft = True)
+                self._fjones = field2jones(self._field, vp.wavenumbers, epsv = epsv, mode = vp.propagation_mode, output_fft = True, betamax = vp.betamax)
             else:
                 self._fjones = fft2(self._jones)
         return self._fjones
@@ -1259,7 +1259,7 @@ class POMViewer(FieldViewer):
     def masked_fjones(self):
         """Fourier transform of the field"""
         if self.aperture is not None:
-            mask = self.beta <= self.aperture
+            mask = self.viewer_options.beta <= self.aperture
             return self.fjones[mask]
         else:
             return self.fjones
@@ -1271,7 +1271,7 @@ class POMViewer(FieldViewer):
     def _field2specter(self,field):
         vp = self.viewer_options
         epsv = vp.epsv
-        return field2specter(jones2field(field, vp.wavenumbers, epsv = epsv, mode = vp.propagation_mode, input_fft = True))
+        return field2specter(jones2field(field, vp.wavenumbers, epsv = epsv, mode = vp.propagation_mode, input_fft = True, betamax = vp.betamax))
 
     def _calculate_pom_field(self, data, jvec, pmat, dmat, window = None, input_fft = False, out = None):
         return calculate_pom_field(data,jvec,pmat ,dmat,window = window,input_fft = input_fft, output_fft = True, out = out)
@@ -1288,7 +1288,7 @@ class POMViewer(FieldViewer):
                 m = dotmm(self.analyzer_jmat,self.retarder_jmat) if self.retarder_jmat is not None else self.analyzer_jmat
                 m = jones.rotated_matrix(m,np.radians(sample))
                 epsv = vp.epsv
-                self._pmat = mode_jonesmat2x2(vp.shape, vp.wavenumbers, m, epsv = epsv)
+                self._pmat = mode_jonesmat2x2(vp.shape, vp.wavenumbers, m, mode = vp.propagation_mode, epsv = epsv, betamax = vp.betamax)
 
             else:
                 self._pmat = None
@@ -1327,7 +1327,7 @@ class POMViewer(FieldViewer):
                                       mode = vp.propagation_mode, betamax = vp.betamax) 
             self._dmat = dmat
 
-            cmat = self.cover_matrix   
+            cmat = self.cover_matrix  
             self._dmat = dotmm(self._dmat, cmat) 
         return self._dmat   
 

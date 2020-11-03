@@ -1517,7 +1517,10 @@ def transmit4x4(fvec_in, cmat = None, fmatin = None, fmatout = None, fmatini = N
     """
     b = np.broadcast(fvec_in[..., None],cmat[...,0:4,0:4], fmatin, fmatout)
     
-
+    if fvec_in.shape != b.shape[:-1]:
+        raise ValueError("Input field vector should have shape of {}".format(b.shape[:-1]))
+    if fvec_out is not None and fvec_out.shape != b.shape[:-1]:
+        raise ValueError("Output field vector should have shape of {}".format(b.shape[:-1]))
     if fmatini is None:
         if fmatin is None:
             fmatin = f_iso()
@@ -1534,9 +1537,7 @@ def transmit4x4(fvec_in, cmat = None, fmatin = None, fmatout = None, fmatini = N
         fmatout = inv(fmatouti)
         
     smat = system_mat(cmat = cmat,fmatini = fmatini, fmatout = fmatout)
-    
-
-    
+     
     avec = dotmv(fmatini,fvec_in)
     
     

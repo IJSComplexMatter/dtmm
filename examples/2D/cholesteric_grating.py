@@ -1,6 +1,9 @@
-"""this script calculates reflected and trasnmitted waves from an input white-light
-plane wave. And calculates the the microscope images in transmission mode and in
+"""
+this script calculates reflected and trasnmitted waves from an input white-light
+plane wave and calculates the microscope images in transmission mode and in
 reflection mode.
+
+
 """
 import dtmm
 import numpy as np
