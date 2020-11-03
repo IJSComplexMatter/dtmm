@@ -33,8 +33,8 @@ pitch_true = 1/(1/pitch_z **2 + 1/pitch_x**2)**0.5
 print("pitch : {} nm".format(pitch_true * PIXELSIZE))
 print("pitch * n : {} nm".format(pitch_true * PIXELSIZE * no))
 
-size_x = pitch_x * 2
-size_z = pitch_z * 4
+size_x = pitch_x * 8
+size_z = pitch_z * 2
 
 tilt = np.arctan(pitch_z/pitch_x)
 
@@ -70,33 +70,11 @@ d =d/SCALING
 epsv = epsv[:,::SCALING]
 epsa = epsa[:,::SCALING]
 
-#epsa[...,0] = 0.
-#epsa[...,1] = np.pi/2
-#epsa[...,2] = twist
-
-
-# epsv2 = np.empty(shape = (NLAYERS * 4,) + epsv.shape[1:], dtype = epsv.dtype)
-# epsa2 = np.empty(shape = (NLAYERS * 4,) + epsa.shape[1:], dtype = epsa.dtype)
-# d2 = np.ones((NLAYERS*4,))/4.
-
-# epsv2[::4] = epsv
-# epsv2[1::4] = epsv
-# epsv2[2::4] = epsv
-# epsv2[3::4] = epsv
-# epsa2[::4] = epsa
-# epsa2[1::4] = epsa
-# epsa2[2::4] = epsa
-# epsa2[3::4] = epsa
-# #epsa[:,:,:,2] = epsa[:,0,:,2][:,None,:]
-# #epsv[10,:45,0,2] = 1.
-
-# optical_data = (d,epsv,epsa)
-# #optical_data = (d2,epsv2,epsa2)
 
 if KOEHLER:
     beta, phi, intensity = dtmm.illumination_rays(NA,7)
 else:
-    beta,phi, intensity = np.sin(tilt),0,1
+    beta,phi, intensity = 0,0,1
 
 jones = None#dtmm.jonesvec((1,1j)) #left handed input light
 
@@ -148,10 +126,9 @@ plt.legend()
     
 
 
-    
 viewer1 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows)
 viewer2 = dtmm.field_viewer(field_data_out, mode = "t", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows)
-viewer3 = dtmm.field_viewer(field_data_out, mode = "r", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows)
+#viewer3 = dtmm.field_viewer(field_data_out, mode = "r", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows)
 
 fig,ax = viewer1.plot()
 ax.set_title("Reflected field")
@@ -159,57 +136,7 @@ ax.set_title("Reflected field")
 fig,ax = viewer2.plot()
 ax.set_title("Transmitted field")
 
-fig,ax = viewer3.plot()
-ax.set_title("Residual field")
+#fig,ax = viewer3.plot()
+#ax.set_title("Residual field")
 
 
-# if SAVEFIG == True:
-#     polanas = ((None,None), (0,90),(90,0),(0,0), (90,90))
-    
-# else:
-#     polanas = ((0,0),)
-#     #polanas = ((None,0),)
-
-# for pol, ana in polanas:
-#     viewer1.set_parameters(polarizer = pol, analyzer = ana)
-#     fig,ax = viewer1.plot()
-#     ax.set_title("Reflected field")
-#     if SAVEFIG:
-#         fig.savefig("{}{}_reflected_P{}_A{}.pdf".format(prefix,sample, pol, ana))
-    
-#     viewer2.set_parameters(polarizer = pol, analyzer = ana)
-#     fig,ax = viewer2.plot()
-#     ax.set_title("Trasnmitted field")
-#     if SAVEFIG:
-#         fig.savefig("{}{}_transmitted_P{}_A{}.pdf".format(prefix,sample, pol ,ana))
-
-# colors = list(("C{}".format(i) for i in range(10)))
-
-# if KOEHLER == False:
-#     f,w,p = field_data_in
-#     k = dtmm.k0(w,PIXELSIZE)
-#     mask, modesr = dtmm.field.field2modes(f,k)
-
-#     f,w,p = field_data_out
-#     mask, modest = dtmm.field.field2modes(f,k)
-    
-#     fig, (ax1, ax2) = plt.subplots(1, 2)
-
-
-#     for i,(w,mode0,moder,modet) in enumerate(zip(WAVELENGTHS,modes0,modesr,modest)):
-#         r = moder[0]+1j*moder[1]
-#         t = modet[0]+1j*modet[1]
-#         i0 = mode0[0]+1j*mode0[1]
-#         t = dtmm.tmm.poynting(t)
-#         r = dtmm.tmm.poynting(r)
-#         i0 = dtmm.tmm.poynting(i0)
-#         t = t/i0[0]
-#         r = r/i0[0]
-
-#         ax1.plot((t.sum(),t.sum()), label = w)#, color = colors[i])
-#         ax2.plot((r.sum(),r.sum()), label = w)#, color = colors[i])
-        
-        
-        
-    
-# plt.show()

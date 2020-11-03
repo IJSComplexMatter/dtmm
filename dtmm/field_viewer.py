@@ -46,7 +46,9 @@ from dtmm.linalg import dotmf, dotmm, dotmv
 from dtmm.fft import fft2, ifft2
 
 #: settable viewer parameters
-VIEWER_PARAMETERS = ("focus","analyzer", "polarizer", "sample", "intensity", "cols","rows","gamma","gray","aperture", "retarder")
+VIEWER_PARAMETERS = ("focus","analyzer", "polarizer", "sample", "intensity","aperture", "retarder")
+IMAGE_PARAMETERS = ("cols","rows","gamma","gray","cms")
+
 
 SAMPLE_LABELS = ("-90 ","-45 "," 0  ","+45 ", "+90 ")
 SAMPLE_NAMES = tuple((s.strip() for s in SAMPLE_LABELS))
@@ -588,6 +590,7 @@ class FieldViewer(object):
     _analyzer_jmat = None
     _intensity = 1.
     _parameters = VIEWER_PARAMETERS
+    _image_parameters = IMAGE_PARAMETERS
     _fmin = 0
     _fmax = 100
     _jvec = None
@@ -596,10 +599,11 @@ class FieldViewer(object):
     _ofield = None
     _specter = None
     
-    viewer_options = FieldViewerOptions()
-    image_parameters = ImageParameters()
         
     def __init__(self,shape, wavelengths, pixelsize, **kwargs):
+        self.viewer_options = FieldViewerOptions()
+        self.image_parameters = ImageParameters()
+        
         self.viewer_options.wavelengths = wavelengths
         self.viewer_options.pixel_size = pixelsize 
         self.viewer_options.shape = shape 
@@ -845,12 +849,14 @@ class FieldViewer(object):
         for key, value in kwargs.items():
             if key in self._parameters:
                 setattr(self, key, value) 
+            elif key in self._image_parameters:
+                setattr(self.image_parameters, key, value) 
             else:
                 raise TypeError("Unexpected keyword argument '{}'".format(key))
                 
     def get_parameters(self):
         """Returns viewer parameters as dict"""
-        return {name : getattr(self,name) for name in VIEWER_PARAMETERS}
+        return {name : getattr(self,name) for name in VIEWER_PARAMETERS}, {name : getattr(self.image_parameters,name) for name in IMAGE_PARAMETERS}
         
     def plot(self, fig = None,ax = None, sliders = None, show_sliders = True, show_scalebar = False, **kwargs):
         """Plots field intensity profile. You can set any of the below listed
@@ -1189,7 +1195,24 @@ class POMViewer(FieldViewer):
     _fjones = None
     _jones = None
     _cmat = None
-    viewer_options = POMViewerOptions()
+    
+    def __init__(self,shape, wavelengths, pixelsize, **kwargs):
+        self.viewer_options = POMViewerOptions()
+        self.image_parameters = ImageParameters()
+        
+        self.viewer_options.wavelengths = wavelengths
+        self.viewer_options.pixel_size = pixelsize 
+        self.viewer_options.shape = shape 
+        self.image_parameters._wavelengths = wavelengths
+        
+        for key, value in kwargs.items():
+            setattr(self.viewer_options, key, value)
+            
+        self._aperture = None if self.viewer_options.beta is None else max(self.viewer_options.beta)
+        
+        if not self.viewer_options.is_polarized:
+            self.polarizer = "none"
+            self.sample = "none"  
         
     def _clear_all_field_data(self):
         self._jones = None

@@ -153,13 +153,16 @@ def _rotation_matrix(psi,theta,phi, R):
       (NF64DTYPE[:,:],NFDTYPE[:])],nopython = True, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)     
 def _rotation_angles(R, out):
     """Computes the three Euler angles from the rotation matrix"""
-    theta = np.arccos(R[2,2])
+    r22 = max(-1,min(1,R[2,2])) #round rotation matrix in case we have rounding issues in input matrix
+    theta = np.arccos(r22)
     #if sin(theta) == 0., then R[1,2] and R[0,2] are zero
     if R[1,2] == 0. and R[0,2] == 0. or theta == 0.:
         #it does not matter what psi is, so set to zero
         psi = 0.
+        r11 = max(-1,min(1,R[1,1])) #round rotation matrix in case we have rounding issues in input matrix
+        
         #np.arccos(R[1,1]) is phi -psi, but since we set psi ti zero we may set this to phi.
-        phi = np.arccos(R[1,1])
+        phi = np.arccos(r11)
     else:
         phi = np.arctan2(R[1,2],R[0,2])
         psi = np.arctan2(R[2,1],-R[2,0])

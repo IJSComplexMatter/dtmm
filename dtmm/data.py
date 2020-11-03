@@ -474,7 +474,7 @@ def Q2eps(tensor, no = 1.5, ne = 1.6,scale_factor = 1., out = None):
         out[...,2,0] = out[...,0,2]
         out[...,2,1] = out[...,1,2]
     return out
-    
+  
 def eps2epsva(eps):
     """Computes epsilon eigenvalues (epsv) and rotation angles (epsa) from
     epsilon tensor of shape (...,6) or represented as a (...,3,3)
@@ -493,10 +493,12 @@ def eps2epsva(eps):
     epsv, r = tensor_eig(eps)
     # r is in general complex for complex eps. But, if a complex tensor is a rotated diagonal,
     # the eigenvectors should be real. Test it here.
-    if not np.allclose(r,r.real):
+    atol = 1e-8 if CDTYPE == "complex128" else 1e-8
+    rtol = 1e-5 if CDTYPE == "complex128" else 1e-5
+    if not np.allclose(r,r.real, atol = atol, rtol = rtol):
         import warnings
-        warnings.warn("Input tensor is not normal, because eigevectors are not real. Results are unpredictive!", stacklevel = 2)
-    
+        warnings.warn("Input tensor is not normal because eigevectors are not real. Results are unpredictive!", stacklevel = 2)
+        
     return epsv, rotation_angles(r.real)
 
 def epsva2eps(epsv,epsa):
@@ -971,8 +973,9 @@ def _uniaxial_order(order, eps, out):
     out[2] = eps3
 
     
-_EPS_DECL_VEC = ["(float32[:],float32[:],float32[:])","(float64[:],float64[:],float64[:])",
-             "(float32[:],complex64[:],complex64[:])","(float64[:],complex128[:],complex128[:])"]
+_EPS_DECL_VEC = [(NF32DTYPE[:],NF32DTYPE[:],NF32DTYPE[:]), (NF64DTYPE[:], NF64DTYPE[:],NFDTYPE[:]),
+             (NF32DTYPE[:],NC64DTYPE[:],NC64DTYPE[:]), (NF64DTYPE[:], NC128DTYPE[:],NCDTYPE[:])
+             ]
 @numba.guvectorize(_EPS_DECL_VEC ,"(),(n)->(n)", cache = NUMBA_CACHE)
 def uniaxial_order(order, eig, out):
     """
@@ -1007,8 +1010,7 @@ def uniaxial_order(order, eig, out):
     """
     assert eig.shape[0] in (3,)
     _uniaxial_order(order[0], eig, out)
-    
-    
+       
 def eig_symmetry(order, eig, out = None):
     """Takes the ordered diagonal values of the tensor and converts it to 
     uniaxial or isotropic tensor, or keeps it as biaxial.

@@ -284,17 +284,6 @@ def transfer3d(field_data_in, optical_data, nin = 1., nout = 1., method = "4x4",
     else:
         fmode_out = None
    
-#    if optical_data[1].shape[-2] == 1:
-#        #2D data
-#        ff = fft2(f)
-#        for i in range(ff.shape[-1]):
-#            ff[...,i][...,None]
-#            mask, fmode_in = ffield2modes(ff[...,i][...,None],k0, betamax = betamax)
-#        
-#        
-#    else:
-#        #3D data
-    
     mask, fmode_in = field2modes(f,k0, betamax = betamax)
     
     fmatin = f_iso3d(shape = shape, k0 = k0, n=nin, betamax = betamax)

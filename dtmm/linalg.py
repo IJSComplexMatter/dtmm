@@ -11,8 +11,6 @@ if not NUMBA_PARALLEL:
     prange = range
     
 
-    
-
 @njit([NFDTYPE(NFDTYPE[:]),NFDTYPE(NCDTYPE[:])], cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)        
 def _vecabs2(v):
     """Computes vec.(vec.conj)"""
@@ -232,6 +230,9 @@ def _tensor_eig(tensor, is_real, eig,vec):
     Input array is overwritten.
     """
     
+    #tolerance, if norm of th offdiagonal elements is smaller than this, treat the
+    #tensor as a diagonal tensor.
+    normtol = 1e-12
     
     m1 = max(abs(tensor[0,0]),abs(tensor[1,1]))
     m2 = max(abs(tensor[2,2]),abs(tensor[0,1]))
@@ -265,7 +266,7 @@ def _tensor_eig(tensor, is_real, eig,vec):
             
         norm = a01**2 + a02**2 + a12**2
         
-        if norm != 0.:
+        if abs(norm) > normtol:
             p = ((b00**2 + b11**2 +b22**2 + 2 * norm)/6)**0.5
         
             c00 = b11 * b22 - a12 * a12
@@ -280,7 +281,10 @@ def _tensor_eig(tensor, is_real, eig,vec):
                 
             phi = np.arccos(half_det)/3.
             
-            eig0 = np.cos(phi + (2*np.pi/3)) * 2
+            #this number is closest to 2*np.pi/3 in float or double
+            twoThirdsPi = NFDTYPE(2.09439510239319549)
+            
+            eig0 = np.cos(phi + twoThirdsPi) * 2
             eig2 = np.cos(phi) * 2
             eig1 = -(eig0 + eig2)
             

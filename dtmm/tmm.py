@@ -453,7 +453,7 @@ def alphaf(beta = None, phi = None, epsv = None, epsa = None, out = None):
 
 def alphaffi(beta=None,phi=None,epsv=None,epsa=None,out = None):
     """Computes alpha and field arrays (eigen values and eigen vectors arrays)
-    and inverse of the field array. See :func:`alphaf` for details
+    and inverse of the field array. See also :func:`alphaf` 
     
     Broadcasting rules apply.
     
@@ -495,7 +495,7 @@ def alphaffi(beta=None,phi=None,epsv=None,epsa=None,out = None):
 
  
 def alphaE(beta,phi,epsv,epsa, mode = +1, out = None):
-    """
+    """Computes E-field eigenvalue and eigenvector matrix for the 2x2 formulation.
     
     Parameters
     ----------
@@ -511,6 +511,11 @@ def alphaE(beta,phi,epsv,epsa, mode = +1, out = None):
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
     out : (ndarray,ndarray), optional
         Output arrays where results are written.
+        
+    Returns
+    -------
+    alpha, field : (ndarray, ndarray)
+        Eigen values and eigen vectors arrays.
     
     """
     mode = _mode_to_int(mode)
@@ -528,7 +533,8 @@ def alphaE(beta,phi,epsv,epsa, mode = +1, out = None):
     return out
 
 def alphaEEi(beta,phi,epsv,epsa, mode = +1, out = None):
-    """
+    """Computes E-field eigenvalue and eigenvector matrix and inverse of the 
+    eigenvector array for the 2x2 formulation. See also :func:`alphaE` 
     
     Parameters
     ----------
@@ -544,6 +550,11 @@ def alphaEEi(beta,phi,epsv,epsa, mode = +1, out = None):
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
     out : (ndarray,ndarray,ndarray), optional
         Output arrays where results are written.
+
+    Returns
+    -------
+    alpha, field, ifield : (ndarray, ndarray, ndarray)
+        Eigen values and eigen vectors arrays and its inverse
     """
     mode = _mode_to_int(mode)
     if out is None:
@@ -583,22 +594,36 @@ def phasem(*args,**kwargs):
     return _phasem(*args,**kwargs)
     
 def phase_mat(alpha, kd, mode = None,  out = None):
-    """Computes phase a 4x4 or 2x2 matrix from eigenvalue matrix alpha 
-    and wavenumber
+    """Computes a 4x4 or 2x2 diagonal matrix from eigenvalue matrix alpha 
+    and wavenumber. 
+    
+    The output is a diagonal, that is, a vector of length 2 or 4, depending on
+    the input alpha array.
     
     Parameters
     ----------
-
-    alpha : (...,4) array
-        The eigenvalue alpha array.
+    alpha : array
+        The eigenvalue alpha array of shape (...,4) or (...,2).
     kd : float
         The kd phase value (layer thickness times wavenumber in vacuum).
-    mode : int
-        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    mode : int or None
+        If specified, converts the phase matrix to 2x2, taking either forward 
+        propagating mode (+1), or negative propagating mode (-1).
     out : ndarray, optional
         Output array where results are written.
+        
+    Returns
+    -------
+    diag : array
+        Phase diagonal matrix of shape (...,4) or (...,2).
     """
     mode = _mode_to_int_or_none(mode)
+    alpha = np.asarray(alpha)
+    
+    if mode is not None:
+        if alpha.shape[-1] != 4:
+            raise ValueError("alpha array must be a 4-vector if mode is set.")
+    
     kd = np.asarray(kd, dtype = FDTYPE)
     if out is None:
         if mode is None:
@@ -634,12 +659,15 @@ def poynting(fvec, out):
     
     Parameters
     ----------
-
     fvec : (...,4,4) array
         Field matrix array.
     out : ndarray, optional
         Output array where results are written.
-    
+        
+    Results
+    -------
+    poynting : array
+        The z component of the poynting vector.
     """
     assert fvec.shape[0] == 4
     out[0] = _poynting(fvec)
@@ -659,7 +687,6 @@ def fmat2poynting(fmat, out = None):
     
     Parameters
     ----------
-
     fmat : (...,4,4) array
         Field matrix array.
     out : ndarray, optional
@@ -679,7 +706,6 @@ def normalize_f(fmat, out):
     
     Parameters
     ----------
-
     fmat : (...,4,4) array
         Field matrix array.
     out : ndarray, optional
@@ -705,7 +731,6 @@ def intensity(fvec,out = None):
     
     Parameters
     ----------
-
     fvec : (...,4) array
         Field vector array.
     out : ndarray, optional
@@ -854,37 +879,36 @@ def S_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1):
     else:
         return S[...,1::2,1::2],S[...,0::2,1::2]
 
-        
-def transmission_mat(fmatin, fmatout, fmatini = None, mode = +1,out = None):
-    """Computes the transmission matrix.
+# def transmission_mat(fmatin, fmatout, fmatini = None, mode = +1,out = None):
+#     """Computes the transmission matrix.
     
-    Parameters
-    ----------
-    fmatin : (...,4,4) array
-        Input field matrix array.
-    fmatout : (...,4,4) array
-        Output field matrix array.
-    fmatini : (...,4,4) array
-        Inverse of the input field matrix array.
-    fmatouti : (...,4,4) array, optional
-        Inverse of the output field matrix array. If not provided, it is computed
-        from `fmatout`.
-    mode : int
-        Either +1, for forward propagating mode, or -1 for negative propagating mode.
-    out : ndarray, optional
-        Output array where results are written.
-    """
-    mode = _mode_to_int(mode)
-    A,B = S_mat(fmatin, fmatout, fmatini = fmatini, mode = mode)
-    if mode == +1:
-        A1 = fmatin[...,::2,::2]
-        A2 = fmatout[...,::2,::2]
-    else:
-        A1 = fmatin[...,1::2,1::2]
-        A2 = fmatout[...,1::2,1::2]      
-    Ai = inv(A, out = out)
-    A1i = inv(A1)
-    return dotmm(dotmm(A2,Ai, out = Ai),A1i, out = Ai)
+#     Parameters
+#     ----------
+#     fmatin : (...,4,4) array
+#         Input field matrix array.
+#     fmatout : (...,4,4) array
+#         Output field matrix array.
+#     fmatini : (...,4,4) array
+#         Inverse of the input field matrix array.
+#     fmatouti : (...,4,4) array, optional
+#         Inverse of the output field matrix array. If not provided, it is computed
+#         from `fmatout`.
+#     mode : int
+#         Either +1, for forward propagating mode, or -1 for negative propagating mode.
+#     out : ndarray, optional
+#         Output array where results are written.
+#     """
+#     mode = _mode_to_int(mode)
+#     A,B = S_mat(fmatin, fmatout, fmatini = fmatini, mode = mode)
+#     if mode == +1:
+#         A1 = fmatin[...,::2,::2]
+#         A2 = fmatout[...,::2,::2]
+#     else:
+#         A1 = fmatin[...,1::2,1::2]
+#         A2 = fmatout[...,1::2,1::2]      
+#     Ai = inv(A, out = out)
+#     A1i = inv(A1)
+#     return dotmm(dotmm(A2,Ai, out = Ai),A1i, out = Ai)
 #
 #def reflection_mat(fin, fout, fini = None, mode = +1,out = None):
 #    A,B = S_mat(fin, fout, fini = fini, mode = mode)
@@ -911,7 +935,8 @@ def tr_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1,
         Output field matrix array.
     fmatini : (...,4,4) array
         Inverse of the input field matrix array.
-{overwrite_fmatin}
+    overwrite_fmatin : bool
+        Specifies whether fmatin can be overwritten or not.
     mode : int
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
     out : (ndarray,ndarray), optional
@@ -937,7 +962,8 @@ def t_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1, 
         Output field matrix array.
     fmatini : (...,4,4) array
         Inverse of the input field matrix array.
-{overwrite_fmatin}
+    overwrite_fmatin : bool
+        Specifies whether fmatin can be overwritten or not.
     mode : int
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
     out : ndarray, optional
@@ -983,7 +1009,8 @@ def Eti_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1
         Output field matrix array.
     fmatini : (...,4,4) array
         Inverse of the input field matrix array.
-{overwrite_fmatin}
+    overwrite_fmatin : bool
+        Specifies whether fmatin can be overwritten or not.
     mode : int
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
     out : ndarray, optional
@@ -1008,7 +1035,8 @@ def Etri_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +
         Output field matrix array.
     fmatini : (...,4,4) array
         Inverse of the input field matrix array.
-{overwrite_fmatin}
+    overwrite_fmatin : bool
+        Specifies whether fmatin can be overwritten or not.
     mode : int
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
     out : ndarray, optional
@@ -1185,85 +1213,6 @@ def layer_mat(kd, epsv,epsa, beta = 0,phi = 0, cfact = 0.1, method = "4x4", fmat
         return out   
     else:
         return fmat, out 
-
-# def layer3D_mat(kd, epsv,epsa, betamax = BETAMAX,  out = None):
-#     """Computes characteristic matrix of a single layer M=F.P.Fi,
-    
-#     Numpy broadcasting rules apply
-    
-#     Parameters
-#     ----------
-#     kd : float
-#         A sequence of phase values (layer thickness times wavenumber in vacuum).
-#         len(kd) must match len(epsv) and len(epsa).
-#     epsv : array_like
-#         Epsilon eigenvalues.
-#     epsa : array_like
-#         Optical axes orientation angles (psi, theta, phi).
-#     out : ndarray, optional
-    
-#     Returns
-#     -------
-#     cmat : ndarray
-#         Characteristic matrix of the layer.
-#     """    
-#     if method in ("2x2","2x2_1"):
-#         alpha,fmat = alphaf(beta,phi,epsv,epsa)
-#         f = E_mat(fmat, mode = +1, copy = False)
-#         if fmatin is not None and method == "2x2_1":
-#             fi = Eti_mat(fmatin, fmat, mode = +1)
-#         else:
-#             fi = inv(f)
-#         pmat = phase_mat(alpha[...,::2],kd)
-
-#     elif method in ("4x4","4x4_1","4x4_r","4x4_2"):
-#         alpha,fmat,fi = alphaffi(beta,phi,epsv,epsa)
-#         f = fmat
-#         pmat0 = phase_mat(alpha,-kd)
-#         if method ==  "4x4_r":
-#             alpha1 = alpha.copy()
-#             np.add(alpha1[...,1::2],alpha1[...,1::2].real*2j*cfact, out = alpha1[...,1::2])
-#             np.add(alpha[...,::2],-alpha[...,::2].real*2j*cfact, out = alpha[...,::2])
-#             pmat1 = phase_mat(alpha1,-kd)
-#             pmat2 = phase_mat(alpha,-kd)
-            
-#             pmat = np.zeros(shape = pmat0.shape[:-1] + (8,8), dtype = pmat0.dtype)
-#             pmat[...,0,0] = pmat1[...,0]
-#             pmat[...,1,1] = pmat1[...,1]
-#             pmat[...,2,2] = pmat1[...,2]
-#             pmat[...,3,3] = pmat1[...,3]
-#             pmat[...,4,4] = pmat2[...,0]
-#             pmat[...,5,5] = pmat2[...,1]
-#             pmat[...,6,6] = pmat2[...,2]
-#             pmat[...,7,7] = pmat2[...,3]
-#             pmat[...,5,1] = pmat0[...,1] - pmat1[...,1]
-#             pmat[...,7,3] = pmat0[...,3] - pmat1[...,3]
-            
-#             f1 = np.zeros_like(pmat)
-#             f1[...,0:4,0:4] = f
-#             f1[...,4:8,4:8] = f
-            
-#             f1i = np.zeros_like(pmat)
-#             f1i[...,0:4,0:4] = fi
-#             f1i[...,4:8,4:8] = fi  
-            
-#             return dotmm(f1,dotmm(pmat,f1i))
-            
-#         elif method == "4x4_2":
-#             np.add(alpha[...,1::2],alpha[...,1::2].real*2*1j*cfact, out = alpha[...,1::2])
-
-#         pmat = phase_mat(alpha,-kd)
-#         if method == "4x4_1":
-#             pmat[...,1::2] = 0.
-#     else:
-#         raise ValueError("Unknown method!")
-        
-#     out = dotmdm(f,pmat,fi,out = out) 
-    
-#     if retfmat == False:
-#         return out   
-#     else:
-#         return fmat, out 
 
 def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, cfact = 0.01, method = "4x4", out = None):
     """Computes a stack characteristic matrix M = M_1.M_2....M_n if method is
