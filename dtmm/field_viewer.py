@@ -1166,7 +1166,6 @@ class BulkViewer(FieldViewer):
         #check is ok, raise IndexError else
         self.field[i]
         self._focus = i
-        self._updated_parameters.add("focus")
         
     @property
     def masked_field(self):

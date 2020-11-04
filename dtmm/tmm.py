@@ -69,9 +69,6 @@ from dtmm.data import refind2eps
 from dtmm.rotation import rotation_vector2
 from dtmm.print_tools import print_progress
 
-from dtmm.jones import polarizer as polarizer2x2
-from dtmm.jones import as4x4
-
 import numba as nb
 from numba import prange
 import time
@@ -606,7 +603,7 @@ def phase_mat(alpha, kd, mode = None,  out = None):
         The eigenvalue alpha array of shape (...,4) or (...,2).
     kd : float
         The kd phase value (layer thickness times wavenumber in vacuum).
-    mode : int or None
+    mode : int, optional
         If specified, converts the phase matrix to 2x2, taking either forward 
         propagating mode (+1), or negative propagating mode (-1).
     out : ndarray, optional
@@ -672,18 +669,8 @@ def poynting(fvec, out):
     assert fvec.shape[0] == 4
     out[0] = _poynting(fvec)
 
-#@nb.guvectorize([(NCDTYPE[:,:], NFDTYPE[:])],
-#                    "(n,n)->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
-#def fmat2poynting(fmat, out):
-#    """Calculates a z-component of the poynting vector from the field vector"""
-#    assert fmat.shape[0] == 4 and fmat.shape[1] == 4 
-#    for i in range(4):
-#        tmp1 = (fmat[0,i].real * fmat[1,i].real + fmat[0,i].imag * fmat[1,i].imag)
-#        tmp2 = (fmat[2,i].real * fmat[3,i].real + fmat[2,i].imag * fmat[3,i].imag)
-#        out[i] = tmp1-tmp2  
-        
 def fmat2poynting(fmat, out = None):
-    """Calculates a z-component of the poynting vectors from the field matrix
+    """Calculates poynting vectors (z component) from the field matrix.
     
     Parameters
     ----------
@@ -691,6 +678,11 @@ def fmat2poynting(fmat, out = None):
         Field matrix array.
     out : ndarray, optional
         Output array where results are written.
+        
+    Returns
+    -------
+    vec : (...,4) array
+        Fmat's columns poynting vector z component.
     """
     axes = list(range(fmat.ndim))
     n = axes.pop(-2)
@@ -701,7 +693,7 @@ def fmat2poynting(fmat, out = None):
 @nb.guvectorize([(NCDTYPE[:,:], NCDTYPE[:,:])],
                     "(n,n)->(n,n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
 def normalize_f(fmat, out):
-    """Normalizes column of field matrix so that fmat2poytning of the resulted
+    """Normalizes columns of field matrix so that fmat2poytning of the resulted
     matrix returns ones
     
     Parameters
@@ -1382,10 +1374,11 @@ def fvec2E(fvec, fmat = None, fmati = None, mode = +1, inplace = False):
     if fmat is None:
         fmat = f_iso()
     pmat = projection_mat(fmat, fmati = fmati, mode = mode)
-    if mode == +1:
-        return dotmv(pmat,fvec, out = out)[...,::2]
-    else:
-        return dotmv(pmat,fvec, out = out)[...,1::2]
+    return dotmv(pmat,fvec, out = out)[...,::2]
+    # if mode == +1:
+    #     return dotmv(pmat,fvec, out = out)[...,::2]
+    # else:
+    #     return dotmv(pmat,fvec, out = out)[...,1::2]
 
     
 def E2fvec(evec, fmat = None, mode = +1, out = None):

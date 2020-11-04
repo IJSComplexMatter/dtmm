@@ -4,37 +4,38 @@ Release Notes
 V0.6.0 (In development)
 +++++++++++++++++++++++
 
-General improvements to code readibility & documentation of tmm.py module. 
-Refactoring of field_viewer.py. Because of code refactoring some lovel level functions
-were renamed or ommited, so this release partially break backward compatibility.
-See *changes* for details.
+This release adds many new features. 
+
+Please note that this release also partially breaks backward 
+compatibility because of code refactoring. High-level functions remain backward
+compatible, but some low-level functions were renamed, ommited or replaced with
+a different implementation. See *Changes* for details.
 
 New features
 ////////////
 
-* Added RadioButtons for FieldViewer, with options for LCP and RCP polarizations
+* New :func:`dtmm.field_viewer.pom_viewer` for more accurate optical microscope
+  simulations for experiments done with thick cover glass.
+* Full support for tensorial input data handling (both for the Q tensor or 
+  for the eps tensor, real or complex valued epsilon). 
+* RadioButtons for FieldViewer, with options for LCP and RCP polarizations
   and retardation settings (labda/2 and lambda/4) plates.
-* Added full support for tensorial input data handling (both for the Q tensor or 
-  for the eps tensor). Added several new functions in data.py module.
-* Added calculate_pom_field function to field_viewer.py
 * Added show_scalebar option in FieldViewer.plot().
-* Added CMOS spectral response function to allow simulations using grayscale cameras.
-* Added simplified tcmf data generation for custom spectral data using `load_tcmf` and `load_specter`
-* Added `effective_data` function to simplify effective data construction.
-* Added an option to add illuminant data as a table to load_tcmf function to 
-  allow for custom illuminant spectra.
-
-Enhancements
-////////////
-
-* Improved speed in tensor diagonalization procedure when working with tensor input data.
-* Improvements in the effective medium handling for the difraction step in the propagation calculation.
+* New CMOS spectral response function to allow simulations using grayscale cameras.
+* Simplified tcmf data generation for custom spectral data using `load_tcmf` and `load_specter`
+* New :func:`dtmm.data.effective_data` function to simplify effective data construction.
+* The eff_data argument of :func:`dtmm.transfer.transfer_field` can now take
+  strings "isotropic", "uniaxial" or "biaxial" to simplify creation of effective
+  medium.
+* New jones4.py module for 4x4 jones-like matrices.
 
 Changes
 ///////
 
-* removed tensor_to_matrix function fromm rotation.py, added tensor2matrix and matrix2tensor 
+* Removed tensor_to_matrix function fromm rotation.py, added tensor2matrix and matrix2tensor 
   functions in data.py
+* Moved polarizer4x4 and jonesmat4x4 from tmm.py to jones4.py
+* Removed polarization.py in favour of jones4.py.
 
 
 V0.5.0 (October 20 2020)

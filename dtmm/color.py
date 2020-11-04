@@ -346,8 +346,8 @@ def cmf2tcmf(cmf, spec, norm = True, out = None):
     -----
     Numpy broadcasting rules apply to spec and cmf.
     """
-    cmf = np.asarray(cmf)
-    spec = np.asarray(spec)
+    cmf = np.asarray(cmf,FDTYPE)
+    spec = np.asarray(spec,FDTYPE)
     if norm == True:
         spec = normalize_specter(spec, cmf)
     return np.multiply(spec[:,np.newaxis],cmf, out = out) 

@@ -1,5 +1,5 @@
 """
-4x4 and 2x2 transfer matrix method functions for 2d data
+4x4 transfer matrix method functions for 2d data
 """
 
 from __future__ import absolute_import, print_function, division
@@ -212,7 +212,6 @@ def _reflect2d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None):
     dotmv(fmat_in,avec,out = fvec_in)    
     return dotmv(fmat_out,bvec,out = out)
 
-
 def reflect2d(fvecin, fmatin, rmat, fmatout, fvecout = None):
     """Transmits/reflects field vector using 4x4 method.
     
@@ -231,7 +230,6 @@ def reflect2d(fvecin, fmatin, rmat, fmatout, fvecout = None):
             return tuple((_reflect2d(fvecin[i], fmatin[i], rmat[i], fmatout[i], fvecout[i]) for i in range(n)))
     else:
         return _reflect2d(fvecin, fmatin, rmat, fmatout, fvecout)
-
 
 def transfer2d(field_data_in, optical_data, betay = 0., nin = 1., nout = 1., method = "4x4", betamax = BETAMAX, field_out = None):
     
