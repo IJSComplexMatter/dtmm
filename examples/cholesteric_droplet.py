@@ -31,13 +31,14 @@ optical_data = dtmm.cholesteric_droplet_data((NLAYERS, HEIGHT, WIDTH),
 #: create right-handed polarized input light
 beta = 0.3 #make it off-axis 
 #window = dtmm.aperture((HEIGHT, WIDTH),0.9,0.)
+window = None
 
-#jones = dtmm.jonesvec((1,1j)) #right handed input light
+#jones = dtmm.jonesvec((1,1j)) 
 jones = None
 
 focus= 20 #this will focus field diaphragm in the middle of the stack
 field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, jones = jones, beta = beta,
-                       pixelsize = PIXELSIZE, n = 1.5, focus = focus) 
+                       pixelsize = PIXELSIZE, n = 1.5, focus = focus, window = window) 
 
 #: transfer input light through stackt
 field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = 0,
@@ -45,7 +46,7 @@ field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, p
                                      reflection = 2,nin = 1.5, nout = 1.5,npass = 5,norm = 2)
 
 #: visualize output field
-viewer1 = dtmm.field_viewer(field_data_out, mode = "t",n = 1.5, intensity = 0.5, focus = -20, polarizer = "LCP", analyzer = "RCP") 
+viewer1 = dtmm.field_viewer(field_data_out, mode = "t",n = 1.5, intensity = 0.5, focus = -20) 
 fig1,ax1 = viewer1.plot()
 ax1.set_title("Transmitted field")
 
@@ -54,11 +55,10 @@ viewer2 = dtmm.field_viewer(field_data_out, mode = "r",n = 1.5)
 fig2,ax2 = viewer2.plot()
 ax2.set_title("Residual field")
 
-viewer3 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5, polarizer = "LCP", analyzer = "RCP", polarization_mode = "mode")
+viewer3 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5, polarization_mode = "mode", polarizer = "LCP", analyzer = "LCP")
 fig3,ax3 = viewer3.plot()
 ax3.set_title("Reflected field")
 
-
-viewer4 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5, polarizer = "LCP", analyzer = "RCP", polarization_mode = "normal")
+viewer4 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5,  polarization_mode = "normal", polarizer = "LCP", analyzer = "LCP")
 fig4,ax4 = viewer4.plot()
-ax3.set_title("Reflected field np")
+ax4.set_title("Reflected field np")

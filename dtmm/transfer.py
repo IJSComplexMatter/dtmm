@@ -16,7 +16,7 @@ from dtmm.diffract import diffract, projection_matrix, diffraction_alphaffi
 from dtmm.field import field2intensity, field2betaphi, field2fvec
 from dtmm.fft import fft2, ifft2
 from dtmm.jones import jonesvec, polarizer
-from dtmm.jones4 import ray_jonesmat4x4
+from dtmm.jones4 import ray_jonesmat4x4, normal_polarizer
 from dtmm.data import effective_data
 import numpy as np
 from dtmm.denoise import denoise_fftfield, denoise_field
@@ -103,8 +103,57 @@ def project_normalized_local(field, dmat, window = None, ref = None, out = None)
     f2 = dotmf(dmat, f1 ,out = f1)
     f = ifft2(f2, out = f2)
     jmat = polarizer(jonesvec(field2fvec(f[...,::2,:,:])))
-    pmat1 = ray_jonesmat4x4(jmat)
-    #pmat1 = normal_polarizer(jonesvec(field2fvec(f[...,::2,:,:])))
+    #pmat1 = ray_jonesmat4x4(jmat)
+    pmat1 = normal_polarizer(jonesvec(field2fvec(f[...,::2,:,:])))
+    pmat2 = -pmat1
+    pmat2[...,0,0] += 1
+    pmat2[...,1,1] += 1 #pmat1 + pmat2 = identity by definition
+    pmat2[...,2,2] += 1 #pmat1 + pmat2 = identity by definition
+    pmat2[...,3,3] += 1 #pmat1 + pmat2 = identity by definition
+    
+    if ref is not None:
+        intensity1 = field2intensity(dotmf(pmat1, ref))
+        ref = dotmf(pmat2, ref)
+        
+    else:
+        intensity1 = field2intensity(dotmf(pmat1, field))
+        ref = dotmf(pmat2, field)
+
+    intensity2 = field2intensity(f)
+    
+    f = normalize_field(f, intensity1, intensity2)
+    
+    out = np.add(f,ref,out = out)
+    if window is not None:
+        out = np.multiply(out,window,out = out)
+    return out 
+
+def transpose(field):
+    """transposes field from shape (..., k,n,m) to (...,n,m,k). Inverse of
+    itranspose_field"""
+    taxis = list(range(field.ndim))
+    taxis.append(taxis.pop(-3))
+    return field.transpose(taxis) 
+
+def normal_polarizer(jones = (1,0)):
+    """A 4x4 polarizer for normal incidence light. It works reasonably well also
+    for off-axis light, but it introduces weak reflections and depolarization.
+    
+    For off-axis planewaves you should use ray_polarizer instead of this."""
+    p = polarizer(jonesvec(jones))
+    pmat = np.zeros(shape = p.shape[:-2] + (4,4), dtype = p.dtype)
+    pmat[...,::2,::2] = p
+    pmat[...,1,1] = p[...,0,0]
+    pmat[...,3,3] = p[...,1,1]
+    pmat[...,1,3] = -p[...,0,1]
+    pmat[...,3,1] = -p[...,1,0]
+    return pmat
+
+def project_normalized_local(field, dmat, window = None, ref = None, out = None):
+    f1 = fft2(field) 
+    f2 = dotmf(dmat, f1 ,out = f1)
+    f = ifft2(f2, out = f2)
+    pmat1 = normal_polarizer(jonesvec(transpose(f[...,::2,:,:])))
     pmat2 = -pmat1
     pmat2[...,0,0] += 1
     pmat2[...,1,1] += 1 #pmat1 + pmat2 = identity by definition

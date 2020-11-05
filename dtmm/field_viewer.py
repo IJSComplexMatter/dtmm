@@ -1224,7 +1224,7 @@ class POMViewer(FieldViewer):
         if self._jones is None:   
             vp = self.viewer_options
             epsv = vp.epsv
-            self._jones = field2jones(self._field, vp.wavenumbers, epsv = epsv, mode = vp.propagation_mode, output_fft = False)
+            self._jones = field2jones(self._field, vp.wavenumbers, epsv = epsv, mode = vp.propagation_mode, output_fft = False, betamax = vp.betamax)
         return self._jones   
     
     @jones.setter

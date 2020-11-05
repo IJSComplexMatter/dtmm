@@ -350,5 +350,3 @@ def apply_jonesmat(pmat, field, out = None):
         Computed field array of shape (...,4).
     """
     return dotmm(pmat, field ,out  = out)
-    
- 
