@@ -16,7 +16,7 @@ from dtmm.diffract import diffract, projection_matrix, diffraction_alphaffi
 from dtmm.field import field2intensity, field2betaphi, field2fvec
 from dtmm.fft import fft2, ifft2
 from dtmm.jones import jonesvec, polarizer
-from dtmm.jones4 import ray_jonesmat4x4, normal_polarizer
+from dtmm.jones4 import ray_jonesmat4x4
 from dtmm.data import effective_data
 import numpy as np
 from dtmm.denoise import denoise_fftfield, denoise_field
