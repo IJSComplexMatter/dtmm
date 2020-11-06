@@ -1,17 +1,17 @@
 """
-this script calculates reflected and transmitted waves from an input white-light
+This script calculates reflected and transmitted waves from an input white-light
 plane wave and calculates the microscope images in transmission mode and in
-reflection mode.
+reflection mode. We also plot the reflection efficiency for one of the 
+modes and transmission efficiency for the central mode.
 
 """
 import dtmm
 import numpy as np
 import matplotlib.pyplot as plt
 
-from dtmm import tmm2d, rotation, data, wave, field, jones4, tmm
+from dtmm import tmm2d, rotation, data, wave, field, tmm
 
 dtmm.conf.set_verbose(2)
-
 
 #: illumination wavelengths in nm
 WAVELENGTHS = np.linspace(380,780,19)
@@ -58,10 +58,8 @@ epsv[...,2] = ne**2
 
 beta, phi, intensity = 0,0,1
 
-jones = None#dtmm.jonesvec((1,1j)) 
-
-#we use 3D data and convert it to 2D
-field_data_in = dtmm.illumination_data((HEIGHT, 1), WAVELENGTHS, jones = jones, 
+#we use 3D non-polarized data and convert it to 2D
+field_data_in = dtmm.illumination_data((HEIGHT, 1), WAVELENGTHS, jones = None, 
                       beta= beta, phi = phi, intensity = intensity, pixelsize = PIXELSIZE, n = nin, betamax = 0.8) 
 field_data_in2d = field_data_in[0][...,0],field_data_in[1],field_data_in[2]
 

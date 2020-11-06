@@ -989,6 +989,12 @@ class FieldViewer(object):
         
         Parameters
         ----------
+        show_slider : bool, optional
+            Specifies whether to show sliders or not.
+        show_scalebar : bool, optional
+            Specifies whether to show scalebar or not.
+        show_ticks : bool, optional
+            Specifies whether to show ticks in imshow or not.
         fmin : float, optional
             Minimimum value for the focus setting.
         fmax : float, optional

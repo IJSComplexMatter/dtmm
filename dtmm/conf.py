@@ -439,12 +439,15 @@ class DTMMConfig(object):
     """DTMM settings are here. You should use the set_* functions in the
     conf.py module to set these values"""
     def __init__(self):
+        
+        
         if MKL_FFT_INSTALLED:
             self.fftlib = "mkl_fft"
         elif SCIPY_INSTALLED:
             self.fftlib = "scipy"
         else:
             self.fftlib = "numpy"
+        
         if _readconfig(config.getboolean, "fft", "parallel", False):
             self.nthreads = _readconfig(config.getint, "fft", "nthreads", 
                                         detect_number_of_cores())
@@ -491,6 +494,7 @@ class DTMMConfig(object):
 DTMMConfig = DTMMConfig()
 if DTMMConfig.nthreads > 1:
     disable_mkl_threading()
+
     
 def get_default_config_option(name, value = None):
     """Returns default config option specified with 'name', if value is not None,
@@ -550,6 +554,7 @@ def set_fftlib(name = "numpy.fft"):
         raise ValueError("Unsupported fft library!")
     return out    
 
+set_fftlib(_readconfig(config.get, "fft", "fftlib", DTMMConfig.fftlib))
 
 import numba
 

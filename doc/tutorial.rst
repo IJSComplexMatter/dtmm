@@ -160,7 +160,7 @@ An example of a nematic droplet with planar director orientation, computed using
 Cholesteric reflection grating
 ++++++++++++++++++++++++++++++
 
-In this example we calculate reflections from a tilted cholesteric sample, which produces a grating and mirror-like reflections. We plot optical microscope image formation and reflection efficiency.
+In this example we calculate reflections from a tilted cholesteric sample, which produces a grating and mirror-like reflections. We plot optical microscope image formation and reflection efficiency for LCP and RCP input polarizations.
 
 .. plot:: examples/2D/cholesteric_grating.py
 
