@@ -1,8 +1,8 @@
 Release Notes
 -------------
 
-V0.6.0 (In development)
-+++++++++++++++++++++++
+V0.6.0 (November 6 2020)
+++++++++++++++++++++++++
 
 This release adds many new features.  
 
