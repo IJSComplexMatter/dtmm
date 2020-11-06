@@ -372,5 +372,3 @@ Now load the package
 We now have the package compiled for best performance at the cost of computation accuracy.
 See :ref:`optimization` for details and further tuning and configuration options.
 
-
-
