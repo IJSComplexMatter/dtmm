@@ -3,7 +3,7 @@
 
 """
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 import dtmm.conf
 import numpy as np
