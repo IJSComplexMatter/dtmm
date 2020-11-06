@@ -59,6 +59,3 @@ viewer3 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5, polarization_mod
 fig3,ax3 = viewer3.plot()
 ax3.set_title("Reflected field")
 
-viewer4 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5,  polarization_mode = "normal", polarizer = "LCP", analyzer = "LCP")
-fig4,ax4 = viewer4.plot()
-ax4.set_title("Reflected field np")
