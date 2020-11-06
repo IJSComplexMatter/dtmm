@@ -475,8 +475,8 @@ class DTMMConfig(object):
         self.cmf = _readconfig(config.get, "viewer", "cmf", "CIE1931")
         
         self.diffraction = _readconfig(config.getint, "transfer", "diffraction", 1)
-        self.nin = _readconfig(config.getfloat, "transfer", "nin", 1.5)
-        self.nout = _readconfig(config.getfloat, "transfer", "nout", 1.5)
+        self.nin = _readconfig(config.getfloat, "transfer", "nin", self.n_cover)
+        self.nout = _readconfig(config.getfloat, "transfer", "nout", self.n_cover)
         self.method = _readconfig(config.get, "transfer", "method", "2x2")
         self.npass = _readconfig(config.getint, "transfer", "npass", 1)
         self.reflection = _readconfig(config.getint, "transfer", "reflection", None)

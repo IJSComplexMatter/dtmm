@@ -27,6 +27,7 @@ Changes
 * Removed tensor_to_matrix function fromm rotation.py, added tensor2matrix and matrix2tensor functions in data.py
 * Moved polarizer4x4 and jonesmat4x4 from tmm.py to jones4.py
 * Removed polarization.py in favor of jones4.py.
+* New defaults for transfer_field's `nin` and `nout` arguments. These now default to the newly introduced `n_cover` parameter and a configuration parameter inside dtmm.ini. You can override this behavior by setting `nin` and `not` options in dtmm.ini file.
 
 
 V0.5.0 (October 20 2020)
