@@ -107,6 +107,7 @@ def _readconfig(func, section, name, default):
     try:
         return func(section, name)
     except:
+        #warnings.warn("There was a problem parsing config file while reading section {} and option {}; using default value instead".format(section, name))
         return default
     
     
@@ -455,6 +456,29 @@ class DTMMConfig(object):
             self.cache = 0
         self.verbose = 0
         
+        self.gray =  _readconfig(config.getboolean, "viewer", "gray", False)
+        self.show_ticks = _readconfig(config.getboolean, "viewer", "show_ticks", None)
+        self.show_scalebar = _readconfig(config.getboolean, "viewer", "show_scalebar", False)
+        self.show_sliders = _readconfig(config.getboolean, "viewer", "show_sliders", True)
+        gamma = _readconfig(config.getfloat, "viewer", "gamma", None)
+        if gamma is None:
+            gamma = _readconfig(config.getboolean, "viewer", "gamma", True)
+        self.gamma = gamma
+        
+        self.n_cover = _readconfig(config.getfloat, "viewer", "n_cover", 1.5)
+        self.d_cover = _readconfig(config.getfloat, "viewer", "d_cover", 0.)
+        self.immersion = _readconfig(config.getboolean, "viewer", "immersion", False)
+        self.NA = _readconfig(config.getfloat, "viewer", "NA", 0.7)
+        self.cmf = _readconfig(config.get, "viewer", "cmf", "CIE1931")
+        
+        self.diffraction = _readconfig(config.getint, "transfer", "diffraction", 1)
+        self.nin = _readconfig(config.getfloat, "transfer", "nin", 1.5)
+        self.nout = _readconfig(config.getfloat, "transfer", "nout", 1.5)
+        self.method = _readconfig(config.get, "transfer", "method", "2x2")
+        self.npass = _readconfig(config.getint, "transfer", "npass", 1)
+        self.reflection = _readconfig(config.getint, "transfer", "reflection", None)
+        self.eff_data = _readconfig(config.getint, "transfer", "eff_data", 0)
+        
     def __getitem__(self, item):
         return self.__dict__[item]
         
@@ -468,6 +492,11 @@ DTMMConfig = DTMMConfig()
 if DTMMConfig.nthreads > 1:
     disable_mkl_threading()
     
+def get_default_config_option(name, value = None):
+    """Returns default config option specified with 'name', if value is not None,
+    returns value instead"""
+    return DTMMConfig[name] if value is None else value
+    
 CMF = _readconfig(config.get, "viewer", "cmf", "CIE1931")
 
 def print_config():
@@ -478,6 +507,7 @@ def print_config():
            "NUMBA_TARGET" : NUMBA_TARGET}
     options.update(DTMMConfig.__dict__)
     print(options)
+
 
 #setter functions for DTMMConfig    
 def set_verbose(level):

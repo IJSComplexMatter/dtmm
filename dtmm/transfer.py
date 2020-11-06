@@ -5,7 +5,7 @@ Main top level calculation functions for light propagation through optical data.
 """
 from __future__ import absolute_import, print_function, division
 import time
-from dtmm.conf import DTMMConfig,  BETAMAX, SMOOTH, FDTYPE
+from dtmm.conf import DTMMConfig,  BETAMAX, SMOOTH, FDTYPE, get_default_config_option
 from dtmm.wave import k0
 from dtmm.data import uniaxial_order, refind2eps, validate_optical_data
 from dtmm.tmm import E2H_mat, projection_mat, alphaf
@@ -308,8 +308,8 @@ def reflected_field(field, wavenumbers, n = 1, betamax = BETAMAX,  out = None):
     return _projected_field(np.asarray(field), wavenumbers, -1, n = n, betamax = betamax, out = out) 
     
 
-def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., nout = 1.,  
-           npass = 1, nstep=1, diffraction = 1, reflection = None, method = "2x2", 
+def transfer_field(field_data, optical_data, beta = None, phi = None, nin = None, nout = None,  
+           npass = None, nstep=1, diffraction = None, reflection = None, method = None, 
            multiray = False,
            norm = DTMM_NORM_FFT, betamax = BETAMAX, smooth = SMOOTH, split_rays = False,
            split_diffraction = False,split_wavelengths = False,
@@ -388,6 +388,14 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         In multi-ray computation this option specifies whether to split 
         computation over single rays to consume less temporary memory storage.
         For large multi-ray datasets this option should be set.
+    split_wavelengths : bool, optional
+        Specifies whether to treat data at each wavelength as an independent ray. 
+        With off-axis propagation of eigenmodes with different beta values this
+        should be set to true to assure proper determination of beta parameter
+        for proper reflection calculation. Normally there will be very little
+        difference, however, for small simulation volumes (compared to the 
+        wavelength) and at large incidence angles, you should set this to True
+        for simulations of multi-wavelength fields.
     eff_data : Optical data tuple or symmetry, optional
         Optical data tuple of homogeneous layers through which light is diffracted
         in the diffraction calculation when diffraction >= 1. If not provided, 
@@ -402,6 +410,15 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         Output array.
     
     """
+    nin = get_default_config_option("nin",nin)
+    nout = get_default_config_option("nout",nout)
+    method = get_default_config_option("method",method)
+    npass = get_default_config_option("npass",npass)
+    eff_data = get_default_config_option("eff_data",eff_data)
+    diffraction = get_default_config_option("diffraction",diffraction)
+    reflection = get_default_config_option("reflection",reflection)
+    
+    
     t0 = time.time()
     verbose_level = DTMMConfig.verbose
     
@@ -428,6 +445,9 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
                 
     if verbose_level > 0:
         print("Transferring input field.")    
+        
+    eff_data_name = eff_data if eff_data in (0,1,2,"isotropic","uniaxial","biaxial") else "custom"
+    
     if verbose_level > 1:
         print("------------------------------------")
         print(" $ calculation method: {}".format(method))  
@@ -436,6 +456,8 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
         print(" $ number of substeps: {}".format(nstep))     
         print(" $ input refractive index: {}".format(nin))   
         print(" $ output refractive index: {}".format(nout)) 
+        print(" $ effective data: {}".format(eff_data_name)) 
+        print(" $ max beta: {}".format(betamax)) 
         print("------------------------------------")
         
     

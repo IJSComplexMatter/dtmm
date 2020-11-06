@@ -38,7 +38,7 @@ from dtmm.jones4 import ray_jonesmat4x4, mode_jonesmat4x4, mode_jonesmat2x2, ray
 from dtmm.field import field2specter, field2jones, jones2field
 from dtmm.wave import k0
 from dtmm.data import refind2eps
-from dtmm.conf import BETAMAX, CDTYPE
+from dtmm.conf import BETAMAX, CDTYPE, get_default_config_option, DTMMConfig
 from dtmm.jones import jonesvec
 from dtmm import jones
 
@@ -327,11 +327,20 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None, is_pola
         viewer.image_parameters.cmf = cmf
         viewer.image_parameters.window = window
         viewer.set_parameters(**parameters)
+        
+    if DTMMConfig.verbose > 1:
+        print("Loading field viewer")
+        print("------------------------------------")
+        viewer.viewer_options.print_info()
+        viewer.image_parameters.print_info()
+        print("-------------------------------------")
+            
 
     return viewer
 
-def pom_viewer(field_data, cmf=None, n=1., n_cover = 1.5, d_cover = 0., mode = +1, 
-                 is_polarized = None, window=None, betamax=BETAMAX, beta = None, **parameters):
+def pom_viewer(field_data, cmf=None, n = None, immersion = None, n_cover = None, d_cover = None, mode = +1, 
+                 
+                 is_polarized = None, window=None, NA = None, beta = None, **parameters):
     """
     Returns a FieldViewer object for optical microscope simulation.
     
@@ -344,9 +353,8 @@ def pom_viewer(field_data, cmf=None, n=1., n_cover = 1.5, d_cover = 0., mode = +
         input field wavelengths. If provided as a string, it must match one of 
         available CMF names or be a valid path to tabulated data. See load_tcmf.
     n : float, optional
-        Refractive index of the output material. Air (n = 1) by default. To simulate oil 
-        immersion objectives you should prepare simulatios results with nout = n 
-        (or nin = n, if in reflection mode) and set n_cover = n, or d_cover = 0.
+        Refractive index of the output material. If not set, it is set to 1 
+        if immerion == False or n_cover if immersion == True.
     n_cover : float
         Refractive index of the cover medium. To simulate thick cover you should prepare 
         simulation results with nout = n_cover, (or nin = n_cover, if in reflection mode), 
@@ -354,6 +362,12 @@ def pom_viewer(field_data, cmf=None, n=1., n_cover = 1.5, d_cover = 0., mode = +
     d_cover : float
         Thickness ot the thick isotropic layer (cover glass).When d_cover != 0, t
         his simulates thick isotropic layer effect.
+    immersion : bool
+        Specified whether oil immersion objective is being used or not. Note that
+        setting the 'n' parameter defines the immersion oil refractive index in
+        this case.
+    NA : float
+        Numerical aperture of the objective. 
     mode : [ 't' | 'r' | +1 | -1 ]
         Viewer mode 't' or +1 for transmission mode, 'r' or -1 for reflection mode.
     is_polarized : bool, optional
@@ -365,9 +379,6 @@ def pom_viewer(field_data, cmf=None, n=1., n_cover = 1.5, d_cover = 0., mode = +
     window : ndarray, optional
         Window function by which the calculated field is multiplied. This can 
         be used for removing artefact from the boundaries.
-    betamax : float
-        Betamax parameter used in the diffraction calculation function. With this
-        you can simulate finite NA of the microscope (NA = betamax).
     parameters : kwargs, optional
         Extra parameters passed directly to the :meth:`FieldViewer.set_parameters`
         
@@ -390,16 +401,27 @@ def pom_viewer(field_data, cmf=None, n=1., n_cover = 1.5, d_cover = 0., mode = +
     if is_polarized is None:
         #try to get polarization state from the input data
         is_polarized = not (field.ndim >= 5 and field.shape[-5] == 2) 
+        
     
     parameters.setdefault("focus", 0)
     viewer = POMViewer(field.shape[-2:], wavelengths, pixelsize, propagation_mode = mode,
                          is_polarized = is_polarized,
                          refractive_index = n, n_cover = n_cover, d_cover = d_cover,
-                          betamax=betamax, beta = beta)
-    viewer.field = field
+                         NA=NA, immersion = immersion, beta = beta)
+    
     viewer.image_parameters.cmf = cmf
     viewer.image_parameters.window = window
     viewer.set_parameters(**parameters)
+
+    
+    if DTMMConfig.verbose > 1:
+        print("Loading POM viewer")
+        print("------------------------------------")
+        viewer.viewer_options.print_info()
+        print("------------------------------------")
+            
+    viewer.field = field
+
 
     return viewer
 
@@ -488,9 +510,7 @@ def _jmat_from_angle(angle):
 def _jvec_from_angle(angle):
     return jonesvec((np.cos(np.radians(angle)),np.sin(np.radians(angle)))) if angle is not None else None 
 
-class FieldViewerOptions(object):
-    """These parameters are set at initialization of the FieldViewer object,
-    and should not be changed afterwards"""
+class BaseViewerOptions(object):
     #: whether input field is polarized or non-polarized
     is_polarized = True
     #: list of beta values for field aperture simulations (for multi-ray data input)
@@ -499,21 +519,10 @@ class FieldViewerOptions(object):
     refractive_index = 1.
     #: propagation mode (+1 or "t" for transmission or -1 or "r" for reflection mode)
     propagation_mode = +1
-    #: polarization mode, either "normal" or "mode"
-    polarization_mode = "normal"
-    #: whether to simulate diffraction. For bulk data visualization this is set to False
-    diffraction = True
-    #: whether to try to preserve memory while doing calculations.
-    preserve_memory = False
-    #: viewer betamax value
-    betamax = BETAMAX
     #: pixel size
     pixel_size = None
     #: simulated wavelengths
     wavelengths = []
-    
-    diffraction = True
-    
     
     @property
     def wavenumbers(self):
@@ -525,23 +534,117 @@ class FieldViewerOptions(object):
         """epsilon eigenvalues of the field propagation medium"""
         return refind2eps((self.refractive_index,)*3)
  
-class POMViewerOptions(FieldViewerOptions):
+
+class FieldViewerOptions(BaseViewerOptions):
     """These parameters are set at initialization of the FieldViewer object,
     and should not be changed afterwards"""
-    polarization_mode = "mode"
-    #: cover glass refractive index
-    n_cover = 1.5
-    #: cover glass thickness
-    d_cover = 0.
+    #: polarization mode, either "normal" or "mode"
+    polarization_mode = "normal"
+    #: whether to simulate diffraction. For bulk data visualization this is set to False
+    diffraction = True
+    #: whether to try to preserve memory while doing calculations.
+    preserve_memory = False
+    #: viewer betamax value
+    betamax = BETAMAX
     
+    def print_info(self):
+        print(" $ polarization mode: {}".format(self.polarization_mode))  
+        print(" $ polarized input: {}".format(self.is_polarized))  
+        print(" $ refractive index: {}".format(self.refractive_index))     
+        print(" $ propagation mode: {}".format(self.propagation_mode))   
+        print(" $ max beta: {}".format(self.betamax))         
+        
+ 
+class POMViewerOptions(BaseViewerOptions):
+    """These parameters are set at initialization of the FieldViewer object,
+    and should not be changed afterwards"""
+    #: cover glass refractive index
+    _n_cover = None
+    #: cover glass thickness
+    _d_cover = None
+    #: whether we use immersion objective or not.
+    _immersion = None
+    #: NA of the objective
+    _NA = None
+    
+    def print_info(self):
+        print(" $ polarization mode: {}".format(self.polarization_mode))  
+        print(" $ polarized input: {}".format(self.is_polarized))  
+        print(" $ cover refractive index: {}".format(self.n_cover)) 
+        print(" $ cover thickness: {} [mm]".format(self.d_cover)) 
+        print(" $ oil immersion: {}".format(self.immersion))
+        print(" $ medium refractive index: {}".format(self.refractive_index))
+        print(" $ propagation mode: {}".format(self.propagation_mode))   
+        print(" $ objective NA: {}".format(self.NA))    
+    
+    @property
+    def preserve_memory(self):
+        return False
+    
+    @property
+    def betamax(self):
+        return self.NA
+    
+    @property
+    def diffraction(self):
+        return True
+    
+    @property
+    def polarization_mode(self):
+        return "mode"
+   
+    @property
+    def refractive_index(self):
+        if self._refractive_index is None:
+            return self.n_cover if self.immersion else 1.
+        else:
+            return self._refractive_index
+        
+    @refractive_index.setter
+    def refractive_index(self, value):
+        self._refractive_index = value
+       
+    @property
+    def n_cover(self):
+        return get_default_config_option("n_cover", self._n_cover)
+        
+    @n_cover.setter    
+    def n_cover(self, value):
+        self._n_cover = value   
+
+    @property
+    def d_cover(self):
+        return get_default_config_option("d_cover", self._d_cover)
+        
+    @d_cover.setter    
+    def d_cover(self, value):
+        self._d_cover = value   
+
+    @property
+    def immersion(self):
+        return get_default_config_option("immersion", self._immersion)
+        
+    @immersion.setter    
+    def immersion(self, value):
+        self._immersion = value   
+        
+    @property    
+    def NA(self):
+        return get_default_config_option("NA", self._NA)
+
+    @NA.setter    
+    def NA(self, value):
+        self._NA = value       
+        
  
 class ImageParameters(object):
     """Image parameters are storred here"""
     _wavelengths = None
     #: whether to convert RGB to gray
-    gray = False
+    _gray = None
     #: gamma value
-    gamma = True
+    _gamma = None
+    
     _cmf = None
     #: number of rows for periodic structure multiplication
     cols = 1
@@ -549,6 +652,28 @@ class ImageParameters(object):
     rows = 1
     #: window function applied to the calculated image
     window = None
+    
+    def print_info(self):
+        cmf_name = self.cmf if isinstance(self.cmf, str) else "custom"
+        print(" $ color matchin function: {}".format(cmf_name)) 
+        print(" $ output gray: {}".format(self.gray)) 
+        print(" $ gamma: {}".format(self.gamma))
+    
+    @property 
+    def gray(self):
+        return get_default_config_option("gray", self._gray)
+    
+    @gray.setter
+    def gray(self, value):
+        self._gray = value
+    
+    @property 
+    def gamma(self):
+        return get_default_config_option("gamma", self._gamma)
+    
+    @gamma.setter
+    def gamma(self, value):
+        self._gamma = value
 
     @property      
     def cmf(self):
@@ -609,6 +734,14 @@ class FieldViewer(object):
             self.polarizer = "none"
             self.sample = "none"  
             
+    def print_info(self):
+        print(" $ intensity: {}".format(self.intensity)) 
+        print(" $ polarizer: {}".format(self.polarizer)) 
+        print(" $ sample rotation: {}".format(self.sample)) 
+        print(" $ retarder: {}".format(self.retarder)) 
+        print(" $ analyzer: {}".format(self.analyzer)) 
+        print(" $ focus: {}".format(self.focus))
+
     def _clear_all_field_data(self):
         self._field = None
         self._ffield = None  
@@ -844,12 +977,12 @@ class FieldViewer(object):
                 setattr(self.image_parameters, key, value) 
             else:
                 raise TypeError("Unexpected keyword argument '{}'".format(key))
-                
+
     def get_parameters(self):
         """Returns viewer parameters as dict"""
         return {name : getattr(self,name) for name in VIEWER_PARAMETERS}, {name : getattr(self.image_parameters,name) for name in IMAGE_PARAMETERS}
         
-    def plot(self, fig = None,ax = None, sliders = None, show_sliders = True, show_scalebar = False, show_ticks = None, **kwargs):
+    def plot(self, fig = None,ax = None, sliders = None, show_sliders = None, show_scalebar = None, show_ticks = None, **kwargs):
         """Plots field intensity profile. You can set any of the below listed
         arguments. Additionaly, you can set any argument that imshow of
         matplotlib uses (e.g. 'interpolation = "sinc"').
@@ -881,6 +1014,10 @@ class FieldViewer(object):
         namax : float, optional
             Maximum value for the numerical aperture.  
         """
+        show_sliders = get_default_config_option("show_sliders",show_sliders)
+        show_ticks = get_default_config_option("show_ticks",show_ticks)
+        show_scalebar = get_default_config_option("show_scalebar",show_scalebar)
+        
         if fig is None:
             if ax is None:
                 self.fig = plt.figure() 
@@ -1068,6 +1205,13 @@ class FieldViewer(object):
             set_parameters method.
         """        
         self.set_parameters(**params)
+        if DTMMConfig.verbose > 1:
+            print("Calculating specter.")
+            print("------------------------------------")            
+            self.print_info()
+            print("------------------------------------")
+                
+        
         self._calculate_diffraction()
         self._calculate_specter()
         return self._specter
@@ -1083,6 +1227,13 @@ class FieldViewer(object):
             
         """   
         specter = self.calculate_specter(**params)
+        
+        if DTMMConfig.verbose > 1:
+            print("Calculating image.")
+            print("------------------------------------")
+            self.image_parameters.print_info()
+            print("------------------------------------")
+        
         vp = self.viewer_options
         ip =  self.image_parameters
         

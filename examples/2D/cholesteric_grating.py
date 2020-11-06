@@ -100,31 +100,47 @@ rows = 1
 ax1 = plt.subplot(121)
 ax2 = plt.subplot(122)
 
-for mode in (0,1,2,3,4,5,6):
-    ts = []
-    rs = []
-    ws = []
-    
-    for fin,fout, w, f0in,f0out in zip(fmode_in, fmode_out, WAVELENGTHS, fmatin, fmatout):
-                
-        fr = fin[0] - 1j * fin[1]
-        ft = fout[0] - 1j * fout[1]
-        i = tmm.intensity(fr[0])
-        try:
-            if mode > 0:
-                #skip mode 0 
-                rs.append(tmm.intensity(fr[mode])/i)
-            ts.append(tmm.intensity(ft[mode])/i)
-            ws.append(w)
-        except IndexError:
-            #nonexistent mode.. break
-            break
-    
-    if mode > 0:
-        ax1.plot(ws,rs, label = "mode {}".format(mode))
-    ax2.plot(ws,ts, label = "mode {}".format(mode))
 
-plt.legend()
+t_rcp = []
+r_rcp = []
+
+t_lcp = []
+r_lcp = []
+ws = []
+
+mode = 3
+
+for fin,fout, w, f0in,f0out in zip(fmode_in, fmode_out, WAVELENGTHS, fmatin, fmatout):
+            
+    fr_rcp = fin[0] - 1j * fin[1] #right handed
+    ft_rcp  = fout[0] - 1j * fout[1]
+    fr_lcp = fin[0] + 1j * fin[1] #right handed
+    ft_lcp  = fout[0] + 1j * fout[1]    
+    i_rcp = tmm.intensity(fr_rcp[0])
+    i_lcp = tmm.intensity(fr_lcp[0])
+    try:
+        r_rcp.append(tmm.intensity(fr_rcp[mode])/i_rcp)
+        t_rcp.append(tmm.intensity(ft_rcp[0])/i_rcp)
+        
+        r_lcp.append(tmm.intensity(fr_lcp[mode])/i_lcp)
+        t_lcp.append(tmm.intensity(ft_lcp[0])/i_lcp)
+        ws.append(w)
+    except IndexError:
+        #nonexistent mode.. break
+        break
+    
+ax1.plot(ws,r_rcp, label = "rcp mode {} ".format(mode))
+ax1.plot(ws,r_lcp, label = "lcp mode {} ".format(mode))
+ax2.plot(ws,t_rcp, label = "rcp mode 0")
+ax2.plot(ws,t_lcp, label = "lcp mode 0")
+
+ax1.set_title("reflection")
+ax1.set_xlabel("wavelength")
+ax2.set_title("transmission")
+ax2.set_xlabel("wavelength")
+
+ax1.legend()
+ax2.legend()
 
 viewer1 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows, analyzer = "h")
 viewer2 = dtmm.field_viewer(field_data_out, mode = "t", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows, analyzer = "h")
