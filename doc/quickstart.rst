@@ -185,35 +185,47 @@ To calculate the transmitted field we now have to pass these ray parameters to t
    >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, beta = beta, phi = phi, intensity = intensity, n = 1.5)
    >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi, nin = 1.5, nout = 1.5)
 
+Note that we have passed the beta and phi arguments to the transfer_field function, which tells the algorithm that input data is to be treated as multi-ray data and to use the provided values for the ray incidence direction, which is used to determine the reflection/trasnmission properties over the layers. These parameters must match the beta and phi values used in field source creation. Optionally, you can leave the dtmm determine the correct beta and phi, by omitting these parameters and specifying the multiray argument like:
+
+   >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, multiray = True)
+
+Be aware that by default, the illumination_data function creates eigenfields, except if you pass an optional window parameter. Therefore, by default, the beta and phi parameters are approximate values of the true wave vector orientation. See :func:`.field.illumination_data` for details. Consequently, in reflection calculations in particular, you may face inaccurate calculations resulting from the ill-defined beta values at oblique incidence and at high numerical apertures (the betamax parameter). For an accurate multi-wavelength calculation at oblique incidence use 
+
+   >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, multiray = True, split_wavelengths = True)
+
+which treats data at each wavelength as independent, and determines the true incidence angle from the data at each wavelength separately, as opposed to calculating the mean k-vector incidence angle when setting split_wavelengths = False.
+
 .. warning::
 
-   When doing multiple ray computation, the beta and phi parameters in the tranfer_field function must match the beta and phi parameters that were used to generate input field. Do not forget to pass the beta, phi values to the appropriate functions!
+   When doing multiple ray computation, the beta and phi parameters in the tranfer_field function must match the beta and phi parameters that were used to generate input field. Do not forget to pass the beta, phi values, or do not forget to specify multiray = True. You are also advised to split the calculation with multi_wavelength argument, for more accurate results.
 
-The :func:`dtmm.transfer_field` also takes several optional parameters. One worth mentioning at this stage is the `split` parameter. If you have large data sets in multi-ray computation, memory requirements for the computation and temporary files may result in out-of-memory issues. To reduce temporary memory storage you can set the `split_rays` parameter to `True`. This way you can limit memory consumption (with large number of rays) more or less to the input field data and output field data memory requirements. So for large multi-ray computations do::
+The :func:`dtmm.transfer_field` also takes several optional parameters. One worth mentioning at this stage is the `split_rays` parameter. If you have large data sets in multi-ray computation, memory requirements for the computation and temporary files may result in out-of-memory issues. To reduce temporary memory storage you can set the `split_rays` parameter to `True`. This way you can limit memory consumption (with large number of rays) more or less to the input field data and output field data memory requirements. So for large multi-ray computations do::
 
-   >>> filed_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = phi, nin = 1.5, nout = 1.5, split_rays = True)
+   >>> filed_out = dtmm.transfer_field(field_data_in, optical_data, multiray = True, split_rays = True)
 
 .. note:: 
 
    You can also perform calculations in single precision to further reduce memory consumption (and increase computation speed). See the :ref:`optimization` for details.
 
 
+Microscope simulation
+---------------------
 
-Field Viewer
-------------
-
-After the transmitted field has been calculated, we can simulate optical polarizing microscope image formation with the FieldViewer object. The output field is a calculated EM field at the exit surface of the optical stack. As such it can be further propagated and optical polarizing microscope image formation can be performed. Instead of doing full optical image formation calculation one can take the computed field and propagate it in space a little (forward or backward) from the initial position. This way one can calculate light intensities that would have been measured by a camera equipped microscope, had the field been propagated through an ideal microscope objective with a 1:1 magnifications. Simply do:
+After the transmitted field has been calculated, we can simulate optical polarizing microscope image formation with the POMViewer object. The output field is a calculated EM field at the exit surface of the optical stack. As such it can be further propagated and optical polarizing microscope image formation can be performed. Instead of doing full optical image formation calculation one can take the computed field and propagate it in space a little (forward or backward) from the initial position. This way one can calculate light intensities that would have been measured by a camera equipped microscope, had the field been propagated through an ideal microscope objective with a 1:1 magnifications. Simply do:
 
 .. doctest::
 
-   >>> viewer = dtmm.field_viewer(field_data_out, n = 1.5)
+   >>> viewer = dtmm.pom_viewer(field_data_out, n_cover = 1.5, d_cover = 0., NA = 0.7, immersion = False)
 
-which returns a FieldViewer object.
+which returns a POMViewer object for simulating standard objective (non-immersion type) with NA of 0.7. Here we have used the thickness of the cover glass d_cover = 0. This tells the algorithm to neglect the diffraction effects introduced by the thick cover glass. If you have a thick cover glass in the experiment, and you have simulated the field using transfer_field with nout = n_cover at the exit surface of the sample, you can use the d_cover argument to simulate aberration effects introduced by the thick cover glass. 
+
+.. note::
+
+    For oil-immersion objectives you should specify immersion = True. Here you can use higher NA values.
 
 .. warning::
 
-    You should always view the field in a medium that it was calculated for. In the example above we defined that the field should be viewed in a medium of refractive index of 1.5 because we used this as the `nout` argument in the `transfer_field` calculation above. Without the specified argument, we would have introduced unwanted reflections in the visualization of the computed field. See  :ref:`Tutorial` for details on reflections.
-
+    You should always view the field in a medium that it was calculated for. In the example above we defined that the field should be viewed in a medium of refractive index of 1.5 by setting n_cover = 1.5 because we used this as the `nout` argument in the `transfer_field` calculation above. 
 
 Now you can calculate transmission specter or obtain RGB image. Depending on how the illumination data was created (polarized/nonpolarized light, single/multiple ray) you can set different parameters. For instance, you can refocus the field
 
