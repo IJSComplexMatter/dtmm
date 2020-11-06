@@ -1174,7 +1174,7 @@ def effective_data(optical_data, symmetry = 0):
     Parameters
     ----------
     optical_data : tuple
-        A valid optical_data tuple
+        A valid optical_data tuple.
 
     symmetry : str, int or array 
         Either 'isotropic' or 0,  'uniaxial' or 1 or 'biaxial' or 2 .
@@ -1193,20 +1193,28 @@ def effective_data(optical_data, symmetry = 0):
     #Whic axes are used for averaging averaging
     axis = list(range(len(epsv.shape)-1))
     
-    order = np.asarray(_parse_symmetry_argument(symmetry),int)
-    
-    if order.ndim != 0:
-        if len(order) != len(d):
-            raise ValueError("Shape of the symmetry argument is incompatible.")
-        #do not average over thickness axis, so pop it out.
-        axis.pop(0) 
+    if symmetry in ("isotropic",0):
+        #no need to convert from eigenframe to laboratory frame to do averaging, just average out the
+        epsv = eig_symmetry(0, epsv).mean(tuple(axis))
+        epsa = np.zeros_like(epsv)
+    else:
+        order = np.asarray(_parse_symmetry_argument(symmetry),int)
         
-    axis = tuple(axis) #must be a tuple for np.mean
-    eps0 = epsva2eps(epsv,epsa)
-    
-    eps = eps0.mean(axis)
-    epsv, epsa = eps2epsva(eps)
-    eig_symmetry(order, epsv, out = epsv)
+        if order.ndim != 0:
+            if len(order) != len(d):
+                raise ValueError("Shape of the symmetry argument is incompatible.")
+            #do not average over thickness axis, so pop it out.
+            axis.pop(0) 
+            
+        axis = tuple(axis) #must be a tuple for np.mean
+        
+        #convert to laboratory frame, and perform averaging
+        eps0 = epsva2eps(epsv,epsa)
+        eps = eps0.mean(axis)
+        
+        #convert back to eigenframe
+        epsv, epsa = eps2epsva(eps)
+        eig_symmetry(order, epsv, out = epsv)
      
     if epsv.ndim == 1:
         #must be same lengths as d, so repeat the matereial for each layer

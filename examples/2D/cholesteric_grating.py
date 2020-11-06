@@ -1,8 +1,7 @@
 """
-this script calculates reflected and trasnmitted waves from an input white-light
+this script calculates reflected and transmitted waves from an input white-light
 plane wave and calculates the microscope images in transmission mode and in
 reflection mode.
-
 
 """
 import dtmm
@@ -10,24 +9,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from dtmm import tmm2d, rotation, data, wave, field, jones4, tmm
+
 dtmm.conf.set_verbose(2)
 
-#scaling factor.. set this to 2,3,4 or any integer to decrease resolution by this factor (to increase computation speed)
-SCALING = 1
+
 #: illumination wavelengths in nm
 WAVELENGTHS = np.linspace(380,780,19)
-
 PIXELSIZE = 10
-
-KOEHLER = False
-
-NA = 0.4
 
 nin = 1.5# refractive index of the  input material 
 nout = 1.5# refractive index of the oputput material
 no = 1.5
 ne = 1.7
-
 
 pitch_z = 36
 pitch_x = 180
@@ -36,7 +29,7 @@ pitch_true = 1/(1/pitch_z **2 + 1/pitch_x**2)**0.5
 print("pitch : {} nm".format(pitch_true * PIXELSIZE))
 print("pitch * n : {} nm".format(pitch_true * PIXELSIZE * no))
 
-size_x = pitch_x * 8
+size_x = pitch_x * 1
 size_z = pitch_z * 2
 
 tilt = np.arctan(pitch_z/pitch_x)
@@ -52,14 +45,8 @@ r = rotation.rotation_matrix_y(tilt)
 director = rotation.rotate_vector(r, director)
 epsa = data.director2angles(director)
 
-
-#: pixel size in nm
-PIXELSIZE = PIXELSIZE*SCALING
-
 #: box dimensions
 NLAYERS, HEIGHT, WIDTH = twist.shape[0], twist.shape[1], 1
-
-
 
 d = np.ones(shape = (NLAYERS,))
 
@@ -69,30 +56,16 @@ epsv[...,0] = no**2
 epsv[...,1] = no**2
 epsv[...,2] = ne**2
 
-d =d/SCALING
-epsv = epsv[:,::SCALING]
-epsa = epsa[:,::SCALING]
+beta, phi, intensity = 0,0,1
 
+jones = None#dtmm.jonesvec((1,1j)) 
 
-if KOEHLER:
-    beta, phi, intensity = dtmm.illumination_rays(NA,7)
-else:
-    beta,phi, intensity = 0,0,1
-
-jones = None#dtmm.jonesvec((1,1j)) #left handed input light
-
+#we use 3D data and convert it to 2D
 field_data_in = dtmm.illumination_data((HEIGHT, 1), WAVELENGTHS, jones = jones, 
                       beta= beta, phi = phi, intensity = intensity, pixelsize = PIXELSIZE, n = nin, betamax = 0.8) 
-
-
-# if KOEHLER == False:
-#     f,w,p = field_data_in
-#     k = dtmm.k0(w,PIXELSIZE)
-#     mask, modes0 = dtmm.field.field2modes(f,k)
+field_data_in2d = field_data_in[0][...,0],field_data_in[1],field_data_in[2]
 
 optical_data2d = (d,epsv,epsa)
-
-field_data_in2d = field_data_in[0][...,0],field_data_in[1],field_data_in[2]
 
 f,w,p = field_data_in2d 
 shape = f.shape[-1]
@@ -115,23 +88,46 @@ f[...] = field.modes2field1(mask, fmode_in)
 
 field_data_out2d = field_out ,w, p
 
+# we could have used this function to transfer the field directly.
 #field_data_out2d = tmm2d.transfer2d(field_data_in2d, optical_data2d,  nin = 1.5, nout = 1.5)
-field_data_out = field_data_out2d[0][...,None],field_data_out2d[1],field_data_out2d[2]
 
+#convert 2D data to 3D, so that we can use pom_viewer to view the microscope image
+field_data_out = field_data_out2d[0][...,None],field_data_out2d[1],field_data_out2d[2]
 
 cols = HEIGHT
 rows = 1
 
-for fin,fout, w in zip(fmode_in, fmode_out, WAVELENGTHS):
-    i = tmm.intensity(fin[:,0]).sum()
-    plt.plot((tmm.intensity(fin)/i).sum(0), label = w )
-plt.legend()
+ax1 = plt.subplot(121)
+ax2 = plt.subplot(122)
+
+for mode in (0,1,2,3,4,5,6):
+    ts = []
+    rs = []
+    ws = []
     
+    for fin,fout, w, f0in,f0out in zip(fmode_in, fmode_out, WAVELENGTHS, fmatin, fmatout):
+                
+        fr = fin[0] - 1j * fin[1]
+        ft = fout[0] - 1j * fout[1]
+        i = tmm.intensity(fr[0])
+        try:
+            if mode > 0:
+                #skip mode 0 
+                rs.append(tmm.intensity(fr[mode])/i)
+            ts.append(tmm.intensity(ft[mode])/i)
+            ws.append(w)
+        except IndexError:
+            #nonexistent mode.. break
+            break
+    
+    if mode > 0:
+        ax1.plot(ws,rs, label = "mode {}".format(mode))
+    ax2.plot(ws,ts, label = "mode {}".format(mode))
 
+plt.legend()
 
-viewer1 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows)
-viewer2 = dtmm.field_viewer(field_data_out, mode = "t", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows)
-#viewer3 = dtmm.field_viewer(field_data_out, mode = "r", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows)
+viewer1 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows, analyzer = "h")
+viewer2 = dtmm.field_viewer(field_data_out, mode = "t", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows, analyzer = "h")
 
 fig,ax = viewer1.plot()
 ax.set_title("Reflected field")
@@ -139,7 +135,6 @@ ax.set_title("Reflected field")
 fig,ax = viewer2.plot()
 ax.set_title("Transmitted field")
 
-#fig,ax = viewer3.plot()
-#ax.set_title("Residual field")
+plt.show()
 
 

@@ -534,15 +534,6 @@ class POMViewerOptions(FieldViewerOptions):
     #: cover glass thickness
     d_cover = 0.
     
-    @property
-    def wavenumbers(self):
-        """simulated wavenumbers"""
-        return k0(self.wavelengths, self.pixel_size)
-
-    @property
-    def epsv(self):
-        """epsilon eigenvalues of the field propagation medium"""
-        return refind2eps((self.refractive_index,)*3)    
  
 class ImageParameters(object):
     """Image parameters are storred here"""
@@ -858,7 +849,7 @@ class FieldViewer(object):
         """Returns viewer parameters as dict"""
         return {name : getattr(self,name) for name in VIEWER_PARAMETERS}, {name : getattr(self.image_parameters,name) for name in IMAGE_PARAMETERS}
         
-    def plot(self, fig = None,ax = None, sliders = None, show_sliders = True, show_scalebar = False, **kwargs):
+    def plot(self, fig = None,ax = None, sliders = None, show_sliders = True, show_scalebar = False, show_ticks = None, **kwargs):
         """Plots field intensity profile. You can set any of the below listed
         arguments. Additionaly, you can set any argument that imshow of
         matplotlib uses (e.g. 'interpolation = "sinc"').
@@ -974,15 +965,23 @@ class FieldViewer(object):
         self.axim = self.ax.imshow(image, origin = kwargs.pop("origin","lower"), **kwargs)
         
         if show_scalebar == True:
-            if self.pixel_size is None:
+            if self.viewer_options.pixel_size is None:
                 raise ValueError("You must provide pixel_size to show scale bar.")
             try:
                 from matplotlib_scalebar.scalebar import ScaleBar
             except ImportError:
                 raise ValueError("You must have matplotlib_scalebar installed to use this feature.")
             
-            scalebar = ScaleBar(self.pixel_size, "nm")
+            scalebar = ScaleBar(self.viewer_options.pixel_size , "nm")
             self.ax.add_artist(scalebar)
+            
+        show_ticks = False if show_scalebar and show_ticks is None else show_ticks 
+        
+        if show_ticks == False:
+            self.ax.set_xticklabels([])
+            self.ax.set_xticks([])
+            self.ax.set_yticklabels([])
+            self.ax.set_yticks([])            
         
         return self.ax.figure, self.ax
                     

@@ -455,6 +455,7 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
 
     
     if splitted_wavelengths:
+        
         if out is None:
             out_field = np.empty_like(field_in) 
         else:
@@ -471,10 +472,9 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = 1., 
                 print("Wavelength {}/{}".format(i+1,nwavelengths))
             field_data = f,w,pixelsize
             o = _transfer_field(field_data, optical_data, beta, phi, nin, nout,  
-           npass , nstep, diffraction, reflection , method, 
-           multiray, norm, betamax, smooth, split_rays,
-           split_diffraction ,
-           eff_data, ret_bulk, o) 
+                npass , nstep, diffraction, reflection , method, 
+                multiray, norm, betamax, smooth, split_rays,
+                split_diffraction, eff_data, ret_bulk, o) 
             out[i] = o
         out = tuple(out)
     else:
