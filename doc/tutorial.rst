@@ -13,6 +13,45 @@ so we can build and multiply matrices at different wavelengths simultaneously. S
 
 .. plot:: examples/1D/jones_twisted_nematic.py
 
+Transfer Matrix Method (1D)
+---------------------------
+
+Single layer reflection
++++++++++++++++++++++++
+
+In this example, we calculate reflections off a single 2 micron thick layer of material with refractive index of 1.5. See the source code for additional detail of the example below.
+
+.. plot:: examples/1D/tmm_reflection.py
+
+   Reflection and transmission properties of a single layer material. 
+
+Cholesteric reflection
+++++++++++++++++++++++
+
+In this example we calculate reflections off a cholesteric material. See the source code for additional details of the example below.
+
+.. plot:: examples/1D/tmm_cholesteric.py
+
+   Reflection and transmission properties of a cholesteric LC with a reflection band at 550 nm.
+
+Twisted nematic transmission
+++++++++++++++++++++++++++++
+
+In this example we compute the transmittance through 90 degree twisted nematic configured in first minimum condition (4 micron cell, refractive index anisotropy of 0.12). Here we demonstrate and show differences between the 4x4 approach and two versions of 2x2 approach - with reflections and without.
+
+.. plot:: examples/1D/tmm_twisted_nematic_reference.py
+
+   Reflection and transmission properties of a twisted nematic film (with film-to-air interfaces)
+
+2D simulations
+--------------
+
+Cholesteric reflection grating
+++++++++++++++++++++++++++++++
+
+In this example we calculate reflections from a tilted cholesteric sample, which produces a grating and mirror-like reflections. We plot optical microscope image formation and reflection efficiency for LCP and RCP input polarizations.
+
+.. plot:: examples/2D/cholesteric_grating.py
 
 3D simulations
 --------------
@@ -165,45 +204,6 @@ An example of a nematic droplet with planar director orientation, computed using
 
    An example of extended jones calculation, berreman 4x4 with interference and with interference disabled methods to compute transmission of a white light through the nematic droplet with a planar director alignment, viewed between crossed polarizers.
 
-TMM (2D)
---------
-
-Cholesteric reflection grating
-++++++++++++++++++++++++++++++
-
-In this example we calculate reflections from a tilted cholesteric sample, which produces a grating and mirror-like reflections. We plot optical microscope image formation and reflection efficiency for LCP and RCP input polarizations.
-
-.. plot:: examples/2D/cholesteric_grating.py
-
-TMM (1D)
---------
-
-Single layer 1D
-+++++++++++++++
-
-In this example, we calculate reflections off a single 2 micron thick layer of material with refractive index of 1.5. See the source code for additional detail of the example below.
-
-.. plot:: examples/1D/tmm_reflection.py
-
-   Reflection and transmission properties of a single layer material. 
-
-Cholesteric 1D
-++++++++++++++
-
-In this example we calculate reflections off a cholesteric material. See the source code for additional details of the example below.
-
-.. plot:: examples/1D/tmm_cholesteric.py
-
-   Reflection and transmission properties of a cholesteric LC with a reflection band at 550 nm.
-
-Twisted nematic 1D
-++++++++++++++++++
-
-In this example we compute the transmittance through 90 degree twisted nematic configured in first minimum condition (4 micron cell, refractive index anisotropy of 0.12). Here we demonstrate and show differences between the 4x4 approach and two versions of 2x2 approach - with reflections and without.
-
-.. plot:: examples/1D/tmm_twisted_nematic_reference.py
-
-   Reflection and transmission properties of a twisted nematic film (with film-to-air interfaces)
 
 Field viewer 
 ------------
