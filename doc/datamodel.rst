@@ -141,7 +141,7 @@ Field Data
    >>> field_data = dtmm.illumination_data(shape, wavelengths, 
    ...       pixelsize = pixelsize)
 
-Here we used a :func:`.waves.illumination_data` convenience function that builds the field data for us. We will deal with colors later, now let us look at the field_waves data. It is a tuple of two `ndarrays` and a scalar :
+Here we used a :func:`.field.illumination_data` convenience function that builds the field data for us. We will deal with colors later, now let us look at the field_waves data. It is a tuple of two `ndarrays` and a scalar :
 
 .. doctest::
 
@@ -154,7 +154,7 @@ Now, the `field` array shape in our case is:
    >>> field.shape
    (2, 2, 4, 128, 128)
 
-which should be understood as follows. The first axis is for the polarization of the field. With the :func:`.waves.illumination_data` we have built initial field of the incoming light that was specified with no polarization, therefore, :func:`.waves.illumination_data` build waves with *x* and *y* polarizations, respectively, so that it can be used in the field viewer later. The second axis is for the wavelengths of interest, therefore, the length of this axis is 2, as
+which should be understood as follows. The first axis is for the polarization of the field. With the :func:`.field.illumination_data` we have built initial field of the incoming light that was specified with no polarization, therefore, :func:`.field.illumination_data` build waves with *x* and *y* polarizations, respectively, so that it can be used in the field viewer later. The second axis is for the wavelengths of interest, therefore, the length of this axis is 2, as
 
 .. doctest::
 
@@ -189,4 +189,17 @@ How does it look like? Let us apply a circular aperture to the field and plot it
 
    The real part of the Ex component of the EM field for the three directions (beta, phi) and two wavelengths. Top row is for 500nm data, bottom row is 600nm data.
 
+Field vector
+++++++++++++
+
+For 1D and 2D simulations with a non-iterative algorithm we use field vector instead. There are conversion functions that you can use to build field data from field vector and vice-versa, e.g:
+
+.. doctest::
+
+   >>> fvec = dtmm.field.field2fvec(field)
+   >>> fvec.shape
+   (3, 2, 128, 128, 4)
+   >>> field = dtmm.field.fvec2field(fvec)
+   >>> field.shape
+   (3, 2, 4, 128, 128)
 
