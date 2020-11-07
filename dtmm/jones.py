@@ -50,7 +50,7 @@ def jones_intensity(jones):
     intensity : (...) float array
         Computed intensity.
     """
-    return (jones * np.conj(jones)).sum(-1)
+    return ((jones * np.conj(jones)).sum(-1)).real
 
 def jonesvec(pol, phi = 0., out = None):
     """Returns a normalized jones vector from an input length 2 vector., Additionaly,

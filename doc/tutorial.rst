@@ -3,6 +3,17 @@
 Tutorial
 ========
 
+Jones calculus (1D)
+-------------------
+
+You can use the package for simple normal incidence Jones calculus. In the :mod:`dtmm.jones` you will find all the functionality to work with jones calculus. For example, we can compute the transmittance properties of a simple Twisted Nematic director profile. We compute wavelength-dependent transmittance of normally white and normally black TN modes. We build a left-handed twisted nematic in a 4 microns cell and in the first minimum condition - max transmission at 550 nm. 
+
+The matrix creation functions in the jones module obey numpy broadcasting rules,
+so we can build and multiply matrices at different wavelengths simultaneously. See the source code of the example below.
+
+.. plot:: examples/1D/jones_twisted_nematic.py
+
+
 3D simulations
 --------------
 
@@ -154,8 +165,8 @@ An example of a nematic droplet with planar director orientation, computed using
 
    An example of extended jones calculation, berreman 4x4 with interference and with interference disabled methods to compute transmission of a white light through the nematic droplet with a planar director alignment, viewed between crossed polarizers.
 
-2D simulations
---------------
+TMM (2D)
+--------
 
 Cholesteric reflection grating
 ++++++++++++++++++++++++++++++
@@ -164,8 +175,8 @@ In this example we calculate reflections from a tilted cholesteric sample, which
 
 .. plot:: examples/2D/cholesteric_grating.py
 
-1D simulations
---------------
+TMM (1D)
+--------
 
 Single layer 1D
 +++++++++++++++

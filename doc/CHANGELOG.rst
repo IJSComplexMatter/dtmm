@@ -4,12 +4,15 @@ Release Notes
 V0.6.1 (In development)
 +++++++++++++++++++++++
 
-This is a bugfix release
+This is a bugfix release, focusing on documentation/examples improvements:
+
+* New jones caculus example.
 
 Fixes
 /////
 
-* improvements to documentation.
+* linalg.dot_multi now works with input matrices of different shapes
+* jones.jones_intensity now returns float instead of complex.
 
 
 V0.6.0 (November 6 2020)
