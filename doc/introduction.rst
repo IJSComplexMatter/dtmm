@@ -1,11 +1,15 @@
 Introduction
 ============
 
-``dtmm`` is an electro-magnetic field transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as confined liquid-crystals with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method and an adapted 2x2 extended Jones method. Details of the method are given in *... some future paper*.
+``dtmm`` is an electro-magnetic field transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as confined liquid-crystals with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method and an adapted 2x2 extended Jones method. Details of the method are given in *... some future paper*. 
 
 .. note::
 
-   This package is still in its early stage of development, so it should be considered experimental. The core functionality has been defined and the package is ready for use.
+    Although ``dtmm`` was mainly developed for 3D simulations, you can use the package for standard 4x4 calculation in 1D and in 2D. 
+
+.. seealso::
+   
+   If you are into transmission optical microscopy simulations you may want to check `nemaktis`_, which uses ``dtmm`` as one of the back-ends. 
 
 License
 -------
@@ -15,42 +19,50 @@ License
 Contributors
 ------------
 
-I thank the following people for contributing:
+I thank the following people for contributing and for valuable discussions:
 
 * Alex Vasile
+* Guilhem Poy
 
 Highlights
 ----------
 
 * Easy-to-use interface.
-* Computes transmission and reflection from the material (with interference and diffraction).
-* Biaxial, uniaxial and isotropic material supported.
-* Exact calculation for homogeneous layers. Two different approximate methods for inhomogeneous layers.
-* EMF visualizer (polarizing microscope simulator) - can be used with external computed data:
+* Nematic director, Q tensor and dielectric tensor import and conversion function.
+* Computes **transmission and reflection** from the material (with interference and diffraction).
+* **Biaxial, uniaxial and isotropic** material supported.
+* **Fast iterative algorithm** for 3D data - with tunable accuracy.
+* Non-iterative algorithm for 2D data - equivalent to the iterative algorithm with max accuracy settings. 
+* Exact calculation for homogeneous layers (1D). 
+* **EM field visualizer** (polarizing microscope simulator) allows you to simulate:
 
-   * Polarizer/analizer rotation.
+   * Light source intensity.
+   * Polarizer/analyzer orientation and type (LCP, RCP or linear).
+   * Phase retarders (lambda/4, lambda/2).
    * Sample rotation.
-   * Refocusing.
-   
+   * Focal plane adjustments.
+   * Koehler illumination (field aperture).
+   * Objective aperture.
+   * Immersion or standard microscopes.
+   * Cover glass aberration effects.
+
+* **Color rendering** (RGB camera simulations based on CIE color matching functions). 
+* Pre-defined spectral response for monochrome CMOS cameras. 
    
 Status and limitations
 ----------------------
 
-``dtmm`` is a young (experimental) project. The package was developed mainly for light propagation through liquid crystals, and as such, other use cases have not yet been fully tested or implemented. Also, in the current version some limitations apply, which will hopefully be resolved in future versions:
+``dtmm`` was developed mainly for light propagation through liquid crystals, but it can also be used for simple 1D simulations using Jones calculus, or transfer matrix method. See the tutorial section for details. There are still some unresolved issues and limitations, which are planned to be addressed in future versions. **Contributions are welcome!**
  
-* Limited color rendering functions and settings - no white balance correction of computed imaged.
-* Non-dispersive material only. 
-* Limited data IO functions.
-* Two approximate methods for slowly varying medium:
-
-   * An `effective` method : tunable accuracy (can be very fast) 
-   * A `full` method : very slow, most accurate.
+* Limited color rendering functions and settings - no white balance correction of computed images.
+* Optimized for non-dispersive material. You have to split the calculation over different wavelengths and provide the optical data manually to simulate dispersive material. 
+* Regular-spaced mesh only with equal spacing in x and y directions. 
 
 .. note::
 
-   EMF field propagation calculation is exact for homogeneous layers, but it is only approximate for inhomogeneous layers. It works reasonably well for slowly varying (within the layer) refractive index material (e.g. confined liquid crystals with slowly varying director field).  
+   EM field propagation calculation based on the iterative and non-iterative approach for 2D and 3D is exact for homogeneous layers, but it is approximate for inhomogeneous layers. It works good for slowly varying refractive index material (e.g. confined liquid crystals with slowly varying director field). 
 
-Other than that, the package is fully operational. Try the example below to get an impression on how it works.
+The package is still evolving, so there may be some small API changes in the future. Other than that, the package is fully operational. Play with the example below to get an impression on how it works.
 
 Example
 -------
@@ -86,7 +98,7 @@ Visualize the transmitted field with matplotlib plot:
 
 .. doctest::
 
-   >>> viewer = dtmm.field_viewer(field_data_out)
+   >>> viewer = dtmm.pom_viewer(field_data_out)
    >>> viewer.set_parameters(sample = 0, polarizer = "h",
    ...      focus = -18, analyzer = "v")
    >>> fig, ax = viewer.plot() #creates matplotlib figure and axes
@@ -97,9 +109,15 @@ Visualize the transmitted field with matplotlib plot:
 
    Simulated optical polarizing microscope image of a nematic droplet with a radial nematic director profile (a point defect in the middle of the sphere). You can use sliders to change the focal plane, polarizer, sample rotation, analyzer, and light intensity.
 
-
 Curious enough? Read the :ref:`quickstart`.
 
+Contact
+-------
+
+Andrej {dot} Petelin {at} gmail {dot} com 
+
 .. _repository: https://github.com/IJSComplexMatter/dtmm
+.. _nemaktis: https://nemaktis.readthedocs.io
+
 
 

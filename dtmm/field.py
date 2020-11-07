@@ -177,7 +177,8 @@ def field2modes(field, k0, betamax = BETAMAX):
     mask, modes : ndarray, ndarray or ndarray, tuple of ndarrays
         For a single-wavelength data it returns the mask array specifying
         the mode indices and modes coefficients array. For multi-wavelength data
-        the modes is a tuple of ndarrays for each of the wavelengths.
+        the modes is a tuple of ndarrays for each of the wavelengths. Length
+        of the mask in this case equals length of the wavenumbers. 
             
     """
     if isinstance(field, tuple):
@@ -928,7 +929,7 @@ def load_field(file):
         magic = f.read(len(MAGIC))
         if magic == MAGIC:
             if f.read(1) != VERSION:
-                raise OSError("This file was created with a more recent version of dtmm. Please upgrade your dtmm package!".format(file))
+                raise OSError("This file was created with a more recent version of dtmm. Please upgrade your dtmm package!")
             field = np.load(f)
             wavelengths = np.load(f)
             pixelsize = float(np.load(f))

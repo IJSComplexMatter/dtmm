@@ -1259,7 +1259,11 @@ def multi_dot(arrays,  axis = 0, reverse = False):
         if out is None:
             out = np.asarray(arrays[i]).copy()
         else:
-            out = dotmm(out, arrays[i], out = out)
+            b = np.broadcast(out, arrays[i])
+            if b.shape == out.shape:
+                out = dotmm(out, arrays[i], out = out)
+            else:
+                out = dotmm(out, arrays[i])
     return out
     
     

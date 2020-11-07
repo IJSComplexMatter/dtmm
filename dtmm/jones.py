@@ -50,7 +50,7 @@ def jones_intensity(jones):
     intensity : (...) float array
         Computed intensity.
     """
-    return (jones * np.conj(jones)).sum(-1)
+    return ((jones * np.conj(jones)).sum(-1)).real
 
 def jonesvec(pol, phi = 0., out = None):
     """Returns a normalized jones vector from an input length 2 vector., Additionaly,
@@ -363,10 +363,7 @@ def as4x4(jmat,  out = None):
         out = np.zeros(shape, dtype = jmat.dtype)
     else:
         out[...] = 0.
-    out[...,0::2,0::2] = jmat
-    
-    jmatT = np.swapaxes(jmat, -2,-1)
-    
+    out[...,0::2,0::2] = jmat    
     #for back propagating waves, jones matrix is conjugate
     out[...,1::2,1::2] = np.conj(jmat)
 
