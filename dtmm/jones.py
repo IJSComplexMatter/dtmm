@@ -363,10 +363,7 @@ def as4x4(jmat,  out = None):
         out = np.zeros(shape, dtype = jmat.dtype)
     else:
         out[...] = 0.
-    out[...,0::2,0::2] = jmat
-    
-    jmatT = np.swapaxes(jmat, -2,-1)
-    
+    out[...,0::2,0::2] = jmat    
     #for back propagating waves, jones matrix is conjugate
     out[...,1::2,1::2] = np.conj(jmat)
 
