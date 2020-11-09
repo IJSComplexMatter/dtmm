@@ -17,7 +17,7 @@ Say you have a director data stored in a raw or text file (or create a sample di
     >>> director = dtmm.nematic_droplet_director((NLAYERS, HEIGHT, WIDTH), radius = 30, profile = "r")
     >>> director.tofile("director.raw")
 
-Here we have generated a director data array and saved it to a binary file written in system endianness called "director.raw". The data stored in this file is of shape (60,96,96,3), that is (NLAYERS, HEIGHT, WIDTH, 3). That is, a director as a vector defined in each voxel of the compute box. The length of the director vector is either 1, where the director is inside the sphere, and 0 elsewhere. To load this data from file you can use the :func:`dtmm.read_director` helper function:
+Here we have generated a director data array and saved it to a binary file written in system endianness called "director.raw". The data stored in this file is of shape (60,96,96,3), that is (NLAYERS, HEIGHT, WIDTH, 3). That is, a director as a vector defined in each voxel of the computation box. The length of the director vector is either 1, where the director is inside the sphere, and 0 elsewhere. To load this data from file you can use the :func:`dtmm.read_director` helper function:
 
 .. doctest::
 
@@ -52,13 +52,13 @@ Of course you can provide any mask, just that the shape of the mask must mach th
 
    For testing, there is a :func:`dtmm.nematic_droplet_data` function that you can call to construct a test data of nematic droplet data directly. See :ref:`optical-data` for details.
 
-Sometimes you will need to expand the compute box (increase the volume). You can do that with
+Sometimes you will need to expand the computation box (increase the volume). You can do that with
 
 .. doctest::
 
    >>> director_large = dtmm.expand(director, (60,128,128))
 
-This grows the compute box in lateral dimensions symmetrically, by filling the missing data points with zeros. For a more complex data creation please refer to the :ref:`optical-data` format.
+This grows the computation box in lateral dimensions symmetrically, by filling the missing data points with zeros. For a more complex data creation please refer to the :ref:`optical-data` format.
 
 .. note::
 
@@ -109,8 +109,8 @@ Transmission Calculation
 
 In this part we will cover transmission calculation and light creation functions for simulating optical polarizing microscope images. First we will create and compute the transmission of a single plane wave and then show how to compute multiple rays (multiple plane waves with different ray directions) in order to simulate finite numerical aperture of the illuminating light field.
 
-Single ray
-++++++++++
+Plane wave illumination (single ray)
+++++++++++++++++++++++++++++++++++++
 
 Now that we have defined the sample data we need to construct initial (input) electro-magnetic field. Electro magnetic field is defined by an array of shape *(4,height,width)* where the first axis defines the component of the field, that is, an :math:`E_x`, :math:`H_y`, :math:`E_y` and :math:`H_x` components of the EM field specified at each of the (y,x) coordinates. To calculate transmission spectra, multiple  wavelengths need to be simulated. A multi-wavelength field has a shape of (n_wavelengths,4,height,width). You can define a multi-wavelength input light electro-magnetic field data with a :func:`dtmm.illumination_data` helper function. 
 
@@ -152,10 +152,10 @@ Here we have set the index matching medium by specifying *nin* and *nout* argume
    The transfer_field function by default uses 2x2 method and does not compute reflections. Therefore, `nin` and `nout` arguments must be equal. If they are not, you must enable reflections. See :ref:`Tutorial` for details on reflections and interference.
 
 
-Multiple rays
-+++++++++++++
+Koehler illumination (multiple rays)
+++++++++++++++++++++++++++++++++++++
 
-If you want to simulate multiple rays (multiple plane waves), directions of these rays have to be defined. A simple approach is to use the illumination_rays helper function. This function returns beta values and phi values of the input rays for a specified numerical aperture of the illumination. 
+If you want to simulate Koehler illumination (see `koehler`_ for a nice description of the model) with finite numerical aperture (condenser aperture) multiple rays (or multiple plane waves) needs to be simulated. Directions of these rays have to be defined. A simple approach is to use the illumination_rays helper function. This function returns beta values and phi values of the input rays for a specified numerical aperture of the illumination. 
 
 .. note::
 
@@ -207,21 +207,20 @@ The :func:`dtmm.transfer_field` also takes several optional parameters. One wort
 
    You can also perform calculations in single precision to further reduce memory consumption (and increase computation speed). See the :ref:`optimization` for details.
 
-
 Microscope simulation
 ---------------------
 
-After the transmitted field has been calculated, we can simulate optical polarizing microscope image formation with the POMViewer object. The output field is a calculated EM field at the exit surface of the optical stack. As such it can be further propagated and optical polarizing microscope image formation can be performed. Instead of doing full optical image formation calculation one can take the computed field and propagate it in space a little (forward or backward) from the initial position. This way one can calculate light intensities that would have been measured by a camera equipped microscope, had the field been propagated through an ideal microscope objective with a 1:1 magnifications. Simply do:
+After the transmitted field has been calculated, we can simulate the optical polarizing microscope image formation with the POMViewer object. The output field is a calculated EM field at the exit surface of the optical stack. As such, it can be further propagated, and optical polarizing microscope image formation can be performed. Instead of doing full optical image formation calculation, one can take the computed field and propagate it in space (forward or backward) from the initial position. This way, one can calculate light intensities that would have been measured by a camera-equipped microscope had the field been propagated through an ideal microscope objective with 1:1 magnifications. Simply do:
 
 .. doctest::
 
    >>> viewer = dtmm.pom_viewer(field_data_out, n_cover = 1.5, d_cover = 0., NA = 0.7, immersion = False)
 
-which returns a POMViewer object for simulating standard objective (non-immersion type) with NA of 0.7. Here we have used the thickness of the cover glass d_cover = 0. This tells the algorithm to neglect the diffraction effects introduced by the thick cover glass. If you have a thick cover glass in the experiment, and you have simulated the field using transfer_field with nout = n_cover at the exit surface of the sample, you can use the d_cover argument to simulate aberration effects introduced by the thick cover glass. 
+which returns a POMViewer object for simulating standard objective (non-immersion type) with NA of 0.7. Here we have used the thickness of the cover glass d_cover = 0. This tells the algorithm to neglect the diffraction effects introduced by the thick cover glass. If you have a thick cover glass in the experiment, and you have simulated the field using the transfer_field function with nout = n_cover at the exit surface of the sample, you can use the d_cover argument to simulate aberration effects introduced by the thick cover glass. 
 
 .. note::
 
-    For oil-immersion objectives you should specify immersion = True. Here you can use higher NA values.
+    For immersion objectives you should specify immersion = True. Here you can use higher NA values.
 
 .. warning::
 
@@ -238,8 +237,9 @@ The calculated output field is defined at zero focus. To move the focus position
 .. doctest::
 
    >>> viewer.analyzer = 90 #in degrees - vertical direction
+   >>> viewer.analyzer = "v" #also works with v,h,lcp,rcp,x,y strings
 
-If you do not wish to use analyzer, simply remove it by specifying
+If you do not wish to use the analyzer, simply remove it by specifying
 
 .. doctest::
 
@@ -297,14 +297,14 @@ If a different viewing direction is required you must rotate the object and reco
 
    >>> dir90 = dtmm.rot90_director(director, axis = "y")
    
-This rotates the whole compute box and the shape of the director field becomes
+This rotates the whole computation box and the shape of the director field becomes
    
 .. doctest::
 
    >>> dir90.shape
    (96, 96, 60, 3)
 
-This transformation is lossless as no data points are cropped and no interpolation is performed. You may want to crop data and add some border area to increase the size of the compute box and to match it to the original data. Alternative approach, and for a more general, lossy transformation you can use the :func:`dtmm.data.rotate_director` function. For a 90 degree rotation around the *y* axis
+This transformation is lossless as no data points are cropped and no interpolation is performed. You may want to crop data and add some border area to increase the size of the computation box and to match it to the original data. Alternative approach, and for a more general, lossy transformation you can use the :func:`dtmm.data.rotate_director` function. For a 90 degree rotation around the *y* axis
 
 .. doctest::
    
@@ -350,11 +350,11 @@ To save/load field data or optical (stack) data to a file for later use there ar
 Increasing computation speed
 ----------------------------
 
-So you want to get best performance? First make sure you have `mkl_fft` installed:: 
+``dtmm`` was developed with efficiency in mind. If you are running on Intel processors, to get the best performance, first make sure you have `mkl_fft` installed:: 
 
     >>> import mkl_fft
 
-Then before loading the package set these environment variables:
+You can further increase the computation speed. Before loading the package set these environment variables:
 
 .. doctest::
 
@@ -372,3 +372,4 @@ Now load the package
 We now have the package compiled for best performance at the cost of computation accuracy.
 See :ref:`optimization` for details and further tuning and configuration options.
 
+.. _koehler: https://nemaktis.readthedocs.io/en/latest/intro/microscopy_model.html

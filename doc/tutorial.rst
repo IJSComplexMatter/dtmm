@@ -16,6 +16,9 @@ so we can build and multiply matrices at different wavelengths simultaneously. S
 Transfer Matrix Method (1D)
 ---------------------------
 
+For simulations in 1D you have several options. You can use the standard 4x4 transfer matrix approach, which allows you to study reflections from the surface, and there are several options for transmission calculations. In addition to 4x4, you can take the scattering matrix formulation (the 2x2) approach without reflections or with a single fresnel reflection. The 4x4 approach also allows you to perform single-reflection calculation (disabling interference effect) in case you have thicker samples. 
+
+
 Single layer reflection
 +++++++++++++++++++++++
 
@@ -45,6 +48,7 @@ In this example we compute the transmittance through 90 degree twisted nematic c
 
 2D simulations
 --------------
+
 
 Cholesteric reflection grating
 ++++++++++++++++++++++++++++++
