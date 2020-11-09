@@ -13,6 +13,7 @@ Fixes
 
 * linalg.dot_multi now works with input matrices of different shapes
 * jones.jones_intensity now returns float instead of complex.
+* pom_viewer now correctly converts field to jones, assuming n_cover as the refractive index (instead of n). 
 
 
 V0.6.0 (November 6 2020)

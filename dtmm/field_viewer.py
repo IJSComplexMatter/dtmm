@@ -1391,7 +1391,7 @@ class POMViewer(FieldViewer):
     def jones(self):
         if self._jones is None:   
             vp = self.viewer_options
-            epsv = vp.epsv
+            epsv = refind2eps((vp.n_cover,)*3)
             self._jones = field2jones(self._field, vp.wavenumbers, epsv = epsv, mode = vp.propagation_mode, output_fft = False, betamax = vp.betamax)
         return self._jones   
     
@@ -1408,7 +1408,7 @@ class POMViewer(FieldViewer):
     def fjones(self):
         if self._fjones is None:
             vp = self.viewer_options
-            epsv = vp.epsv
+            epsv = refind2eps((vp.n_cover,)*3)
             if self._jones is None:
                 self._fjones = field2jones(self._field, vp.wavenumbers, epsv = epsv, mode = vp.propagation_mode, output_fft = True, betamax = vp.betamax)
             else:

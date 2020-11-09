@@ -542,6 +542,9 @@ for a standard CMOS camera, to build a tcmf function for light source approximat
 
 If you have a custom spectral response function stored in a file, you can read that too with the above function.
 
+.. plot:: examples/viewer_monochrome.py
+
+    A hello world example, but this time, with a custom light source and a monochrome camera.
 
 .. _`CIE 1931`: https://en.wikipedia.org/wiki/CIE_1931_color_space
 .. _`sRGB`: https://en.wikipedia.org/wiki/SRGB

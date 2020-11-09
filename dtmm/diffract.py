@@ -194,7 +194,7 @@ def E_cover_diffraction_matrix(shape, ks,  n = 1., d_cover = 0, n_cover = 1.5, m
     
     kd =ks * d_cover
     pmat = phase_matrix(alphac, kd)
-    return dotmdm(j,pmat,j0i,out = out) 
+    return dotmdm(j0,pmat,j0i,out = out) 
 
 
 
