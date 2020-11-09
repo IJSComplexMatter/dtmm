@@ -285,6 +285,11 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None, is_pola
     # Extract components out of field_data
     field, wavelengths, pixelsize = field_data
     
+    wavelengths = np.asarray(wavelengths)
+    if wavelengths.ndim == 0:
+        #make it 1D
+        wavelengths = wavelengths[None]
+    
     if not diffraction and mode is not None:
         import warnings
         warnings.warn("Diffraction has been enabled because projection mode is set!")
@@ -390,6 +395,11 @@ def pom_viewer(field_data, cmf=None, n = None, immersion = None, n_cover = None,
     """
     # Extract components out of field_data
     field, wavelengths, pixelsize = field_data
+    
+    wavelengths = np.asarray(wavelengths)
+    if wavelengths.ndim == 0:
+        #make it 1D
+        wavelengths = wavelengths[None]
 
 
     # Ensure a color matching function will be used

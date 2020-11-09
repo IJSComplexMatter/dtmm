@@ -16,7 +16,9 @@ so we can build and multiply matrices at different wavelengths simultaneously. S
 Transfer Matrix Method (1D)
 ---------------------------
 
-For simulations in 1D you have several options. You can use the standard 4x4 transfer matrix approach, which allows you to study reflections from the surface, and there are several options for transmission calculations. In addition to 4x4, you can take the scattering matrix formulation (the 2x2) approach without reflections or with a single fresnel reflection. The 4x4 approach also allows you to perform single-reflection calculation (disabling interference effect) in case you have thicker samples. the details on the he 4x4 transfer matrix approach can be found tin the literature, e.g. *Birefringent Thin Films and Polarizing Elements* by McCall, Hodgkinson and Wu. Run the source code and read the comments of the examples below to learn how to use the tools for 1D analysis using 4x4 approach.
+For simulations in 1D you have several options using :mod:`.tmm`. You can use the standard 4x4 transfer matrix approach, which allows you to study reflections from the surface, and there are several options for transmission calculations. In addition to 4x4, you can take the scattering matrix formulation (the 2x2) approach without reflections or with a single fresnel reflection. The 4x4 approach also allows you to perform single-reflection calculation (disabling interference effect) in case you have thicker samples. the details on the he 4x4 transfer matrix approach can be found tin the literature, e.g. *Birefringent Thin Films and Polarizing Elements* by McCall, Hodgkinson and Wu. 
+
+Run the source code and read the comments of the examples below to learn how to use the tools for 1D analysis using 4x4 approach.
 
 Single layer reflection
 +++++++++++++++++++++++
@@ -48,7 +50,7 @@ In this example we compute the transmittance through 90 degree twisted nematic c
 2D simulations
 --------------
 
-For 2D simulations, you can use the non-iterative 2D 4x4 approach developed in :mod:`.tmm2d`. It works by writing the 4x4 matrices in Fourier space. At a given `z` position in space, and for a given computation box size and resolution, each wave can be described as a sum of `N` propagating modes. Therefore, for each of the inhomogeneous layers one writes a NxNx4x4 transfer matrix. Because of the NxN complexity, this approach works well for smaller sized computation cells involving only few modes. See the examples below. 
+For 2D simulations, you can use the non-iterative 2D 4x4 approach developed in :mod:`.tmm2d`. It works by writing the 4x4 matrices in Fourier space. At a given `z` position in space, and for a given computation box size and resolution, each wave can be described as a sum of `N` propagating modes. Therefore, for each of the inhomogeneous layers one writes a NxNx4x4 transfer matrix. Because of the NxN complexity, this approach works well for smaller sized computation cells involving only few modes. See the examples below for details. 
 
 Cholesteric reflection grating
 ++++++++++++++++++++++++++++++
