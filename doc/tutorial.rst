@@ -263,7 +263,7 @@ The refractive index `n`, and `betamax` parameters are meaningless when using th
 POM viewer 
 ----------
 
-The Polarizing Optical Microscope viewer was covered in the quick start quite. The difference between the FieldViewer and POMViewer is that the latter works with 2x2 matrices, whereas FieldViewer works with 4x4 matrices. Internally, the POMViewer converts the field data to E-field (or jones field data)::
+The Polarizing Optical Microscope viewer was covered in the quick start guite. The difference between the FieldViewer and POMViewer is that the latter works with 2x2 matrices, whereas FieldViewer works with 4x4 matrices. Internally, the POMViewer converts the field data to E-field (or jones field data)::
 
    >>> jones = dtmm.field.field2jones(f,dtmm.k0(WAVELENGTHS, PIXELSIZE))
 
@@ -537,7 +537,7 @@ To simulate a monochrome camera, you also have to construct a proper color match
 for a standard CMOS camera, to build a tcmf function for light source approximated with three wavelengths and an illuminant specified by the illuminant table, do:
 
 >>> wavelengths = (420,450,480)
->>> illuminant = [[400,0],[430,0.8],[450,1],[470,0.8],[500,0]
+>>> illuminant = [[400,0],[430,0.8],[450,1],[470,0.8],[500,0]]
 >>> cmf = dtmm.color.load_tcmf(wavelengths,cmf = "CMOS",illuminant = illuminant)
 
 If you have a custom spectral response function stored in a file, you can read that too with the above function.

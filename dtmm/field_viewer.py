@@ -97,9 +97,10 @@ def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = N
         
     Examples
     --------
-    >>> polarizer_jvec = jones4.jonesvec((1,0))
-    >>> analyzer_jvec = jones4.jonesvec((0,1))
-    >>> pmat = jones4.polarizer4x4(analyzer_jvec)
+    >>> polarizer_jvec = dtmm.jones4.jonesvec((1,0))
+    >>> analyzer_jvec = dtmm.jones4.jonesvec((0,1))
+    >>> fmat = dtmm.tmm.f_iso()
+    >>> pmat = dtmm.jones4.polarizer4x4(analyzer_jvec,fmat)
     >>> field_out = calculate_pom_field(field_in, polarizer_jvec, pmat)
     
     """
@@ -315,6 +316,7 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None, is_pola
                              diffraction=diffraction, is_polarized = is_polarized,
                              refractive_index = n,
                              polarization_mode=polarization_mode, betamax=betamax, beta = beta)
+
         viewer.field = field
         viewer.image_parameters.cmf = cmf
         viewer.image_parameters.window = window
