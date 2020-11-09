@@ -62,8 +62,8 @@ In this example we calculate reflections from a tilted cholesteric sample, which
 3D simulations
 --------------
 
-In 3D, one may be tempted to develop the same non-iterative approach as for 2D. However, this becomes impractical because of the size of the matrices and computational complexity. Although you can find the implementation in :mod:`.tmm3d`, this was developed for reference and testing, and it was not really meant to be useful in practice. Instead, for computations in 3D, we use an iterative algorithm. Instead of writing the transfer matrices and multiplying the matrices together to form a material characteristic matrix, one works with field vector in real space and transfers it through the layers in a split-step fashion. The material is viewed as a series of thin birefringent film and a thick homogeneous layer.  
-First, the field is transferred through the thin film in real space, acquiring phase change (with reflections), then the field is propagated by matrix multiplication if Fourier space. It is a bit more technical than that, and details of the non-iterative approach are given in *some future paper*. Below you will find some technical information and examples of use.
+In 3D, one may be tempted to develop the same non-iterative approach as for 2D. However, this becomes impractical because of the size of the matrices and computational complexity. Although you can find the implementation in :mod:`.tmm3d`, this was developed for reference and testing, and it was not really meant to be useful in practice. Instead, for computations in 3D, we use an iterative algorithm. Instead of writing the transfer matrices and multiplying the matrices together to form a material characteristic matrix, one works with field vector in real space and transfers it through the layers in a split-step fashion. The layer is viewed as a thin inhomogeneous birefringent film and a thick homogeneous layer.  
+First, the field is transferred through the thin film in real space, acquiring phase change (with reflections), then the field is propagated by matrix multiplication if Fourier space. It is a bit more technical than that, and details of the non-iterative method is given in *some future paper*. Below you will find some technical information and examples of use.
 
 Interference and reflections
 ++++++++++++++++++++++++++++
@@ -213,11 +213,10 @@ An example of a nematic droplet with planar director orientation, computed using
 
    An example of extended jones calculation, berreman 4x4 with interference and with interference disabled methods to compute transmission of a white light through the nematic droplet with a planar director alignment, viewed between crossed polarizers.
 
-
 Field viewer 
 ------------
 
-Here we will cover some additional configuration options for the FieldViewer. The field viewer can be used to inspect the output field (which was covered in the quick-start guide), or to inspect the bulk field data.
+In addition to the Polarizing Optical Microscope viewer which was covered in the quick start quite, there is also a FieldViewer. Here we will cover some additional configuration options for the FieldViewer. The field viewer can be used to inspect the output field, or to inspect the bulk field data. 
 
 Projection mode
 +++++++++++++++
@@ -261,8 +260,19 @@ Now  the "focus" parameter has a role of selecting a layer index and the viewer 
 
 The refractive index `n`, and `betamax` parameters are meaningless when using the field_viewer to visualize bulk data, except if you define a transmission or reflection `mode`. In this case, the viewer project the EM field and calculates the forward or backward propagating parts and removes the waves with beta value larger than the specified betamax parameter before calculating the intensity. 
 
+POM viewer 
+----------
 
+The Polarizing Optical Microscope viewer was covered in the quick start quite. The difference between the FieldViewer and POMViewer is that the latter works with 2x2 matrices, whereas FieldViewer works with 4x4 matrices. Internally, the POMViewer converts the field data to E-field (or jones field data)::
 
+   >>> jones = dtmm.field.field2jones(f,dtmm.k0(WAVELENGTHS, PIXELSIZE))
+
+This is done automatically when you call the::
+
+   >>> pom = dtmm.pom_viewer(field_data)
+
+See the quick start quite for usage details.
+   
 On the calculation accuracy
 ---------------------------
 
@@ -499,8 +509,8 @@ with the blue and red channel clipped. We should have used wide-gamut color spac
 
 .. _`custom-light-source`:
 
-Examples
-++++++++
+Color cameras
++++++++++++++
 
 By default, in simulations light source is assumed to be the D65 illuminant. The reason is that with a D65 light source the color of fully transmissive filter is neutral gray (or white) when using the CIE color matching functions. If you want co compare with experiments, when using D65 light in simulation, you should do a proper white balance correction in your camera to obtain similar color rendering of the images obtained in experiments. 
 
@@ -508,9 +518,9 @@ Another option is to match the illuminant used in simulation to the illuminant u
 
 >>> cmf = dc.load_tcmf(wavelengths, illuminant = "illuminant.dat")
 
-Afterwards, it is possible to set this illuminant in the field_viewer.
+Afterwards, it is possible to set this illuminant in the field_viewer or pom_viewer.
 
->>> viewer = dtmm.field_viewer(field_data, cmf = cmf)
+>>> viewer = dtmm.pom_viewer(field_data, cmf = cmf)
 
 For a standard A illuminant the example from the front page look like this:
 
@@ -519,6 +529,18 @@ For a standard A illuminant the example from the front page look like this:
    A hello world example, but this time, illumination was performed with a standard A illuminant.
 
 Now, to compare this with the experimentally obtained images, you should disable all white balance correction in your camera, or if your camera has this option, set the white balance to day-light conditions. This way your color camera will transform the image assuming a D65 light source illuminant, just as the `dtmm` package does when it computes the RGB image. Also, non-scientific SLR cameras typically use some standard color profile that tend to increase the saturation of colors. Probably it is best to use a neutral or faithful color profile if your camera provides you with this option.
+
+Monochrome cameras
+++++++++++++++++++
+
+To simulate a monochrome camera, you also have to construct a proper color matching function. For example, 
+for a standard CMOS camera, to build a tcmf function for light source approximated with three wavelengths and an illuminant specified by the illuminant table, do:
+
+>>> wavelengths = (420,450,480)
+>>> illuminant = [[400,0],[430,0.8],[450,1],[470,0.8],[500,0]
+>>> cmf = dtmm.color.load_tcmf(wavelengths,cmf = "CMOS",illuminant = illuminant)
+
+If you have a custom spectral response function stored in a file, you can read that too with the above function.
 
 
 .. _`CIE 1931`: https://en.wikipedia.org/wiki/CIE_1931_color_space
