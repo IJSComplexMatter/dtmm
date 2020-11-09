@@ -216,11 +216,11 @@ After the transmitted field has been calculated, we can simulate the optical pol
 
    >>> viewer = dtmm.pom_viewer(field_data_out, n_cover = 1.5, d_cover = 0., NA = 0.7, immersion = False)
 
-which returns a POMViewer object for simulating standard objective (non-immersion type) with NA of 0.7. Here we have used the thickness of the cover glass d_cover = 0. This tells the algorithm to neglect the diffraction effects introduced by the thick cover glass. If you have a thick cover glass in the experiment, and you have simulated the field using the transfer_field function with nout = n_cover at the exit surface of the sample, you can use the d_cover argument to simulate aberration effects introduced by the thick cover glass. 
+which returns a POMViewer object for simulating standard objective (non-immersion type) with NA of 0.7. Here we have used the thickness of the cover glass `d_cover` = 0. This tells the algorithm to neglect the diffraction effects introduced by the thick cover glass. If you have a thick cover glass in the experiment, and you have simulated the field using the transfer_field function with `nout` = `n_cover` at the exit surface of the sample, you can use the `d_cover` argument to simulate aberration effects introduced by the thick cover glass. 
 
 .. note::
 
-    For immersion objectives you should specify immersion = True. Here you can use higher NA values.
+    For immersion objectives you should specify `immersion` = True. Here you can use higher NA values.
 
 .. warning::
 
@@ -237,7 +237,7 @@ The calculated output field is defined at zero focus. To move the focus position
 .. doctest::
 
    >>> viewer.analyzer = 90 #in degrees - vertical direction
-   >>> viewer.analyzer = "v" #also works with v,h,lcp,rcp,x,y strings
+   >>> viewer.analyzer = "v" #or this, also works with "h","lcp","rcp","x","y" strings
 
 If you do not wish to use the analyzer, simply remove it by specifying
 
