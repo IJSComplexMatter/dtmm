@@ -5,8 +5,8 @@ dtmm: Diffractive Transfer Matrix Method
     :target: https://pypi.org/project/dtmm/
     :alt: Python version
 
-.. image:: https://travis-ci.org/IJSComplexMatter/dtmm.svg?branch=master
-    :target: https://travis-ci.org/IJSComplexMatter/dtmm
+.. image:: https://travis-ci.com/IJSComplexMatter/dtmm.svg?branch=master
+    :target: https://travis-ci.com/IJSComplexMatter/dtmm
     :alt: Build Status
     
 .. image:: https://readthedocs.org/projects/dtmm/badge/?version=latest
