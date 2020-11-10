@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 # Change matplotlib backend to an interactive one
 import matplotlib
-matplotlib.use("TkAgg")
+#matplotlib.use("TkAgg")
 
 #: pixel size in nm
 PIXELSIZE = 100

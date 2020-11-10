@@ -423,7 +423,7 @@ def load_cmf(wavelengths = None, cmf = CMF, retx = False, single_wavelength = Fa
         5nm tabulated data, 'CIE1964' for CIE1964 10-deg 5nm tabulated data, or
         'CIE2006-2' or 'CIE2006-10' for a proposed CIE 2006 2- or 10-deg 5nm 
         tabulated data. For grayscale cameras, there is a 'CMOS' spectral 
-        response data.
+        response data. You can also provide 'FLAT' for flat (unity) response function.
     retx : bool, optional
         Should the selected wavelengths be returned as well.
     single_wavelength : bool, optional

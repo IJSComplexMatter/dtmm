@@ -1395,12 +1395,13 @@ def E2fvec(evec, fmat = None, mode = +1, out = None):
     out : ndarray, optional
         Output array where results are written.
     """
+    evec = np.asarray(evec)
     if fmat is None:
         fmat = f_iso()
     e2h = E2H_mat(fmat, mode = mode)
     hvec = dotmv(e2h, evec)
     if out is None:
-        out = np.empty(shape = evec.shape[:-1] + (4,), dtype = evec.dtype)
+        out = np.empty(shape = evec.shape[:-1] + (4,), dtype = hvec.dtype) #hvec is complex
     out[...,::2] = evec
     out[...,1::2] = hvec
     return out

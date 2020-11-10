@@ -97,9 +97,10 @@ def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = N
         
     Examples
     --------
-    >>> polarizer_jvec = jones4.jonesvec((1,0))
-    >>> analyzer_jvec = jones4.jonesvec((0,1))
-    >>> pmat = jones4.polarizer4x4(analyzer_jvec)
+    >>> polarizer_jvec = dtmm.jones4.jonesvec((1,0))
+    >>> analyzer_jvec = dtmm.jones4.jonesvec((0,1))
+    >>> fmat = dtmm.tmm.f_iso()
+    >>> pmat = dtmm.jones4.polarizer4x4(analyzer_jvec,fmat)
     >>> field_out = calculate_pom_field(field_in, polarizer_jvec, pmat)
     
     """
@@ -285,6 +286,11 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None, is_pola
     # Extract components out of field_data
     field, wavelengths, pixelsize = field_data
     
+    wavelengths = np.asarray(wavelengths)
+    if wavelengths.ndim == 0:
+        #make it 1D
+        wavelengths = wavelengths[None]
+    
     if not diffraction and mode is not None:
         import warnings
         warnings.warn("Diffraction has been enabled because projection mode is set!")
@@ -310,6 +316,7 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None, is_pola
                              diffraction=diffraction, is_polarized = is_polarized,
                              refractive_index = n,
                              polarization_mode=polarization_mode, betamax=betamax, beta = beta)
+
         viewer.field = field
         viewer.image_parameters.cmf = cmf
         viewer.image_parameters.window = window
@@ -363,8 +370,8 @@ def pom_viewer(field_data, cmf=None, n = None, immersion = None, n_cover = None,
         Thickness ot the thick isotropic layer (cover glass).When d_cover != 0, t
         his simulates thick isotropic layer effect.
     immersion : bool
-        Specified whether oil immersion objective is being used or not. Note that
-        setting the 'n' parameter defines the immersion oil refractive index in
+        Specified whether immersion objective is being used or not. Note that
+        setting the 'n' parameter defines the immersion refractive index in
         this case.
     NA : float
         Numerical aperture of the objective. 
@@ -390,6 +397,11 @@ def pom_viewer(field_data, cmf=None, n = None, immersion = None, n_cover = None,
     """
     # Extract components out of field_data
     field, wavelengths, pixelsize = field_data
+    
+    wavelengths = np.asarray(wavelengths)
+    if wavelengths.ndim == 0:
+        #make it 1D
+        wavelengths = wavelengths[None]
 
 
     # Ensure a color matching function will be used
@@ -572,7 +584,7 @@ class POMViewerOptions(BaseViewerOptions):
         print(" $ polarized input: {}".format(self.is_polarized))  
         print(" $ cover refractive index: {}".format(self.n_cover)) 
         print(" $ cover thickness: {} [mm]".format(self.d_cover)) 
-        print(" $ oil immersion: {}".format(self.immersion))
+        print(" $ immersion: {}".format(self.immersion))
         print(" $ medium refractive index: {}".format(self.refractive_index))
         print(" $ propagation mode: {}".format(self.propagation_mode))   
         print(" $ objective NA: {}".format(self.NA))    
@@ -1379,7 +1391,7 @@ class POMViewer(FieldViewer):
     def jones(self):
         if self._jones is None:   
             vp = self.viewer_options
-            epsv = vp.epsv
+            epsv = refind2eps((vp.n_cover,)*3)
             self._jones = field2jones(self._field, vp.wavenumbers, epsv = epsv, mode = vp.propagation_mode, output_fft = False, betamax = vp.betamax)
         return self._jones   
     
@@ -1396,7 +1408,7 @@ class POMViewer(FieldViewer):
     def fjones(self):
         if self._fjones is None:
             vp = self.viewer_options
-            epsv = vp.epsv
+            epsv = refind2eps((vp.n_cover,)*3)
             if self._jones is None:
                 self._fjones = field2jones(self._field, vp.wavenumbers, epsv = epsv, mode = vp.propagation_mode, output_fft = True, betamax = vp.betamax)
             else:

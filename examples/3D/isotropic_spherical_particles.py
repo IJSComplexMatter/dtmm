@@ -3,19 +3,19 @@
 import dtmm
 import numpy as np
 
-dtmm.conf.set_verbose(1)
+dtmm.conf.set_verbose(2)
 
 #: pixel size in nm
 PIXELSIZE = 80
 #: compute box dimensionss
 NLAYERS, HEIGHT, WIDTH = 50, 512, 512
 #: illumination wavelengths in nm
-WAVELENGTHS = np.linspace(680,780,5)
+WAVELENGTHS = np.linspace(380,780,11)
 #: create some experimental data (stack)
 
 m1 = dtmm.sphere_mask((NLAYERS, HEIGHT, WIDTH),25, (26,0,0))
 m2 = dtmm.sphere_mask((NLAYERS, HEIGHT, WIDTH), 25, (-26,0,0))
-m = m1 #| m2
+m = m1 | m2
 
 refind = np.ones((NLAYERS, HEIGHT, WIDTH,3)) * 1.3
 angles = np.zeros((NLAYERS, HEIGHT, WIDTH,3))
@@ -29,7 +29,7 @@ d = np.ones((NLAYERS,))
 optical_data = d, refind, angles
 
 
-#NA 0.25, diaphragm with diameter 4 pixels, around 2*2*pi rays
+#NA 0.15, diaphragm with diameter 5 pixels, around 2*2*pi rays
 beta, phi, intensity = dtmm.illumination_rays(0.15,5)
 
 beta = 0.

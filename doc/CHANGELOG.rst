@@ -1,8 +1,8 @@
 Release Notes
 -------------
 
-V0.6.1 (In development)
-+++++++++++++++++++++++
+V0.6.1 (Nov 10 200)
++++++++++++++++++++
 
 This is a bugfix release, focusing on documentation/examples improvements:
 
@@ -13,10 +13,11 @@ Fixes
 
 * linalg.dot_multi now works with input matrices of different shapes
 * jones.jones_intensity now returns float instead of complex.
+* pom_viewer now correctly converts field to jones, assuming `n_cover` as the refractive index (instead of `n` - the output medium).
+* data.illumination_data now uses n = `n_cover` as the default medium (instead of n = 1).
 
-
-V0.6.0 (November 6 2020)
-++++++++++++++++++++++++
+V0.6.0 (Nov 6 2020)
++++++++++++++++++++
 
 This release adds many new features.  
 
@@ -34,6 +35,7 @@ New features
 * New :func:`dtmm.data.effective_data` function to simplify effective data construction.
 * The eff_data argument of :func:`dtmm.transfer.transfer_field` can now take strings "isotropic", "uniaxial" or "biaxial" to simplify creation of effective medium.
 * New jones4.py module for creation of 4x4 jones-like matrices to simplify polarization handling of field data.
+* Extended configuration options in dtmm.ini.
 
 Changes
 ///////
@@ -49,8 +51,8 @@ Fixes
 
 * segfault error due to numba caching. 
 
-V0.5.0 (October 20 2020)
-++++++++++++++++++++++++
+V0.5.0 (Oct 20 2020)
+++++++++++++++++++++
 
 Initial support for non-iterative 4x4 calculation with reflections (for 2d data)
 

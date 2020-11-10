@@ -14,7 +14,7 @@ Introduction
 License
 -------
 
-``dtmm`` is released under MIT license so you can use it freely. Please cite the package. See the DOI badge in the `repository`_.
+``dtmm`` is released under MIT license so you can use it freely. Please cite the package if you use it to prepare plots for scientific paper. See the DOI badge in the `repository`_ 
 
 Contributors
 ------------
@@ -28,8 +28,10 @@ Highlights
 ----------
 
 * Easy-to-use interface.
-* Nematic director, Q tensor and dielectric tensor import and conversion function.
-* Computes **transmission and reflection** from the material (with interference and diffraction).
+* Fast and efficient code.
+* Support for the nematic director, Q tensor or dielectric tensor input data.
+* Computes **transmission and reflection** from the material.
+* Computes **interference and diffraction** effects.
 * **Biaxial, uniaxial and isotropic** material supported.
 * **Fast iterative algorithm** for 3D data - with tunable accuracy.
 * Non-iterative algorithm for 2D data - equivalent to the iterative algorithm with max accuracy settings. 
@@ -52,11 +54,11 @@ Highlights
 Status and limitations
 ----------------------
 
-``dtmm`` was developed mainly for light propagation through liquid crystals, but it can also be used for simple 1D simulations using Jones calculus, or transfer matrix method. See the tutorial section for details. There are still some unresolved issues and limitations, which are planned to be addressed in future versions. **Contributions are welcome!**
+``dtmm`` was developed mainly for light propagation through liquid crystals, but it can also be used for simple 1D simulations using Jones calculus, or transfer matrix method. See the tutorial section for details. There are still some unresolved issues and limitations.  These limitations are likely to be improved/implemented in the future (**Contributions are welcome**):
  
 * Limited color rendering functions and settings - no white balance correction of computed images.
 * Optimized for non-dispersive material. You have to split the calculation over different wavelengths and provide the optical data manually to simulate dispersive material. 
-* Regular-spaced mesh only with equal spacing in x and y directions. 
+* Regular-spaced mesh only with equal spacing in x and y directions.  
 
 .. note::
 

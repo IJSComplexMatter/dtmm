@@ -1,5 +1,4 @@
 """This example shows that calculating 4x4 reflection is less stable and noisier.
-
 """
 
 import dtmm
