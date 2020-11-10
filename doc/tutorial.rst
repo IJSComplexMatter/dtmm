@@ -136,7 +136,7 @@ In this example we calculate reflection and transmission of a spatially narrow l
 
 One clearly sees beam walking and multiple reflections and interference from both surfaces. See the `examples/reflection_isolayer.py` for details.
 
-.. plot:: examples/reflection_isolayer.py
+.. plot:: examples/3D/reflection_isolayer.py
 
    Reflection and transmission of an off-axis (beta = 0.4) light beam from a single layer of two micron thick high refractive index material (n=4). Intensity is increased to a value of 100, to see the multiple reflected waves,
 
@@ -153,7 +153,7 @@ The droplet is a left-handed cholesteric with pitch of 350 nm, which results in 
 In the example below, we simulated propagation of right-handed light with beta parameter `beta` = 0.2. See the `examples/cholesteric_droplet.py` for details.
 
 
-.. plot:: examples/cholesteric_droplet.py
+.. plot:: examples/3D/cholesteric_droplet.py
 
    Reflection and transmission properties of a cholesterol droplet.
 
@@ -209,14 +209,16 @@ See the source code of the examples to see additional details.
 
 An example of a nematic droplet with planar director orientation, computed using 4x4 method with interference, 4x4 method without interference (single reflection) and 2x2 method with no reflections at all. All of these examples could be computed with transfer_field functions and diffraction = False argument... and the results of both methods should be identical (up to numerical precision).
 
-.. plot:: examples/tmm_nematic_droplet.py
+.. plot:: examples/3D/tmm_nematic_droplet.py
 
    An example of extended jones calculation, berreman 4x4 with interference and with interference disabled methods to compute transmission of a white light through the nematic droplet with a planar director alignment, viewed between crossed polarizers.
 
 Field viewer 
 ------------
 
-In addition to the Polarizing Optical Microscope viewer which was covered in the quick start quite, there is also a FieldViewer. Here we will cover some additional configuration options for the FieldViewer. The field viewer can be used to inspect the output field, or to inspect the bulk field data. 
+In addition to the Polarizing Optical Microscope viewer which was covered in the quick start guide, there is also a FieldViewer. The difference between the FieldViewer and POMViewer is that the latter works with 2x2 matrices, whereas FieldViewer works with 4x4 matrices. 
+
+Here we will cover some additional configuration options for the FieldViewer. The field viewer can be used to inspect the output field, or to inspect the bulk field data. 
 
 Projection mode
 +++++++++++++++
@@ -227,7 +229,7 @@ One powerful feature of the FieldViewer is the ability to project the waves and 
 
 to view the reflected part of the field do:
 
->>> viewer = dtmm.field_viewer(field_data_out, mode = "r") #the transmitted part
+>>> viewer = dtmm.field_viewer(field_data_out, mode = "r") #the reflected part
 
 When field viewer is called without the mode argument it performs no projection calculation. A power flow is calculated directly from the electro-magnetic field (Poynting vector times layer normal). As such, the power flow can be positive or negative. A negative power flow comes from the back propagating waves and it has to be stressed that negative values are clipped in the conversion to RGB. Therefore, when dealing with reflections and interference calculations, you should be explicit about the projection mode.
 
@@ -276,10 +278,61 @@ See the quick start quite for usage details.
 On the calculation accuracy
 ---------------------------
 
-Diffraction
-+++++++++++
+Effective medium
+++++++++++++++++
 
-Diffraction calculation can be performed with different levels of accuracy. By default, diffraction and transmission through the inhomogeneous layer is calculated in a single step by assuming a single beam. This works well for very low birefringent media. When birefringence is larger you should increase the accuracy (and computation complexity) by defining how many beams to use in the diffraction calculation. For instance,
+The algorithm uses a split-step approach where the diffraction calculation is performed assuming a homogeneous effective medium. The accuracy of the calculated results will depend on the choice of the effective medium. By default, isotropic medium is assumed, that is, for each layer in the stack an isotropic layer is defined and calculated from the input optical data parameters. You can also explicitly define the medium as:
+
+>>> out = dtmm.transfer_field(field, data, eff_data = "isotropic") 
+
+If on average the layer cannot be treated as an isotropic layer, you should tell ``dtmm``to use anisotropic layers, e.g.:
+
+>>> out = dtmm.transfer_field(field, data, eff_data = "uniaxial") 
+
+or
+
+>>> out = dtmm.transfer_field(field, data, eff_data = "biaxial") 
+
+.. note::
+
+    The 'biaxial' option is considered experimental. In the calculation of the diffraction
+matrix for biaxial medium the algorithm may not be able to properly sort the eigenvectors for beta values above the critical beta (for waveguiding modes). These modes are filtered out later in the process and controlled by the `betamax` parameter, so in principle, mode sorting is irrelevant for propagating modes. Consequently, you may see some warnings on mode sorting, but this should not affect the end results. This issue will be fixed at some  point.
+
+Internally, when specifying `eff_data` argument, the algorithm performs calculation of the effective_medium with
+
+>>> eff_data = dtmm.data.eff_data(data, "uniaxial")
+
+which computes the spatially-varying dielectric tensor for each of the layers, performs averaging, and then converts the averaged tensor to eigenframe and converts it to the desired symmetry. You can use the above function to prepare effective layers and pass the computed result to
+
+>>> out = dtmm.transfer_field(field, data, eff_data = eff_data)
+
+For even higher accuracy, in more non-uniform systems where the mean dielectric tensor varies considerably across the layers you should define the effective medium for each of the layers separately as:
+
+>>> n_layers = len(data[0])
+>>> eff_data = dtmm.data.eff_data(data, ("uniaxial",)*n_layers)
+
+which performs averaging of the dielectric tensor only across the individual layer which defines a unique effective data for each of the layers. You can also do:
+
+>>> out = dtmm.transfer_field(field, data, eff_data = ("uniaxial",)*n_layers)
+
+You can also mix the symmetry e.g.
+
+>>> eff_data = ("uniaxial","isotropic","biaxial",...) #length must match the number of layers
+
+Please note that having different effective layers in the system significantly slows down the computation, because the diffraction matrices need to be calculated for each of the layers, whereas if 
+
+>>> eff_data = "uniaxial"
+
+the calculation of the diffraction matrix is done only once. 
+
+.. note:: 
+
+   You can set the default medium in the configuration file. See :ref:`optimization` for details.
+  
+Diffraction quality
++++++++++++++++++++
+
+Diffraction calculation can be performed with different levels of accuracy. By default, diffraction and transmission through the inhomogeneous layer is calculated with a single step, assuming the field is a beam of light with a well defined wave vector. If your sample induces waves with higher frequencies, you should split the field into a sum of beams by defining how many beams to use in the diffraction calculation. For instance,
 
 >>> out = dtmm.transfer_field(field, data, diffraction = 3) 
 
@@ -300,7 +353,6 @@ In the examples below we show difference between several diffraction arguments (
 .. plot:: examples/diffraction_accuracy.py
 
    A comparison of diffraction = 0, diffraction = 1, and diffraction = 5 transmission calculations of same radial nematic droplet. See source for details on optical parameters.
-
 
 .. note:: You can also disable diffraction calculation step by setting the diffraction = False to trigger a standard 2x2 jones calculation or 4x4 Berreman calculation (when method = 4x4)
 
@@ -540,7 +592,7 @@ for a standard CMOS camera, to build a tcmf function for light source approximat
 >>> illuminant = [[400,0],[430,0.8],[450,1],[470,0.8],[500,0]]
 >>> cmf = dtmm.color.load_tcmf(wavelengths,cmf = "CMOS",illuminant = illuminant)
 
-If you have a custom spectral response function stored in a file, you can read that too with the above function.
+If you have a custom spectral response function stored in a file, you can read that too with the above function. See the example below for details.
 
 .. plot:: examples/viewer_monochrome.py
 
