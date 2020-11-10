@@ -285,7 +285,7 @@ The algorithm uses a split-step approach where the diffraction calculation step 
 
 >>> out = dtmm.transfer_field(field, data, eff_data = "isotropic") 
 
-If the layer cannot be treated as an isotropic layer on average, you should tell ``dtmm``to use anisotropic layers instead, e.g.:
+If the layer cannot be treated as an isotropic layer on average, you should tell ``dtmm`` to use anisotropic layers instead, e.g.:
 
 >>> out = dtmm.transfer_field(field, data, eff_data = "uniaxial") 
 
@@ -318,7 +318,7 @@ You can also mix the symmetry e.g.
 
 >>> eff_data = ("uniaxial","isotropic","biaxial",...) #length must match the number of layers
 
-Please note that having different effective layers in the system significantly slows down the computation, because the diffraction matrices need to be calculated for each of the layers, whereas if 
+Please note that having different effective layers in the system significantly slows down the computation because the diffraction matrices need to be calculated for each of the layers, whereas if 
 
 >>> eff_data = "uniaxial"
 
