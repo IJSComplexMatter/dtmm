@@ -6,7 +6,7 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_TARGET, NUMBA_CACHE, BETAMAX , DTMMConfig
+from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_TARGET, NUMBA_CACHE, BETAMAX , DTMMConfig, get_default_config_option
 from dtmm.wave import planewave, betaphi, wave2eigenwave
 from dtmm.diffract import diffracted_field, diffraction_alphaf
 from dtmm.window import aperture
@@ -560,7 +560,7 @@ def waves2field2(waves, fmat, jones = None, phi = 0,mode = +1):
 
 
 def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., intensity = 1.,
-                      n = 1., focus = 0., window = None, backdir = False, 
+                      n = None, focus = 0., window = None, backdir = False, 
                       jones = None, diffraction = True, eigenmodes = None, betamax = BETAMAX):
     """Constructs forward (or backward) propagating input illumination field data.
     
@@ -578,7 +578,7 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
         Azimuthal angle(s) of the illumination. 
     n : float, optional
         Refractive index of the media that this illumination field is assumed to
-        be propagating in (default 1.)
+        be propagating in (default to `n_cover`)
     focus : float, optional
         Focal plane of the field. By default it is set at z=0. 
     window : array or None, optional
@@ -614,6 +614,8 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
     verbose_level = DTMMConfig.verbose
     if verbose_level > 0:
         print("Building illumination data.") 
+        
+    n = get_default_config_option("n_cover",n)
     
     eigenmodes = (window is None) if eigenmodes is None else bool(eigenmodes)
     

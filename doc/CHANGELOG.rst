@@ -1,8 +1,8 @@
 Release Notes
 -------------
 
-V0.6.1 (In development)
-+++++++++++++++++++++++
+V0.6.1 (Nov 10 200)
++++++++++++++++++++
 
 This is a bugfix release, focusing on documentation/examples improvements:
 
@@ -16,8 +16,8 @@ Fixes
 * pom_viewer now correctly converts field to jones, assuming n_cover as the refractive index (instead of n). 
 
 
-V0.6.0 (November 6 2020)
-++++++++++++++++++++++++
+V0.6.0 (Nov 6 2020)
++++++++++++++++++++
 
 This release adds many new features.  
 
@@ -50,8 +50,8 @@ Fixes
 
 * segfault error due to numba caching. 
 
-V0.5.0 (October 20 2020)
-++++++++++++++++++++++++
+V0.5.0 (Oct 20 2020)
+++++++++++++++++++++
 
 Initial support for non-iterative 4x4 calculation with reflections (for 2d data)
 

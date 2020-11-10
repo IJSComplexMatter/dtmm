@@ -370,8 +370,8 @@ def pom_viewer(field_data, cmf=None, n = None, immersion = None, n_cover = None,
         Thickness ot the thick isotropic layer (cover glass).When d_cover != 0, t
         his simulates thick isotropic layer effect.
     immersion : bool
-        Specified whether oil immersion objective is being used or not. Note that
-        setting the 'n' parameter defines the immersion oil refractive index in
+        Specified whether immersion objective is being used or not. Note that
+        setting the 'n' parameter defines the immersion refractive index in
         this case.
     NA : float
         Numerical aperture of the objective. 
@@ -584,7 +584,7 @@ class POMViewerOptions(BaseViewerOptions):
         print(" $ polarized input: {}".format(self.is_polarized))  
         print(" $ cover refractive index: {}".format(self.n_cover)) 
         print(" $ cover thickness: {} [mm]".format(self.d_cover)) 
-        print(" $ oil immersion: {}".format(self.immersion))
+        print(" $ immersion: {}".format(self.immersion))
         print(" $ medium refractive index: {}".format(self.refractive_index))
         print(" $ propagation mode: {}".format(self.propagation_mode))   
         print(" $ objective NA: {}".format(self.NA))    

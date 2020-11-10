@@ -275,17 +275,17 @@ This is done automatically when you call the::
 
 See the quick start quite for usage details.
    
-On the calculation accuracy
----------------------------
+Calculation accuracy
+--------------------
 
 Effective medium
 ++++++++++++++++
 
-The algorithm uses a split-step approach where the diffraction calculation is performed assuming a homogeneous effective medium. The accuracy of the calculated results will depend on the choice of the effective medium. By default, isotropic medium is assumed, that is, for each layer in the stack an isotropic layer is defined and calculated from the input optical data parameters. You can also explicitly define the medium as:
+The algorithm uses a split-step approach where the diffraction calculation step is performed assuming a homogeneous effective medium. What this means is that if the input optical data consists of homogeneous layers, the algorithm is capable of computing the exact solution. However, the accuracy of the calculated results will depend on how well you are able to describe the effective medium of the optical stack. By default, isotropic medium is assumed, that is, for each layer in the stack an isotropic layer is defined and calculated from the input optical data parameters. You can also explicitly define the medium as:
 
 >>> out = dtmm.transfer_field(field, data, eff_data = "isotropic") 
 
-If on average the layer cannot be treated as an isotropic layer, you should tell ``dtmm``to use anisotropic layers, e.g.:
+If the layer cannot be treated as an isotropic layer on average, you should tell ``dtmm``to use anisotropic layers instead, e.g.:
 
 >>> out = dtmm.transfer_field(field, data, eff_data = "uniaxial") 
 
@@ -295,8 +295,7 @@ or
 
 .. note::
 
-    The 'biaxial' option is considered experimental. In the calculation of the diffraction
-matrix for biaxial medium the algorithm may not be able to properly sort the eigenvectors for beta values above the critical beta (for waveguiding modes). These modes are filtered out later in the process and controlled by the `betamax` parameter, so in principle, mode sorting is irrelevant for propagating modes. Consequently, you may see some warnings on mode sorting, but this should not affect the end results. This issue will be fixed at some  point.
+    The 'biaxial' option is considered experimental. In the calculation of the diffraction matrix for biaxial medium the algorithm may not be able to properly sort the eigenvectors for beta values above the critical beta (for waveguiding modes). These modes are filtered out later in the process and controlled by the `betamax` parameter, so in principle, mode sorting is irrelevant for propagating modes. Consequently, you may see some warnings on mode sorting, but this should not affect the end results. This issue will be fixed at some  point.
 
 Internally, when specifying `eff_data` argument, the algorithm performs calculation of the effective_medium with
 
@@ -306,12 +305,12 @@ which computes the spatially-varying dielectric tensor for each of the layers, p
 
 >>> out = dtmm.transfer_field(field, data, eff_data = eff_data)
 
-For even higher accuracy, in more non-uniform systems where the mean dielectric tensor varies considerably across the layers you should define the effective medium for each of the layers separately as:
+For even higher accuracy, in more non-uniform systems where the mean dielectric tensor varies considerably across the layers you should define the effective medium for each of the layers separately:
 
 >>> n_layers = len(data[0])
 >>> eff_data = dtmm.data.eff_data(data, ("uniaxial",)*n_layers)
 
-which performs averaging of the dielectric tensor only across the individual layer which defines a unique effective data for each of the layers. You can also do:
+which performs averaging of the dielectric tensor only across the individual layer and defines a unique effective data for each of the layers. You can also do:
 
 >>> out = dtmm.transfer_field(field, data, eff_data = ("uniaxial",)*n_layers)
 
