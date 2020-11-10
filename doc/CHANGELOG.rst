@@ -13,8 +13,8 @@ Fixes
 
 * linalg.dot_multi now works with input matrices of different shapes
 * jones.jones_intensity now returns float instead of complex.
-* pom_viewer now correctly converts field to jones, assuming n_cover as the refractive index (instead of n). 
-
+* pom_viewer now correctly converts field to jones, assuming `n_cover` as the refractive index (instead of `n` - the output medium).
+* data.illumination_data now uses n = `n_cover` as the default medium (instead of n = 1).
 
 V0.6.0 (Nov 6 2020)
 +++++++++++++++++++
@@ -35,6 +35,7 @@ New features
 * New :func:`dtmm.data.effective_data` function to simplify effective data construction.
 * The eff_data argument of :func:`dtmm.transfer.transfer_field` can now take strings "isotropic", "uniaxial" or "biaxial" to simplify creation of effective medium.
 * New jones4.py module for creation of 4x4 jones-like matrices to simplify polarization handling of field data.
+* Extended configuration options in dtmm.ini.
 
 Changes
 ///////

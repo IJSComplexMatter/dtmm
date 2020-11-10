@@ -145,7 +145,7 @@ In the field data above we have also used *n = 1.5* argument, which defines a fo
 
    >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, nin = 1.5, nout = 1.5)
 
-Here we have set the index matching medium by specifying *nin* and *nout* arguments to the effective refractive index of the medium. By default input and output fields are assumed to be propagating in *nin = nout = 1.*. 
+Here we have set the index matching medium by specifying *nin* and *nout* arguments to the effective refractive index of the medium. By default input and output fields are assumed to be propagating in `n_cover` medium, 1.5 by default. 
 
 .. note :: 
 
@@ -220,11 +220,11 @@ which returns a POMViewer object for simulating standard objective (non-immersio
 
 .. note::
 
-    For immersion objectives you should specify `immersion` = True. Here you can use higher NA values.
+    For immersion objectives you should specify `immersion` = True. Here you can use higher NA values. With argument `n` (defaults to `n_cover` for immersion objectives) you can specify the refractive index of the output medium (immersion or air).
 
 .. warning::
 
-    You should always view the field in a medium that it was calculated for. In the example above we defined that the field should be viewed in a medium of refractive index of 1.5 by setting n_cover = 1.5 because we used this as the `nout` argument in the `transfer_field` calculation above. 
+    You should always match the `n_cover` argument to that what was used as an output `nout` refractive index (or input refractive index `nin` in case you investigate reflections).  
 
 Now you can calculate transmission specter or obtain RGB image. Depending on how the illumination data was created (polarized/nonpolarized light, single/multiple ray) you can set different parameters. For instance, you can refocus the field
 
