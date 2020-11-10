@@ -6,8 +6,8 @@ V0.6.2 (In development)
 
 This is a bugfix release, focusing on documentation/examples improvements.
 
-V0.6.1 (Nov 10 200)
-+++++++++++++++++++
+V0.6.1 (Nov 10 2020)
+++++++++++++++++++++
 
 This is a bugfix release, focusing on documentation/examples improvements:
 
