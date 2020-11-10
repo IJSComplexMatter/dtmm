@@ -297,7 +297,7 @@ or
 
     The 'biaxial' option is considered experimental. In the calculation of the diffraction matrix for biaxial medium the algorithm may not be able to properly sort the eigenvectors for beta values above the critical beta (for waveguiding modes). These modes are filtered out later in the process and controlled by the `betamax` parameter, so in principle, mode sorting is irrelevant for propagating modes. Consequently, you may see some warnings on mode sorting, but this should not affect the end results. This issue will be fixed at some  point.
 
-Internally, when specifying `eff_data` argument, the algorithm performs calculation of the effective_medium with
+Internally, when specifying `eff_data` argument, the algorithm performs calculation of the effective medium with
 
 >>> eff_data = dtmm.data.eff_data(data, "uniaxial")
 
