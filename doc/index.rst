@@ -8,7 +8,7 @@ Welcome to dtmm's documentation!
 
 .. toctree::
    :maxdepth: 2
-   :caption: Introduction:
+   :caption: Introduction
 
    introduction
    installation
@@ -17,14 +17,14 @@ Welcome to dtmm's documentation!
 
 .. toctree::
    :maxdepth: 3
-   :caption: Examples:
+   :caption: Manual
 
    quickstart
    tutorial
 
 .. toctree::
    :maxdepth: 2
-   :caption: Developers:
+   :caption: Developers
 
    optimization
    CHANGELOG
