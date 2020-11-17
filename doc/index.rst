@@ -8,13 +8,24 @@ Welcome to dtmm's documentation!
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Introduction:
 
    introduction
    installation
-   quickstart
    datamodel
+   method
+
+.. toctree::
+   :maxdepth: 3
+   :caption: Examples:
+
+   quickstart
    tutorial
+
+.. toctree::
+   :maxdepth: 2
+   :caption: Developers:
+
    optimization
    CHANGELOG
    autoapi/index
