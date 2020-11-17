@@ -6,6 +6,12 @@ V0.6.2 (In development)
 
 This is a bugfix release, focusing on documentation/examples improvements.
 
+Fixes
+/////
+
+* In mode grouping (When working with diffraction > 1) the effective beam parameter is now more accurately determined. The results using low diffraction e.g 2,3,4 are now more accurate.
+* When working witt signle precision, atol and rtol values are now less strict when checking for real eigenvector output in eps2epsva function.
+
 V0.6.1 (Nov 10 2020)
 ++++++++++++++++++++
 

@@ -16,7 +16,7 @@ Conversion functions
 :func:`rotate_diagonal_tensor` for 3D diagonal tensor rotation.
 :func:`rotate_tensor` for 3D tensor rotation.
 :func:`rotate_vector` for 3D vector rotation.
-:func:`rotation_angles` fConverts rotation matrix to Euler angles
+:func:`rotation_angles` Converts rotation matrix to Euler angles
 
 """
 

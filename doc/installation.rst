@@ -32,7 +32,7 @@ For faster FFT calculation, you should also install `mkl_fft`_ that is readily a
 Installing in Anaconda
 ----------------------
 
-After you have downloaded the package, open the terminal (command prompt) `cd` to the downloaded source code and run::
+Open the terminal (command prompt) and run::
 
     $ conda install numba scipy matplotlib numba
     $ pip install cddm

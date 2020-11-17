@@ -493,8 +493,8 @@ def eps2epsva(eps):
     epsv, r = tensor_eig(eps)
     # r is in general complex for complex eps. But, if a complex tensor is a rotated diagonal,
     # the eigenvectors should be real. Test it here.
-    atol = 1e-8 if CDTYPE == "complex128" else 1e-8
-    rtol = 1e-5 if CDTYPE == "complex128" else 1e-5
+    atol = 1e-8 if CDTYPE == "complex128" else 1e-5
+    rtol = 1e-5 if CDTYPE == "complex128" else 1e-3
     if not np.allclose(r,r.real, atol = atol, rtol = rtol):
         import warnings
         warnings.warn("Input tensor is not normal because eigevectors are not real. Results are unpredictive!", stacklevel = 2)
