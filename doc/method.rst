@@ -22,8 +22,10 @@ For 3D simulations, a vectorial split-step beam propagation method is used. The 
 The algorithm allows one to tune the diffraction/reflection calculation accuracy. In the simplified scheme, the input field is treated as a single beam with a well-defined propagation direction. This scheme is good for thin material, where the diffraction effects are small. In a more advanced (and more accurate) scheme, the propagation/reflection is done using the mode-grouping technique. After each pass through the layer, the algorithm performs mode decomposition. Then, it combines the computed modes into a user-defined number of beams with different wave vector orientations by a grouping of modes. In other words, the EM field is assumed to be a sum of `n` beams, where `n` is the user-defined parameter. In samples that induce high-frequency reflection/transmission modes, this approach improves the calculation of reflection coefficients and accurately diffracts high-frequency modes, which is important for thick cells. 
 
 Accuracy and efficiency
------------------------
++++++++++++++++++++++++
 
 It has to be stressed that the algorithm is exact and converges to the exact solution in samples with homogeneous layers, and is a reasonable approximation when used in samples with inhomogeneous layers if the lateral (within the layer) variations of the dielectric tensor are slow (compared to the wavelength) and if the birefringence is weak. In a disordered system with rapidly varying properties, the algorithm also works reasonably well because the light "sees" only the mean refractive index. The algorithm fails in sub-wavelength periodic structures, metamaterials ... 
 
 The iterative approach is very efficient. For instance, the algorithm can be more than 100x faster than an equivalent calculation done with FDTD algorithm. Although the code is written in python, the code's computationally expensive parts are optimized by numba, and it can run in parallel on multi-core CPUs.
+
+Reflection calculation speed and accuracy depends on the required number of light passes, so it can become slower to compute in system with high reflectance. Also for the algorithm  may not converge in highly reflecting samples (eg. cholesteric reflection mirror with reflectance >> 50%), but the algorithm allows you to determine whether it has converged or not.
