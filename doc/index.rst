@@ -12,7 +12,6 @@ Welcome to dtmm's documentation!
 
    introduction
    installation
-   datamodel
    method
 
 .. toctree::
@@ -20,6 +19,7 @@ Welcome to dtmm's documentation!
    :caption: Manual
 
    quickstart
+   datamodel
    tutorial
 
 .. toctree::
