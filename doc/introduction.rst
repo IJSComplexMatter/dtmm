@@ -76,21 +76,21 @@ Example
    >>> NLAYERS, HEIGHT, WIDTH = (60, 96, 96)
    >>> WAVELENGTHS = np.linspace(380,780,9)
 
-Build sample optical data:
+Build a sample optical data; a nematic droplet with a hedgehog defect in the center:
 
 .. doctest::
 
    >>> optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
    ...     radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
-Build illumination data (input EM field):
+Build illumination data (input EM field); a multi-wavelength plane wave source:
 
 .. doctest::
 
    >>> field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
    ...       pixelsize = 200) 
 
-Transmit the field through the sample:
+Transfer the field through the sample:
 
 .. doctest::
 
