@@ -3,6 +3,8 @@
 Tutorial
 ========
 
+Below you will find a series of examples. You can run the examples by downloading the source code (see links in the image captions). You can also browse the `examples/` folder in the source distribution or at GitHub `repository`_, where you will find some additional examples, not covered in this tutorial.
+
 Jones calculus (1D)
 -------------------
 
@@ -599,5 +601,6 @@ If you have a custom spectral response function stored in a file, you can read t
 
 .. _`CIE 1931`: https://en.wikipedia.org/wiki/CIE_1931_color_space
 .. _`sRGB`: https://en.wikipedia.org/wiki/SRGB
+.. _repository: https://github.com/IJSComplexMatter/dtmm
 
 
