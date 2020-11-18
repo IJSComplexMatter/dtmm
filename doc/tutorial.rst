@@ -3,7 +3,7 @@
 Tutorial
 ========
 
-Below you will find a series of examples. You can run the examples by downloading the source code (see links in the image captions). You can also browse the `examples/` folder in the source distribution or at GitHub `repository`_, where you will find some additional examples, not covered in this tutorial.
+Below you will find a series of examples. You can run the examples by downloading the source code (see links in the image captions). You can also browse the examples/ folder in the source distribution or at the GitHub `repository`_, where you will find some additional examples not covered in this tutorial.
 
 Jones calculus (1D)
 -------------------
@@ -14,6 +14,8 @@ The matrix creation functions in the jones module obey numpy broadcasting rules,
 so we can build and multiply matrices at different wavelengths simultaneously. See the source code of the example below.
 
 .. plot:: examples/1D/jones_twisted_nematic.py
+
+   Shows how to perform a simple Jones calculus.
 
 Transfer Matrix Method (1D)
 ---------------------------
