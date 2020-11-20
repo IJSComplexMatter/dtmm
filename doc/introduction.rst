@@ -1,17 +1,15 @@
 Overview
 ========
 
-``dtmm`` is a free and open-source software package for near-field electro-magnetics simulation. **Key features**:
+``dtmm`` is a free and open-source software package for near-field electro-magnetics simulation. 
+
+**Key features**:
 
 * Transmittance & reflectance of thin structures, e.g., confined liquid crystals. 
 
 * Polarizing optical microscope simulation.
 
 *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method and an adapted 2x2 extended Jones method. Details of the method are given in *... some future paper*. See :ref:`method` for a quick explanation of the method.
-
-.. note::
-
-    Although ``dtmm`` was mainly developed for 3D simulations, you can use the package for standard 4x4 calculation in 1D and in 2D. 
 
 .. seealso::
    
