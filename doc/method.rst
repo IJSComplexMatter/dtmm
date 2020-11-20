@@ -21,6 +21,8 @@ For 3D simulations, a vectorial split-step beam propagation method is used. The 
 
 The algorithm allows one to tune the diffraction/reflection calculation accuracy. In the simplified scheme, the input field is treated as a single beam with a well-defined propagation direction. This scheme is good for thin material, where the diffraction effects are small. In a more advanced (and more accurate) scheme, the propagation/reflection is done using the mode-grouping technique. After each pass through the layer, the algorithm performs mode decomposition. Then, it combines the computed modes into a user-defined number of beams with different wave vector orientations by a grouping of modes. In other words, the EM field is assumed to be a sum of `n` beams, where `n` is the user-defined parameter. In samples that induce high-frequency reflection/transmission modes, this approach improves the calculation of reflection coefficients and accurately diffracts high-frequency modes, which is important for thick cells. 
 
+.. _accuracy:
+
 Accuracy and efficiency
 +++++++++++++++++++++++
 

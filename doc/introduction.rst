@@ -1,7 +1,13 @@
 Overview
 ========
 
-``dtmm`` is an electro-magnetic field transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as confined liquid-crystals with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method and an adapted 2x2 extended Jones method. Details of the method are given in *... some future paper*. 
+``dtmm`` is an electro-magnetic field transmission and reflection calculation engine and visualizer:
+
+* Calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as confined liquid-crystals with homogeneous or inhomogeneous director profile. 
+
+* Visualization of EM field and polarizing optical microscope simulation.
+
+*DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method and an adapted 2x2 extended Jones method. Details of the method are given in *... some future paper*. See :ref:`method` for a quick explanation of the method.
 
 .. note::
 
@@ -62,7 +68,7 @@ Status and limitations
 
 .. note::
 
-   EM field propagation calculation based on the iterative and non-iterative approach for 2D and 3D is exact for homogeneous layers, but it is approximate for inhomogeneous layers. It works good for slowly varying refractive index material (e.g. confined liquid crystals with slowly varying director field). 
+   EM field propagation calculation based on the iterative and non-iterative approach for 2D and 3D is exact for homogeneous layers, but it is approximate for inhomogeneous layers. See :ref:`accuracy` for details. 
 
 The package is still evolving, so there may be some small API changes in the future. Other than that, the package is fully operational. Play with the example below to get an impression on how it works.
 
