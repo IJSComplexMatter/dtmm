@@ -1,9 +1,9 @@
 Overview
 ========
 
-``dtmm`` is an electro-magnetic field transmission and reflection calculation engine and visualizer:
+``dtmm`` is a free and open-source software package for near-field electro-magnetics simulation. **Key features**:
 
-* Transmittance & reflectance of thin structures, e.g. liquid crystals. 
+* Transmittance & reflectance of thin structures, e.g., confined liquid crystals. 
 
 * Polarizing optical microscope simulation.
 
