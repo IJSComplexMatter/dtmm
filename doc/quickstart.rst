@@ -105,9 +105,7 @@ Alternatively, you can use the convenience function to convert Q tensor to optic
 
 .. note:: 
 
-    When working with Liquid crystal Q tensor data, you are advised to convert the tensor
-to uniaxial. By default, the :func:`.data.Q2data` converts the tensor to an uniaxial. There are very few use cases where biaxial order plays an important role in optical imaging, and you will gain significant calculation speed boost if you work with uniaxial material instead of biaxial. 
-
+    By default, the :func:`.data.Q2data` converts the tensor to an uniaxial. There are very few use cases where biaxial order plays an important role in optical imaging. Also, the algorithm is much more efficient for uniaxial material, so you are advised to convert the tensor to uniaxial even if your sample is (weakly) biaxial.
 
 Transmission Calculation
 ------------------------
