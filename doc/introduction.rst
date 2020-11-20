@@ -1,9 +1,7 @@
 Overview
 ========
 
-``dtmm`` is a free and open-source software package for near-field electro-magnetics simulation. 
-
-**Key features**:
+``dtmm`` is a free and open-source software package for near-field propagation and visualization of electro-magnetic fields in complex birefringent media:
 
 * Transmittance & reflectance of thin structures, e.g., confined liquid crystals. 
 
