@@ -3,9 +3,9 @@ Overview
 
 ``dtmm`` is an electro-magnetic field transmission and reflection calculation engine and visualizer:
 
-* Calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as confined liquid-crystals with homogeneous or inhomogeneous director profile. 
+* Transmittance & reflectance of thin structures, e.g. liquid crystals. 
 
-* Visualization of EM field and polarizing optical microscope simulation.
+* Polarizing optical microscope simulation.
 
 *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method and an adapted 2x2 extended Jones method. Details of the method are given in *... some future paper*. See :ref:`method` for a quick explanation of the method.
 
