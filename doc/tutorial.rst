@@ -152,10 +152,9 @@ In this example, we use multiple passes to compute reflections of the cholesteri
 droplet. For cholesterics one should take the `norm` = 2 argument in the
 computation of the tranfered field.
 
-The droplet is a left-handed cholesteric with pitch of 350 nm, which results in a strong reflection of right-handed light of wavelength 520 nm (350*1.5 nm). Already with `npass` = 5, the residual field has almost vanished.
+The droplet is a left-handed cholesteric with pitch of 350 nm, which results in a strong reflection of left-handed light of wavelength 520 nm (350*1.5 nm). Already with `npass` = 5, the residual field has almost vanished.
 
-In the example below, we simulated propagation of right-handed light with beta parameter `beta` = 0.2. See the `examples/cholesteric_droplet.py` for details.
-
+In the example below, we simulated propagation of non-polarized light with beta parameter `beta` = 0.2. See the `examples/cholesteric_droplet.py` for details.
 
 .. plot:: examples/3D/cholesteric_droplet.py
 
@@ -381,18 +380,18 @@ However, there is one caveat.. when increasing the diffraction accuracy it is al
 Color Conversion
 ----------------
 
-In this tutorial you will learn how to transform specter to RGB colors using `CIE 1931`_ standard observer color matching function (see `CIE 1931`_ wiki pages for details on XYZ color space). You will learn how to use custom light source specter data and how to compare the simulated data with experiments (images obtained by a color camera). First we will go through some basics, but you can skip this part and go directly to :ref:`custom-light-source` 
+In this tutorial, you will learn how to transform specter to RGB colors using `CIE 1931`_ standard observer color matching function (see `CIE 1931`_ wiki pages for details on XYZ color space). You will learn how to define the light source specter and compare the simulated data with experiments (images obtained by a color camera). First, we will go through some basics, but you can skip this part and go directly to :ref:`custom-light-source` 
 
 Background
 ++++++++++
 
-In the :mod:`dtmm.color` there is a limited set of functions for converting computed specters to RGB images. It is not a full color engine, so only a few color conversion functions are implemented. The specter is converted to color using a `CIE 1931`_ color matching function (CMF). Conversion to color is performed as follows. Specter data is first converted to XYZ color space using the `CIE 1931`_ standard observer (5 nm tabulated) color matching function data. Then the image is converted to RGB color space (using a D65 reference white point) as specified in the `sRGB`_ standard (see `sRGB`_ wiki pages for details on sRGB color space). Data values are then clipped to (0.,1.) and finally, sRGB gamma transfer function is applied.
+In the :mod:`dtmm.color`, there is a limited set of functions for converting computed specters to RGB images. The module is not a full color engine, so only a few color conversion functions are implemented. The specter is converted to color using a `CIE 1931`_ color matching function (CMF). Color conversion is performed as follows. Spectral data is first converted to XYZ color space using the `CIE 1931`_ standard observer (5 nm tabulated) color matching function data. The image is then converted to RGB color space (using a D65 reference white point) as specified in the `sRGB`_ standard (see `sRGB`_ wiki pages for details on sRGB color space). Data values are then clipped to (0.,1.), and finally, sRGB gamma transfer function is applied.
 
 
 CIE 1931 standard observer
 ''''''''''''''''''''''''''
 
-`CIE 1931`_ color matching function can be loaded from table with.
+`CIE 1931`_ color matching function can be loaded from a table with
 
 .. doctest::
    
@@ -402,7 +401,7 @@ CIE 1931 standard observer
    >>> cmf.shape
    (81, 3)
 
-It is a 5nm tabulated data (between 380 and 780 nm) of 2-deg *XYZ* tristimulus values - a numerical representation of human vision system with three cones. This table is used to convert specter data to *XYZ* color space.
+The table is a 5nm tabulated data (between 380 and 780 nm) of 2-deg *XYZ* tristimulus values - a numerical representation of the human vision system with three cones. This table is used to convert specter data to *XYZ* color space.
 
 .. plot:: examples/color_cmf.py
 
@@ -424,7 +423,7 @@ CIE also defines several standard illuminants. We will work with a D65 standard 
 XYZ Color Space
 '''''''''''''''
 
-The CMF table and D65 specter are defined so that resulting RGB image gives a white color.  To convert specter to XYZ color space the specter dimensions has to match CMF table dimensions. CIE 1931 CMF is defined between 380 and 780 nm, while the D65 specter is defined between 300 and 830 nm. Let us match the specter to CMF by interpolating D65 tabulated data at CMF wavelengths:
+The CMF table and D65 specter are defined so that resulting RGB image gives white color.  The specter dimensions have to match CMF table dimensions to convert the specter to XYZ color space. CIE 1931 CMF is defined between 380 and 780 nm, while the D65 specter is defined between 300 and 830 nm. Let us match the specter to CMF by interpolating D65 tabulated data at CMF wavelengths:
 
 .. doctest::
 
@@ -460,7 +459,7 @@ Resulting XYZ can be converted to sRGB (using sRGB color primaries) with
    >>> linear_rgb
    array([0.99988402, 1.00003784, 0.99996664])
   
-Because we have used a D65 specter data to compute the XYZ tristimulus values, the resulting RGB equals full brightness white color [1,1,1] (small deviation comes from the numerical precision of the XYZ2RGB color matrix transform). Note that Color matrices in the standard are defined for 8bit transformation. When converting float values to unsigned integer (8bit mode), these values have to be multiplied with 255 and clipped to a range of [0,255]. Finally, we have to apply sRGB gamma curve to have this linear data ready to display on a sRGB monitor.
+Because we have used a D65 specter data to compute the XYZ tristimulus values, the resulting RGB equals full brightness white color [1,1,1] (small deviation comes from the numerical precision of the XYZ2RGB color matrix transform). Note that Color matrices in the standard are defined for 8bit transformation. When converting float values to unsigned integer (8bit mode), these values have to be multiplied with 255 and clipped to a range of [0,255]. Finally, we have to apply the sRGB gamma curve to have this linear data ready to display on an sRGB monitor.
 
 .. doctest::
 
@@ -477,14 +476,14 @@ Since conversion to sRGB color space (from the input specter values) is a standa
 Transmission CMF
 ''''''''''''''''
 
-We can define a transmission color matching function. The idea is to have the CMF function defined for a transmission coefficients for a specific illumination so that the transmission computation becomes independent on the actual light spectra used in the experiment. For example, say we have computed transmission coefficients for a given set of wavelengths
+We can define a transmission color matching function. The idea is to have the CMF function defined for transmission coefficients for a specific illumination. The transmission computation becomes independent of the actual light spectra used in the experiment. For example, say we have computed transmission coefficients for a given set of wavelengths
 
 .. doctest::
 
    >>> wavelengths = [380,480,580,680,780]
    >>> coefficients = [1,1,1,1,1]
 
-We would like to construct a color matching function that will convert these coefficient to color, assuming a given light spectrum. We can build a transmission color matching function with
+We want to construct a color matching function that will convert these coefficients to color, assuming a given light spectrum. We can build a transmission color matching function with
 
 .. doctest::
 
@@ -502,7 +501,7 @@ or we could have loaded this directly with:
 
    D65-normalized XYZ tristimulus values.
 
-this way we defined a new CMF function that converts unity transmission curve to bright white color (We are using D65 illuminant here).
+This way, we defined a new CMF function that converts unity transmission curve to bright white color (We are using D65 illuminant here).
 
 .. doctest::
 
@@ -511,14 +510,14 @@ this way we defined a new CMF function that converts unity transmission curve to
    >>> np.allclose(rgb,rgb3)
    True
 
-All fair, but we would not like to compute transmission coefficients at all 81 wavelengths defined in the original CMF data. We need to integrate the CMF function 
+All fair, but we would not like to compute transmission coefficients at all 81 wavelengths defined in the original CMF data. We need to integrate the CMF function. 
 
 
 .. doctest::
 
    >>> itcmf = dc.integrate_data(wavelengths, np.linspace(380,780,81), tcmf)
 
-which results in a new CMF function applicable to transmission coefficients defined at new  (different) wavelengths
+which results in a new CMF function applicable to transmission coefficients defined at new  (different) wavelengths.
 
 We could have built this data directly by:
 
@@ -536,14 +535,14 @@ Now we can compute
 Color Rendering
 '''''''''''''''
 
-Not all colors can be displayed on a sRGB monitor. Colors that are out of gamut (R,G,B) chanels are larger than 1. or smaller than 0. are clipped. For instance, a D65 light that gives (R,G,B) = (1,1,1)* intensity filtered with a 150 nm band-pass filter already has colors clipped at some higher values of intensities. These colors are more vivid and saturated at light intensity of 1. 
+Not all colors can be displayed on an sRGB monitor. Colors that are out of gamut (R,G,B) channels are larger than 1. or smaller than 0. are clipped. For instance, a D65 light that gives (R,G,B) = (1,1,1)* intensity filtered with a 150 nm band-pass filter already has colors clipped at some higher intensities values. These colors are more vivid and saturated at a light intensity of 1. 
 
 
 .. plot:: examples/color_bandpass_filter.py
    
    An example of color rendering of a D65 illuminant filtered with a band-pass filter. If the illuminant is too bright, color clipping may occur. 
 
-Also, with sRGB color space we cannot render all colors, especially in the green part of the spectrum. For example, let us compute RGB values of a D65 light filtered with a band-pass filter between 500 and 550 nm.
+Also, with sRGB color space we cannot render all colors, especially in the green part of the spectrum. For example, let us compute the RGB values of a D65 light filtered with a band-pass filter between 500 and 550 nm.
 
 .. doctest::
 
@@ -553,27 +552,40 @@ Also, with sRGB color space we cannot render all colors, especially in the green
    >>> rgb
    array([-0.37267476,  0.67704885, -0.0234957 ])
 
-gives a strong negative value in the red channel, which shows that the color is too saturated to be displayed in a sRGB color space. After we apply gamma (which clips the RGB channels to (0,1.)) we get
+gives a strong negative value in the red channel, which shows that the color is too saturated to be displayed in an sRGB color space. After we apply gamma (which clips the RGB channels to (0,1.)) we get
 
 .. doctest::
 
    >>> dc.apply_srgb_gamma(rgb)
    array([0.        , 0.84176254, 0.        ])
 
-with the blue and red channel clipped. We should have used wide-gamut color space and a monitor capable of displaying wider gamuts to display this color properly. As stated already, this package was not intended to be a full color management system and you should use your own CMS system if you need more complex color transforms and rendering.
+with the blue and red channel clipped. We should have used wide-gamut color space and a monitor capable of displaying wider gamuts to properly display this color. As stated already, this package was not intended to be a full color management system, and you should use your own CMS system if you need more complex color transforms and rendering.
 
 .. _`custom-light-source`:
 
 Color cameras
 +++++++++++++
 
-By default, in simulations light source is assumed to be the D65 illuminant. The reason is that with a D65 light source the color of fully transmissive filter is neutral gray (or white) when using the CIE color matching functions. If you want co compare with experiments, when using D65 light in simulation, you should do a proper white balance correction in your camera to obtain similar color rendering of the images obtained in experiments. 
+In simulations, light source is assumed to be the D65 illuminant by default. The reason is that with a D65 light source, the color of a fully transmissive filter is neutral gray (or white) when using the CIE color-matching functions. Suppose you want to compare with experiments, when using D65 light in simulation. In that case, you should do a proper white balance correction in your camera to obtain similar color rendering of the images obtained in experiments. 
 
-Another option is to match the illuminant used in simulation to the illuminant used in experiments. Say you have an illuminant data stored in a file called "illuminant.dat", you can create a cmf function by
+Another option is to match the illuminant used in the simulation to the illuminant used in the experiment. 
 
+>>> wavelengths = [510,550,590]
+>>> illuminant =[[510,0],[530,0.8],[550,1],[570,0.8],[590,0]]
+>>> cmf = dc.load_tcmf(wavelengths, illuminant = illuminant)
+
+Here, the illuminant is a 2D table of intensity values of the source specified at given wavelengths (in nanometers). When calculating the transmittance color matching function we  specify at which wavelengths we have calculated the transmittance (or reflectance). Generally, you should compute the transmittance/reflectance over a series of wavelengths that cover the bandwidth of the source. These need not to be the same wavelengths as the illuminant's wavelengths. The load_tcmf function performs normalization and proper integration of the illuminant data.
+
+If you have illuminant data stored in a file called "illuminant.dat". You can create a cmf function by
+
+>>> wavelengths = np.linspace(380,780,9)
 >>> cmf = dc.load_tcmf(wavelengths, illuminant = "illuminant.dat")
 
-Afterwards, it is possible to set this illuminant in the field_viewer or pom_viewer.
+or you can use one of the standard CIE illuminants, like the illuminant A:
+
+>>> cmf = dc.load_tcmf(wavelengths, illuminant = "A")
+
+Afterward, it is possible to set this cmf in the field_viewer or pom_viewer.
 
 >>> viewer = dtmm.pom_viewer(field_data, cmf = cmf)
 
@@ -583,15 +595,20 @@ For a standard A illuminant the example from the front page look like this:
 
    A hello world example, but this time, illumination was performed with a standard A illuminant.
 
-Now, to compare this with the experimentally obtained images, you should disable all white balance correction in your camera, or if your camera has this option, set the white balance to day-light conditions. This way your color camera will transform the image assuming a D65 light source illuminant, just as the `dtmm` package does when it computes the RGB image. Also, non-scientific SLR cameras typically use some standard color profile that tend to increase the saturation of colors. Probably it is best to use a neutral or faithful color profile if your camera provides you with this option.
+Now, to compare this with the experimentally obtained images, you should disable all white balance correction in your camera, or if your camera has this option, set the white balance to daylight conditions. This way, your color camera will transform the image assuming a D65 light source illuminant, just as the `dtmm` package does when it computes the RGB image. Also, non-scientific cameras typically use some standard color profiles that increase the saturation of colors. Probably it is best to use a neutral or faithful color profile if your camera provides you with this option.
+
+If you use a color camera to capture monochrome images, you can simulate this with
+
+>>> viewer = dtmm.pom_viewer(field_data, cmf = cmf, gray = True)
+
+which tells the viewer that it should convert the RGB color to gray color. The actual conversion is done in XYZ color space and the resulting gray image is the Y channel of the XYZ color.
 
 Monochrome cameras
 ++++++++++++++++++
 
-To simulate a monochrome camera, you also have to construct a proper color matching function. For example, 
-for a standard CMOS camera, to build a tcmf function for light source approximated with three wavelengths and an illuminant specified by the illuminant table, do:
+To simulate a monochrome camera, you also have to construct a proper color matching function. For example, for a standard CMOS camera, to build a tcmf color matching function for light source approximated with three wavelengths and an illuminant specified by the illuminant table, do:
 
->>> wavelengths = (420,450,480)
+>>> wavelengths = (400,450,500)
 >>> illuminant = [[400,0],[430,0.8],[450,1],[470,0.8],[500,0]]
 >>> cmf = dtmm.color.load_tcmf(wavelengths,cmf = "CMOS",illuminant = illuminant)
 
