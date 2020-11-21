@@ -380,7 +380,7 @@ However, there is one caveat.. when increasing the diffraction accuracy it is al
 Color Conversion
 ----------------
 
-In this tutorial, you will learn how to transform specter to RGB colors using `CIE 1931`_ standard observer color matching function (see `CIE 1931`_ wiki pages for details on XYZ color space). You will learn how to define the light source specter and compare the simulated data with experiments (images obtained by a color camera). First, we will go through some basics, but you can skip this part and go directly to :ref:`custom-light-source` 
+In this tutorial, you will learn how to transform specter to RGB colors using `CIE 1931`_ standard observer color matching function (see `CIE 1931`_ wiki pages for details on XYZ color space). You will learn how to define the light source specter and compare the simulated data with experiments (images obtained by a color or a monochrome camera). First, we will go through some basics, but you can skip this part and go directly to :ref:`custom-light-source` or :ref:`monochrome-cameras`.
 
 Background
 ++++++++++
@@ -602,6 +602,8 @@ If you use a color camera to capture monochrome images, you can simulate this wi
 >>> viewer = dtmm.pom_viewer(field_data, cmf = cmf, gray = True)
 
 which tells the viewer that it should convert the RGB color to gray color. The actual conversion is done in XYZ color space and the resulting gray image is the Y channel of the XYZ color.
+
+.. _`monochrome-cameras`:
 
 Monochrome cameras
 ++++++++++++++++++

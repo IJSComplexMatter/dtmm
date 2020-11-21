@@ -372,8 +372,8 @@ def load_specter(wavelengths = None, illuminant = "D65", retx = False):
         Specter array of shape [num] or a tuple of (x,specter) 
         if retx is specified
         
-    Examples
-    --------
+    Example
+    -------
     
     #D65 evaluated at three wavelengths
     >>> spec = load_specter((450,500,550), "D65") 
@@ -487,6 +487,22 @@ def load_cmf(wavelengths = None, cmf = CMF, retx = False, single_wavelength = Fa
 #import scipy.interpolate as interpolate
 
 def interpolate_data(x, x0, data):
+    """Interpolates data
+    
+    Parameters
+    ----------
+    x : array_like 
+        The x-coordinates at which to evaluate the interpolated values.
+    x0 : array_like
+        The x-coordinates of the data points, must be increasing.
+    data : ndarray
+        A 1D or 2D array of datapoints to interpolate.
+        
+    Returns
+    -------
+    y : ndarray
+        The interpolated values.    
+    """
     data = np.asarray(data, dtype = FDTYPE)
     x0 = np.asarray(x0)
     x = np.asarray(x)
@@ -523,6 +539,28 @@ def interpolate_data(x, x0, data):
 #    return out
  
 def integrate_data(x,x0,cmf):
+    """Integrates data.
+    
+    This function takes the original data and computes new data at specified x
+    coordinates by a weighted integration of the original data. For each new 
+    x value, it multiplies the data with a triangular kernel and integrates.
+    The width of the kernel is computed from the spacings in x. 
+    
+    Parameters
+    ----------
+    x : array_like 
+        The x-coordinates at which to compute the integrated data.
+    x0 : array_like
+        The x-coordinates of the data points, must be increasing.
+    data : ndarray
+        A 1D or 2D array of datapoints to integrate.
+        
+    Returns
+    -------
+    y : ndarray
+        The integrated values.    
+    """
+    
     cmf = np.asarray(cmf)
     x0 = np.asarray(x0)
     xout = np.asarray(x)
@@ -587,9 +625,6 @@ def _lxn(x,i,dx, ndim):
     else:
         return xout,yout
 
-
-#__all__ = ["specter2color", "load_tcmf", "load_cmf", "load_specter"]
-                    
    
 if __name__ == "__main__":
     import doctest
