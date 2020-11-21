@@ -457,7 +457,7 @@ class DTMMConfig(object):
             self.cache = 1
         else:
             self.cache = 0
-        self.verbose = 0
+        self.verbose = _readconfig(config.getint, "core", "verbose", 0)
         
         self.gray =  _readconfig(config.getboolean, "viewer", "gray", False)
         self.show_ticks = _readconfig(config.getboolean, "viewer", "show_ticks", None)

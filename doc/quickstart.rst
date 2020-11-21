@@ -5,6 +5,14 @@ Quickstart Guide
 
 Here you will learn how to construct optical data with the provided helper functions and how to perform calculations for the most typical use case that this package was designed for - propagation of light through a liquid-crystal cell with inhomogeneous director configuration, and visualization (simulation of the optical polarizing microscope imaging). If you are curious about the implementation details you are also advised to read the :ref:`data-model` first and then go through the examples below. More detailed examples  and tutorials are given in the :ref:`tutorial`. 
 
+First, import the library and, optionally, set the verbose level so that you can see the progress and information about the computation.
+
+.. doctest::
+
+    >>> import ddmm
+    >>> dtmm.conf.set_verbose(2) # 0 (no info), 1 (some info) or 2 (max info) 
+    0
+
 Importing director data
 -----------------------
 
@@ -12,7 +20,6 @@ Say you have a director data stored in a raw or text file (or create a sample di
 
 .. doctest::
   
-    >>> import dtmm
     >>> NLAYERS, HEIGHT, WIDTH = (60, 96, 96)
     >>> director = dtmm.nematic_droplet_director((NLAYERS, HEIGHT, WIDTH), radius = 30, profile = "r")
     >>> director.tofile("director.raw")

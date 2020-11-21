@@ -994,11 +994,13 @@ def uniaxial_order(order, eig, out):
     out :ndarray, optional
         Output array.
         
-    Parameters
-    ----------
+    Returns
+    -------
     out : ndarray
         Effective eigenvalues based on the provided symmetry (order) argument    
     
+    Examples
+    --------
     >>> np.allclose(uniaxial_order(0,[1,2,3.]) , (2,2,2)) 
     True
     >>> uniaxial_order(1,[1,2,3.], (1.5,1.5,3)) 
@@ -1028,8 +1030,8 @@ def eig_symmetry(order, eig, out = None):
     out :ndarray, optional
         Output array.
         
-    Parameters
-    ----------
+    Returns
+    -------
     out : ndarray
         Effective eigenvalues based on the provided symmetry (order) argument
         
