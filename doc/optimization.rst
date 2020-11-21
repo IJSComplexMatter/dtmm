@@ -34,9 +34,7 @@ To disable verbosity, set verbose level to zero:
 Numba multithreading
 --------------------
 
-Most computationally expensive numerical algorithms were implemented using @vectorize or @guvecgorize and can be compiled with target="parallel" option. By default, parallel execution is disabled for two reasons. In parallel mode, the functions have to be compiled at runtime. This adds significant compilation time overhead when importing the package. Secondly, automatic parallelization of vectorized functions is a new feature in numba and is still experimental and not supported on all platforms according to numba documentation.
-
-You can enable parallel target for numba functions by setting the *DTMM_TARGET_PARALLEL* environment variable. This has to be set prior to importing the package.
+Most computationally expensive numerical algorithms were implemented using @vectorize or @guvecgorize and can be compiled with target="parallel" option. By default, parallel execution is disabled. You can enable parallel target for numba functions by setting the *DTMM_TARGET_PARALLEL* environment variable. This has to be set prior to importing the package.
 
 .. doctest::
 
@@ -44,7 +42,7 @@ You can enable parallel target for numba functions by setting the *DTMM_TARGET_P
    >>> os.environ["DTMM_TARGET_PARALLEL"] = "1"
    >>> import dtmm #parallel enabled dtmm
 
-Another option is to modify the configuration file (see below). Depending on the number of cores in your system, you should be able to notice an increase  in the computation speed.
+Another option is to modify the configuration file (see below). Depending on the number of cores in your system, you should be able to notice an increase in the computation speed.
 
 .. note:
 
@@ -54,13 +52,13 @@ Another option is to modify the configuration file (see below). Depending on the
 Numba cache
 -----------
 
-Numba allows caching of compiled functions. If *DTMM_TARGET_PARALLEL* environment variable is not defined, all compiled functions are cached and stored in your home directory for faster import by default. For debugging purposes, you can enable/disable caching with *DTMM_NUMBA_CACHE* environment variable. To disable caching (enabled by default):
+Numba allows caching of compiled functions. For debugging purposes, you can enable/disable caching with *DTMM_NUMBA_CACHE* environment variable. To disable caching (enabled by default):
 
 .. doctest::
 
    >>> os.environ["DTMM_NUMBA_CACHE"]  = "0"
 
-Cached files are stored in *.dtmm/numba_cache*  in user's home directory. You can remove this folder to force recompilation. To enable/disable caching you can modify the configuration file (see below).
+To enable/disable caching you can modify the configuration file (see below). The cached files are stored in `__pycache__` folder in the package's root directory.
 
 FFT optimization
 ----------------
@@ -109,7 +107,7 @@ By default, computation is performed in double precision. You may disable double
 
    >>> os.environ["DTMM_DOUBLE_PRECISION"] = "0"
 
-You can also use *fastmath* option in numba compilation to gain some small speed by reducing the computation accuracy when using MKL.
+Please note that if you work with single precision you also have to prepare optical data and field data in single precision. You can also use *fastmath* option in numba compilation to gain some small speed by reducing the computation accuracy when using MKL.
 
    >>> os.environ["DTMM_FASTMATH"] = "1"
 
@@ -142,4 +140,3 @@ You can also edit the configuration file *.dtmm/dtmm.ini* in user's home directo
 
 
 .. _numba: https://numba.pydata.org/numba-doc/latest/reference/envvars.html
-
