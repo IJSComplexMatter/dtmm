@@ -483,8 +483,6 @@ def load_cmf(wavelengths = None, cmf = CMF, retx = False, single_wavelength = Fa
         return x, data
     else:
         return data
-    
-#import scipy.interpolate as interpolate
 
 def interpolate_data(x, x0, data):
     """Interpolates data
@@ -520,23 +518,6 @@ def interpolate_data(x, x0, data):
     else:
         raise ValueError("Invalid dimensions of input data.")
               
-
-#def integrate_data(x,x0,cmf):
-#    cmf = np.asarray(cmf)
-#    x0 = np.asarray(x0)
-#    x = np.asarray(x)
-#    out = np.zeros(shape = (len(x), cmf.shape[1]), dtype = cmf.dtype) 
-#    n = len(x)
-#    triang = np.array([0.,1,0])
-#    for i in range(n):
-#        if i == 0:
-#            data = np.interp(x0,x[0:i+2],triang[1:],left = 0.)
-#        elif i == n-1:
-#            data = np.interp(x0,x[i-1:i+1],triang[:-1],right = 0.)
-#        else:
-#            data = np.interp(x0,x[i-1:i+2],triang)      
-#        out[i,:] = (cmf*data[:,np.newaxis]).sum(0)
-#    return out
  
 def integrate_data(x,x0,cmf):
     """Integrates data.
@@ -566,13 +547,15 @@ def integrate_data(x,x0,cmf):
     xout = np.asarray(x)
     ndim = cmf.ndim
     if ndim in (1,2) and x0.ndim == 1 and xout.ndim == 1:    
-        dx = x0[1]-x0[0]
+        dxs = x0[1:]-x0[0:-1]
+        dx = dxs[0]
+        if not np.all(dxs == dx):
+            raise ValueError("x0 must have equal spacings")
         out = np.zeros(shape = (len(x),)+cmf.shape[1:], dtype = cmf.dtype) 
         n = len(x)
         for i in range(n):
             if i == 0:
-                x,y = _rxn(xout,i,dx,ndim)
-                
+                x,y = _rxn(xout,i,dx,ndim)    
                 data = (interpolate_data(x,x0,cmf)*y).sum(0)
             elif i == n-1:
                 x,y  = _lxn(xout,i,dx,ndim)

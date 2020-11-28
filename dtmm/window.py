@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Window functions.
+Window functions for input field shaping.
+
+* :func:`.window.aperture`: Round (circular) aperture function.
+* :func:`.window.blackman`: A 2D Blackman window function.
+* :func:`.window.gaussian`: A 2D Gaussian window function.
+* :func:`.window.gaussian_beam`: A Gaussian beam in paraxial approximation.
 """
 
 from __future__ import absolute_import, print_function, division
