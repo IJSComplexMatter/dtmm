@@ -18,6 +18,12 @@ except:
     #python 2.7
     from ConfigParser import ConfigParser
     
+try:
+    from inspect import signature
+except:
+    #python 2.7
+    from funcsigs import signature
+    
     
 #These will be defined later at runtime... here we hold reference to disable warnings in autoapi generation
 I = None
@@ -286,8 +292,15 @@ def cached_function(f):
     def _f(*args,**kwargs):
         try_read_from_cache = (kwargs.pop("cache",True) == True) and (DTMMConfig.cache != 0) and _f.cache is not None
         if try_read_from_cache:
+            if _f.has_out: 
+                out = kwargs.pop("out",None)
+                if len(args) == _f.nargs:
+                    #no keyword arguments... this means that the last argument is out
+                    out = args[-1] 
+                    args = args[:-1]
+            else:
+                out = None
             key = tuple((to_key(arg) for arg in args)) + tuple((to_key(arg, name = key) for key,arg in kwargs.items()))
-            out = kwargs.pop("out",None)    
             try:
                 result = _f.cache[key]
                 return copy(result,out)
@@ -303,6 +316,11 @@ def cached_function(f):
         else:
             return f(*args,**kwargs)
     _f.cache = {}
+    
+    parameters = signature(f).parameters
+    
+    _f.nargs = len(parameters)
+    _f.has_out = parameters.get("out") is not None
     
     _cache.add(_f)
     #_f.delete = delete

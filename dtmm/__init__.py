@@ -7,7 +7,7 @@ import dtmm.conf
 import numpy as np
 import time
 from .window import *
-from .wave import *
+from .wave import betaphi,betaxy,eigenwave,planewave,k0,wavelengths
 from .linalg import * 
 from .field import *
 from .data import * 
