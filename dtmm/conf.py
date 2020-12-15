@@ -249,9 +249,12 @@ def cached_function(f):
 
     def to_key(arg, name = None):
         from dtmm.hashing import hash_buffer 
+        
         if isinstance(arg, np.ndarray):
             arg = (arg.shape, arg.dtype, arg.strides, hash_buffer(arg))
             #return (arg.shape, arg.dtype, tuple(arg.flat))
+        elif isinstance(arg, list):
+            arg = tuple(arg)
         if name is None:
             return arg
         else:
@@ -498,7 +501,9 @@ class DTMMConfig(object):
         self.method = _readconfig(config.get, "transfer", "method", "2x2")
         self.npass = _readconfig(config.getint, "transfer", "npass", 1)
         self.reflection = _readconfig(config.getint, "transfer", "reflection", None)
-        self.eff_data = _readconfig(config.getint, "transfer", "eff_data", 0)
+        self.eff_data = _readconfig(config.getint, "transfer", "eff_data", 0)        
+        self.betamax = _readconfig(config.getfloat, "core", "betamax", np.inf)
+        
         
     def __getitem__(self, item):
         return self.__dict__[item]
@@ -572,6 +577,10 @@ def set_fftlib(name = "numpy.fft"):
         raise ValueError("Unsupported fft library!")
     return out    
 
+def set_betamax(value):
+    """Sets betamax value."""
+    DTMMConfig.betamax = float(value)
+
 set_fftlib(_readconfig(config.get, "fft", "fftlib", DTMMConfig.fftlib))
 
 import numba
@@ -582,8 +591,7 @@ NC64DTYPE = numba.complex64
 NC128DTYPE = numba.complex128
 NU32DTYPE = numba.uint32
 
-if read_environ_variable("DTMM_DOUBLE_PRECISION",
-  default =  _readconfig(config.getboolean, "core", "double_precision", True)):
+if PRECISION == "double":
     NFDTYPE = NF64DTYPE
     NCDTYPE = NC128DTYPE
     NUDTYPE = NU32DTYPE

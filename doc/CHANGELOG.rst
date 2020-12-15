@@ -13,6 +13,7 @@ Fixes
 
 * In mode grouping (When working with diffraction > 1) the effective beam parameter is now more accurately determined. The results using low diffraction e.g 2,3,4 are now more accurate.
 * When working with single precision, atol and rtol values are now less strict when checking for real eigenvector output in eps2epsva function.
+* Cached functions now support list argument.
 
 V0.6.1 (Nov 10 2020)
 ++++++++++++++++++++

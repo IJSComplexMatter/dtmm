@@ -48,8 +48,12 @@ Conversion functions
 from __future__ import absolute_import, print_function, division
 
 import numpy as np
-from dtmm.conf import FDTYPE,CDTYPE, cached_function, BETAMAX
+from dtmm.conf import FDTYPE,CDTYPE, cached_function, get_default_config_option
 import dtmm.fft as fft
+
+def deprecation(message):
+    import warnings
+    warnings.warn(message, DeprecationWarning, stacklevel=2)
 
 def betaphi(shape, k0, out = None):
     """Returns beta and phi arrays of all possible plane eigenwaves.
@@ -66,11 +70,13 @@ def betaphi(shape, k0, out = None):
     Returns
     -------
     out : array, array
-        beta, phi arrays. The shape of the outputs is (height,width) or 
-        (len(k0),height,width) if k0 is an array.
+        beta, phi arrays. The shape of the outputs is beta, phi: (height,width) or 
+        beta: (len(k0),height,width) if k0 is an array.
     """
     if out is None:
         out = None, None
+    if len(shape) not in (2,3):
+        deprecation("In the future exception will be raised if shape is not of length 2 or 3")
     k0 = np.abs(np.asarray(k0, FDTYPE)[...,np.newaxis,np.newaxis]) #make it broadcastable
     ay, ax = map(lambda x : np.asarray(np.fft.fftfreq(x), dtype = FDTYPE), shape[-2:])
     xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
@@ -96,6 +102,8 @@ def betaxy(shape, k0, out = None):
     out : array, array
         beta, phi arrays      
     """
+    if len(shape) not in (2,3):
+        deprecation("In the future exception will be raised if shape is not of length 2 or 3")
     #ax, ay = map(np.fft.fftfreq, shape,(d,)*len(shape))
     k0 = np.asarray(k0,dtype = FDTYPE)[...,np.newaxis,np.newaxis] #make it broadcastable
     ay, ax = map(lambda x : np.asarray(np.fft.fftfreq(x), dtype = FDTYPE), shape[-2:])
@@ -138,8 +146,8 @@ def eigenwave(shape, i, j, amplitude = None, out = None):
     
     Parameters
     ----------
-    shape : (int,int)
-        Shape of the plane eigenwave.
+    shape : (...,int,int)
+        Shape (height, width) of the plane eigenwave.
     i : int
         i-th index of the fourier coefficient 
     j : float
@@ -153,7 +161,7 @@ def eigenwave(shape, i, j, amplitude = None, out = None):
     Returns
     -------
     out : array
-        Plane wave array.       
+        Plane wave array of shape (...,height,width).       
     """    
     if out is None:
         f = np.zeros(shape, dtype = CDTYPE)
@@ -166,7 +174,7 @@ def eigenwave(shape, i, j, amplitude = None, out = None):
     return fft.ifft2(f, out = out)
 
 @cached_function
-def eigenbeta(shape, k0, betamax = BETAMAX):
+def eigenbeta(shape, k0, betamax = None):
     """Returns masked beta array(s) of all valid eigenwaves.
     
     Parameters
@@ -175,15 +183,15 @@ def eigenbeta(shape, k0, betamax = BETAMAX):
         Shape (height, width) of the plane eigenwave.
     k0 : float or array of floats
         Wavenumber (or wavenumbers) in pixel units.
-    betamax : float
-        The cutoff beta value.
+    betamax : float, optional
+        The cutoff beta value. If not specified, it is set to default.
         
     Returns
     -------
     out : ndarray or tuple of ndarrays.
         Masked beta array(s).  
     """    
-    
+    betamax = get_default_config_option("betamax", betamax)
     b,p = betaphi(shape, k0)
     mask = b <= betamax
     if mask.ndim == 3:
@@ -194,7 +202,7 @@ def eigenbeta(shape, k0, betamax = BETAMAX):
         return b
     
 @cached_function
-def eigenindices(shape, k0, betamax = BETAMAX):
+def eigenindices(shape, k0, betamax = None):
     """Returns masked indices array(s) of all valid eigenwaves.
     
     Parameters
@@ -203,14 +211,15 @@ def eigenindices(shape, k0, betamax = BETAMAX):
         Shape (height, width) of the plane eigenwave.
     k0 : float or array of floats
         Wavenumber (or wavenumbers) in pixel units.
-    betamax : float
-        The cutoff beta value.
+    betamax : float, optional
+        The cutoff beta value. If not specified, it is set to default.
         
     Returns
     -------
     out : ndarray or tuple of ndarrays.
         Masked indices array(s).  
-    """   
+    """
+    betamax = get_default_config_option("betamax", betamax)
     ii, jj = np.meshgrid(range(shape[-2]), range(shape[-1]),copy = False, indexing = "ij") 
     mask = eigenmask(shape, k0, betamax)
     if mask.ndim == 3: #multiwavelength
@@ -220,7 +229,7 @@ def eigenindices(shape, k0, betamax = BETAMAX):
         return _get_indices_array(ii,jj, mask)
     
 @cached_function
-def eigenphi(shape, k0, betamax = BETAMAX):
+def eigenphi(shape, k0, betamax = None):
     """Returns masked phi array(s) of all valid eigenwaves.
     
     Parameters
@@ -229,14 +238,15 @@ def eigenphi(shape, k0, betamax = BETAMAX):
         Shape (height, width) of the plane eigenwave.
     k0 : float or array of floats
         Wavenumber (or wavenumbers) in pixel units.
-    betamax : float
-        The cutoff beta value.
+    betamax : float, optional
+        The cutoff beta value. If not specified, it is set to default.
         
     Returns
     -------
     out : ndarray or tuple of ndarrays.
         Masked phi array(s).  
-    """   
+    """
+    betamax = get_default_config_option("betamax", betamax)
     b,p = betaphi(shape, k0)
     mask = b <= betamax
     if mask.ndim == 3:
@@ -247,7 +257,7 @@ def eigenphi(shape, k0, betamax = BETAMAX):
         return p
 
 @cached_function
-def eigenmask(shape, k0, betamax = BETAMAX):
+def eigenmask(shape, k0, betamax = None):
     """Returns a boolean array of valid modal coefficents. 
     
     Valid coefficients are those that have beta <= betamax.
@@ -258,14 +268,15 @@ def eigenmask(shape, k0, betamax = BETAMAX):
         Shape (height, width) of the plane eigenwave.
     k0 : float or array of floats
         Wavenumber (or wavenumbers) in pixel units.
-    betamax : float
-        The cutoff beta value.
+    betamax : float, optional
+        The cutoff beta value. If not specified, it is set to default.
         
     Returns
     -------
     mask : ndarray
         A boolean array of shape (height, width) or (len(k0), height, width).
     """
+    betamax = get_default_config_option("betamax", betamax)
     b,p = betaphi(shape, k0)
     mask = b <= betamax
     return mask
@@ -297,19 +308,22 @@ def mask2beta(mask,k0):
         A mask array of shape (n,height,width) or (height,width). If it is a
         3D array the first axis must match the length of k0.
     k0 : float or array of floats
-        Wavenumber (or wavenumbers) in pixel units. 
+        Wavenumber (or wavenumbers if mask.ndim = 3) in pixel units. 
         
     Returns
     -------
     beta : ndarray or tuple of ndarrays
         Array(s) of maksed beta values.
     """
+    mask = np.asarray(mask)
     shape = mask.shape[-2:]
     b,p = betaphi(shape, k0)
     if mask.ndim == 3:
         return tuple([b[i][mask[i]] for i in range(mask.shape[0])])
-    else:
+    elif mask.ndim == 2:
         return b[mask]
+    else:
+        raise ValueError("Invalid mask shape")
     
 def mask2phi(mask,k0):
     """Converts the input mask array to a masked phi array(s).
@@ -320,23 +334,22 @@ def mask2phi(mask,k0):
         A mask array of shape (n,height,width) or (height,width). If it is a
         3D array the first axis must match the length of k0.
     k0 : float or array of floats
-        Wavenumber (or wavenumbers) in pixel units. 
+        Wavenumber (or wavenumbers if mask.ndim = 3) in pixel units. 
         
     Returns
     -------
     beta : ndarray or tuple of ndarrays
         Array(s) of maksed phi values.
     """
+    mask = np.asarray(mask)
     shape = mask.shape[-2:]
     b,p = betaphi(shape, k0)
     if mask.ndim == 3:
         return tuple([p[mask[i]] for i in range(mask.shape[0])])
-    else:
+    elif mask.ndim == 2:
         return p[mask]
-    
-def deprecation(message):
-    import warnings
-    warnings.warn(message, DeprecationWarning, stacklevel=2)
+    else:
+        raise ValueError("Invalid mask shape")
 
 def mask2indices(mask, k0 = None):
     """Converts the input mask array to a masked indices array(s).
@@ -351,6 +364,7 @@ def mask2indices(mask, k0 = None):
     beta : ndarray or tuple of ndarrays
         Array(s) of maksed indices values.
     """
+    mask = np.asarray(mask)
     if k0 is not None:
         deprecation("This function will only take one argument in the future")
     shape = mask.shape[-2:]
@@ -358,21 +372,25 @@ def mask2indices(mask, k0 = None):
     if mask.ndim == 3: #multiwavelength
         out = (_get_indices_array(ii,jj, mask[i]) for i in range(mask.shape[0]))
         return tuple(out)
+    elif mask.ndim == 2:
+        return _get_indices_array(ii,jj, mask) 
     else:
-        return _get_indices_array(ii,jj, mask)  
+        raise ValueError("Invalid mask shape")
     
 def planewave(shape, k0, beta , phi, out = None):
     """Returns a 2D planewave array with a given beta, phi, wave number k0.
+    
+    Broadcasting rules apply.
     
     Parameters
     ----------
     shape : (int,int)
         Shape (height, width) of the plane eigenwave.
-    k0 : float or array of floats
-        Wavenumber (or wavenumbers) in pixel units. 
-    beta : float
+    k0 : float or floats array
+        Wavenumber in pixel units. 
+    beta : float or floats array
         Beta parameter of the plane wave
-    phi: float
+    phi: float or floats array
         Phi parameter of the plane wave
     out : (ndarray, ndarray), optional
         Output arrays tuple
@@ -497,7 +515,7 @@ def betax1(n, k0, out = None):
     ----------
     n : int
         Shape of the planewave.
-    k0 : float
+    k0 : float or array of floats
         Wavenumber in pixel units.
     out : ndarray, optional
         Output arrays tuple
@@ -513,7 +531,7 @@ def betax1(n, k0, out = None):
     return beta
 
 @cached_function
-def eigenmask1(n, k0, betamax = BETAMAX):
+def eigenmask1(n, k0, betamax = None):
     """Returns a boolean array of valid modal coefficents of 1D waves. 
     
     Valid coefficients are those that have beta <= betamax.
@@ -524,20 +542,21 @@ def eigenmask1(n, k0, betamax = BETAMAX):
         Shape of the 1D eigenwave.
     k0 : float or array of floats
         Wavenumber (or wavenumbers) in pixel units.
-    betamax : float
-        The cutoff beta value.
+    betamax : float, optional
+        The cutoff beta value. If not specified, it is set to default.
         
     Returns
     -------
     mask : ndarray
         A boolean array of shape (n,) or (len(k0), n).
     """
+    betamax = get_default_config_option("betamax", betamax)
     b = betax1(n, k0)
     mask = np.abs(b) <= betamax
     return mask
     
-def mask2beta1(mask,k0):
-    """Converts the input mask array to a masked beta array(s).
+def mask2betax1(mask,k0):
+    """Converts the input mask array to a masked betax array(s).
     
     Parameters
     ----------
@@ -550,14 +569,20 @@ def mask2beta1(mask,k0):
     Returns
     -------
     beta : ndarray or tuple of ndarrays
-        Array(s) of maksed beta values.
+        Array(s) of maksed betax values.
     """
     n = mask.shape[-1]
     b = betax1(n, k0)
     if mask.ndim == 2:
         return tuple([b[i][mask[i]] for i in range(mask.shape[0])])
-    else:
+    elif mask.ndim == 1:
         return b[mask]
+    else:
+        raise ValueError("Invalid mask shape.")
+        
+def mask2beta1(*args,**kwargs):
+    deprecation("This function is deprecated, use mask2betax1")
+    return mask2betax1(*args,**kwargs)
     
 def mask2indices1(mask, k0 = None):
     """Converts the input mask array to a masked indices array(s).
@@ -579,11 +604,13 @@ def mask2indices1(mask, k0 = None):
     if mask.ndim == 2: #multiwavelength
         out = (ii[mask[i]] for i in range(mask.shape[0]))
         return tuple(out)
-    else:
+    elif mask.ndim == 1:
         return ii[mask]
+    else:
+        raise ValueError("Invalid mask shape.")
 
 @cached_function
-def eigenbeta1(n, k0, betamax = BETAMAX):
+def eigenbetax1(n, k0, betamax = None):
     """Returns masked betax1 array(s) of all valid eigenwaves.
     
     Parameters
@@ -592,21 +619,25 @@ def eigenbeta1(n, k0, betamax = BETAMAX):
         Shape of the plane eigenwave.
     k0 : float or array of floats
         Wavenumber (or wavenumbers) in pixel units.
-    betamax : float
-        The cutoff beta value.
+    betamax : float, optional
+        The cutoff beta value. If not specified, it is set to default.
         
     Returns
     -------
     out : ndarray or tuple of ndarrays.
         Masked beta array(s).  
     """  
-
+    betamax = get_default_config_option("betamax", betamax)
     b = betax1(n, k0)
     mask = np.abs(b) <= betamax
     if mask.ndim == 2:
         return tuple([b[i][mask[i]] for i in range(mask.shape[0])])
     else:
         return b[mask]
+    
+def eigenbeta1(*args,**kwargs):
+    deprecation("This function is deprecated, use eigenbetax1")
+    return eigenbetax1(*args,**kwargs)
 
 def _get_indices_array(ii,jj, mask):
     itmp = ii[mask]
@@ -617,7 +648,7 @@ def _get_indices_array(ii,jj, mask):
     return out
 
 @cached_function
-def eigenindices1(n, k0, betamax = BETAMAX):
+def eigenindices1(n, k0, betamax = None):
     """Returns masked indices array(s) of all valid 1D eigenwaves.
     
     Parameters
@@ -626,14 +657,15 @@ def eigenindices1(n, k0, betamax = BETAMAX):
         Shape of the 1D eigenwave.
     k0 : float or array of floats
         Wavenumber (or wavenumbers) in pixel units.
-    betamax : float
-        The cutoff beta value.
+    betamax : float, optional
+        The cutoff beta value. If not specified, it is set to default.
         
     Returns
     -------
     out : ndarray or tuple of ndarrays.
         Masked indices array(s).  
-    """   
+    """ 
+    betamax = get_default_config_option("betamax", betamax)
     ii = np.arange(n) 
     mask = eigenmask1(n, k0, betamax)
     if mask.ndim == 2: #multiwavelength
