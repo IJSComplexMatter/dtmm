@@ -30,6 +30,7 @@ Requisites
 Optional:
 
 * mkl_fft
+* pyfftw
 
 
 Installation
@@ -49,9 +50,6 @@ Documentation
 You can find the online manual at:
 
 http://dtmm.readthedocs.io
-
-but of course, you can always access docstrings from the console
-(i.e. ``help(dtmm.transfer_field)``).
 
 Also, you may want to look at the examples/ directory for some examples
 of use.
