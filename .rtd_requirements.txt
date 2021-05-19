@@ -3,5 +3,5 @@ numpy
 numba
 scipy
 sphinx-autoapi
-sphinx>=4.0
+sphinx==3.5.4
 numexpr
