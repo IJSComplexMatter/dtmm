@@ -1,11 +1,13 @@
-Introduction
-============
+Overview
+========
 
-``dtmm`` is an electro-magnetic field transmission and reflection calculation engine and visualizer. It can be used for calculation of transmission or reflection properties of layered homogeneous or inhomogeneous materials, such as confined liquid-crystals with homogeneous or inhomogeneous director profile. *DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method and an adapted 2x2 extended Jones method. Details of the method are given in *... some future paper*. 
+``dtmm`` is a free and open-source software package for near-field propagation and visualization of electro-magnetic fields in complex birefringent media. Useful for calculation of:
 
-.. note::
+* Transmittance & reflectance of thin structures, e.g., confined liquid crystals. 
 
-    Although ``dtmm`` was mainly developed for 3D simulations, you can use the package for standard 4x4 calculation in 1D and in 2D. 
+* Polarizing optical microscope simulation. See :ref:`example`.
+
+*DTMM* stands for Diffractive Transfer Matrix Method and is an adapted Berreman 4x4 transfer matrix method and an adapted 2x2 extended Jones method. Details of the method are given in *... some future paper*. See :ref:`method` for a quick explanation of the method.
 
 .. seealso::
    
@@ -62,9 +64,11 @@ Status and limitations
 
 .. note::
 
-   EM field propagation calculation based on the iterative and non-iterative approach for 2D and 3D is exact for homogeneous layers, but it is approximate for inhomogeneous layers. It works good for slowly varying refractive index material (e.g. confined liquid crystals with slowly varying director field). 
+   EM field propagation calculation based on the iterative and non-iterative approach for 2D and 3D is exact for homogeneous layers, but it is approximate for inhomogeneous layers. See :ref:`accuracy` for details. 
 
 The package is still evolving, so there may be some small API changes in the future. Other than that, the package is fully operational. Play with the example below to get an impression on how it works.
+
+.. _example:
 
 Example
 -------
@@ -76,21 +80,21 @@ Example
    >>> NLAYERS, HEIGHT, WIDTH = (60, 96, 96)
    >>> WAVELENGTHS = np.linspace(380,780,9)
 
-Build sample optical data:
+Build a sample optical data; a nematic droplet with a hedgehog defect in the center:
 
 .. doctest::
 
    >>> optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
    ...     radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
-Build illumination data (input EM field):
+Build illumination data (input EM field); a multi-wavelength plane wave source:
 
 .. doctest::
 
    >>> field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
    ...       pixelsize = 200) 
 
-Transmit the field through the sample:
+Transfer the field through the sample:
 
 .. doctest::
 

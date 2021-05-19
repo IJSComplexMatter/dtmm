@@ -5,6 +5,14 @@ Quickstart Guide
 
 Here you will learn how to construct optical data with the provided helper functions and how to perform calculations for the most typical use case that this package was designed for - propagation of light through a liquid-crystal cell with inhomogeneous director configuration, and visualization (simulation of the optical polarizing microscope imaging). If you are curious about the implementation details you are also advised to read the :ref:`data-model` first and then go through the examples below. More detailed examples  and tutorials are given in the :ref:`tutorial`. 
 
+First, import the library and, optionally, set the verbose level so that you can see the progress and information about the computation.
+
+.. doctest::
+
+    >>> import ddmm
+    >>> dtmm.conf.set_verbose(2) # 0 (no info), 1 (some info) or 2 (max info) 
+    0
+
 Importing director data
 -----------------------
 
@@ -12,7 +20,6 @@ Say you have a director data stored in a raw or text file (or create a sample di
 
 .. doctest::
   
-    >>> import dtmm
     >>> NLAYERS, HEIGHT, WIDTH = (60, 96, 96)
     >>> director = dtmm.nematic_droplet_director((NLAYERS, HEIGHT, WIDTH), radius = 30, profile = "r")
     >>> director.tofile("director.raw")
@@ -68,7 +75,7 @@ Importing Q tensor data
 -----------------------
 
 If you want to work with Q tensor data described by a matrix (NLAYERS, HEIGHT, WIDTH ,6),
-where the 6 components of the tensor are (Q[0,0], Q[1,1], Q[2,2], Q[0,1], Q[0,2], Q[1,2]), there are some conversion functions to use:
+where the 6 components of the tensor are (Qxx, Qyy, Qzz, Qxy, Qxz, Qyz), there are some conversion functions to use:
 
 .. doctest::
 
@@ -81,13 +88,13 @@ the Q tensor is not uniaxial, the conversion function first makes it uniaxial, b
 
 .. doctest::
 
-   >>> director = Q2director(Q)
+   >>> director = dtmm.data.Q2director(Q)
 
 Alternative approach is to build the epsilon tensor from the Q tensor like
 
 .. doctest::
 
-   >>> eps = Q2eps(Q, no = 1.5, ne = 1.6, scale_factor = 1.)
+   >>> eps = dtmm.data.Q2eps(Q, no = 1.5, ne = 1.6, scale_factor = 1.)
 
 Here the `scale_factor` argument defines the scaling of the effective uniaxial order parameter S. The above function performs :math:`\varepsilon_a = (\varepsilon_e-\varepsilon_o) / s` where s is the scale factor. The mean value is set to :math:`(2\varepsilon_o + \varepsilon_e)/3.`. Then dielectric tensor is computed from the diagonal and off-diagonal elements of Q as :math:`\varepsilon = Q_{diag} \varepsilon_a + I\varepsilon_m + Q_{offdiag} \varepsilon_a`.
 
@@ -95,14 +102,17 @@ Next, we need to convert the epsilon tensor to eigenvalue and Euler angles matri
 
 .. doctest::
 
-   >>> epsv, epsa = eps2epsva(eps)
+   >>> epsv, epsa = dtmm.data.eps2epsva(eps)
 
 Alternatively, you can use the convenience function to convert Q tensor to optical_data directly
 
 .. doctest::
 
-   >>> optical_data = Q2data(Q,no = 1.5, ne = 1.6, scale_factor = 1.)
+   >>> optical_data = dtmm.data.Q2data(Q,no = 1.5, ne = 1.6, scale_factor = 1.)
 
+.. note:: 
+
+    By default, the :func:`.data.Q2data` converts the tensor to an uniaxial. There are very few use cases where biaxial order plays an important role in optical imaging. Also, the algorithm is much more efficient for uniaxial material, so you are advised to convert the tensor to uniaxial even if your sample is (weakly) biaxial.
 
 Transmission Calculation
 ------------------------

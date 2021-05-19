@@ -22,7 +22,7 @@ from __future__ import absolute_import, print_function, division
 from dtmm.conf import cached_result, BETAMAX, FDTYPE, CDTYPE
 from dtmm.wave import betaphi
 from dtmm.tmm import alphaf,normalize_f, E2H_mat
-from dtmm.linalg import  dotmf, inv, dotmm
+from dtmm.linalg import  dotmf, inv, dotmm, dotmv
 from dtmm.fft import fft2, ifft2
 #make this module a drop-in replacement for jones module
 from dtmm.jones import polarizer, as4x4, rotated_matrix
@@ -349,4 +349,4 @@ def apply_jonesmat(pmat, field, out = None):
     out : ndarray
         Computed field array of shape (...,4).
     """
-    return dotmm(pmat, field ,out  = out)
+    return dotmv(pmat, field ,out  = out)

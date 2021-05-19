@@ -396,7 +396,8 @@ def tensor_eig(tensor, overwrite_x = False):
     
     _is_real = (np.iscomplexobj(matrix) == False)
     
-    eig = _tensor_eig
+    _eig = _tensor_eig
+    #_eig = np.linalg.eig
     
     if tensor.shape[-1] == 6:
         matrix = np.empty(tensor.shape[0:-1] + (3,3),tensor.dtype)
@@ -414,11 +415,13 @@ def tensor_eig(tensor, overwrite_x = False):
         if overwrite_x == True:
             out = (np.empty(matrix.shape[:-1],matrix.dtype), matrix)
     if out is None:
-        eig, vec = eig(matrix,_is_real)
+        #eigv, vec = _eig(matrix)
+        eigv, vec = _eig(matrix,_is_real)
     else:
-        eig, vec = eig(matrix, _is_real, out[0], out[1])
+        #eigv, vec = _eig(matrix)
+        eigv, vec = _eig(matrix, _is_real, out[0], out[1])
         
-    return eig, np.swapaxes(vec, -1,-2) #as returned by np.linalg.eig, eigenvectors are in columns, not rows
+    return eigv, np.swapaxes(vec, -1,-2) #as returned by np.linalg.eig, eigenvectors are in columns, not rows
     
 
 @njit([(NCDTYPE[:, :], NCDTYPE[:, :])], cache=NUMBA_CACHE, fastmath=NUMBA_FASTMATH)

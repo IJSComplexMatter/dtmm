@@ -493,8 +493,8 @@ def eps2epsva(eps):
     epsv, r = tensor_eig(eps)
     # r is in general complex for complex eps. But, if a complex tensor is a rotated diagonal,
     # the eigenvectors should be real. Test it here.
-    atol = 1e-8 if CDTYPE == "complex128" else 1e-8
-    rtol = 1e-5 if CDTYPE == "complex128" else 1e-5
+    atol = 1e-8 if CDTYPE == "complex128" else 1e-5
+    rtol = 1e-5 if CDTYPE == "complex128" else 1e-3
     if not np.allclose(r,r.real, atol = atol, rtol = rtol):
         import warnings
         warnings.warn("Input tensor is not normal because eigevectors are not real. Results are unpredictive!", stacklevel = 2)
@@ -994,11 +994,13 @@ def uniaxial_order(order, eig, out):
     out :ndarray, optional
         Output array.
         
-    Parameters
-    ----------
+    Returns
+    -------
     out : ndarray
         Effective eigenvalues based on the provided symmetry (order) argument    
     
+    Examples
+    --------
     >>> np.allclose(uniaxial_order(0,[1,2,3.]) , (2,2,2)) 
     True
     >>> uniaxial_order(1,[1,2,3.], (1.5,1.5,3)) 
@@ -1028,8 +1030,8 @@ def eig_symmetry(order, eig, out = None):
     out :ndarray, optional
         Output array.
         
-    Parameters
-    ----------
+    Returns
+    -------
     out : ndarray
         Effective eigenvalues based on the provided symmetry (order) argument
         

@@ -207,10 +207,15 @@ def _alphaf_uniaxial(beta,eps0,R,alpha,F):
         evscf = evs*cf
         eps11cf = eps11*cf
         
-        F[0,2] = evssf
-        F[1,2] = eps11sf
-        F[2,2] = -evscf
-        F[3,2] = eps11cf
+        # F[0,2] = evssf
+        # F[1,2] = eps11sf
+        # F[2,2] = -evscf
+        # F[3,2] = eps11cf
+
+        F[0,2] = -evssf
+        F[1,2] = -eps11sf
+        F[2,2] = evscf
+        F[3,2] = -eps11cf
         
         F[0,3] = -evssf
         F[1,3] = eps11sf 
@@ -240,20 +245,30 @@ def _alphaf_uniaxial(beta,eps0,R,alpha,F):
         ev02cfst = ev02*cfst
         ev02cfsteps11 = ev02cfst/eps11
       
-        F[0,2] = -evssfst 
-        F[1,2] = -eps11sfst
-        F[2,2] = evscfst - ctbeta
-        F[3,2] = evsctbeta - ev02cfst
-  
+        # F[0,2] = -evssfst 
+        # F[1,2] = -eps11sfst
+        # F[2,2] = evscfst - ctbeta
+        # F[3,2] = evsctbeta - ev02cfst
+
+        F[0,2] = evssfst 
+        F[1,2] = eps11sfst
+        F[2,2] = ctbeta - evscfst
+        F[3,2] = ev02cfst - evsctbeta    
+
         F[0,3] = -evssfst
         F[1,3] = eps11sfst
         F[2,3] = evscfst + ctbeta
         F[3,3] = ev02cfst + evsctbeta
         
-        F[0,0] = -evpp*ctbetaeps11 + ev02cfsteps11
-        F[1,0] = evpp *cfst - ctbeta
-        F[2,0] = sfst
-        F[3,0] = -evpp *sfst
+        # F[0,0] = -evpp*ctbetaeps11 + ev02cfsteps11
+        # F[1,0] = evpp *cfst - ctbeta
+        # F[2,0] = sfst
+        # F[3,0] = -evpp *sfst
+        
+        F[0,0] = evpp*ctbetaeps11 - ev02cfsteps11
+        F[1,0] = ctbeta - evpp *cfst 
+        F[2,0] = -sfst
+        F[3,0] = evpp *sfst
         
         F[0,1] = -evpm*ctbetaeps11 + ev02cfsteps11
         F[1,1] = evpm *cfst - ctbeta

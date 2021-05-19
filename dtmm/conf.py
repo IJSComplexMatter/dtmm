@@ -18,6 +18,12 @@ except:
     #python 2.7
     from ConfigParser import ConfigParser
     
+try:
+    from inspect import signature
+except:
+    #python 2.7
+    from funcsigs import signature
+    
     
 #These will be defined later at runtime... here we hold reference to disable warnings in autoapi generation
 I = None
@@ -117,11 +123,16 @@ def is_module_installed(name):
         __import__(name)
         return True
     except ImportError:
-        return False    
+        return False  
+    except:
+        import warnings
+        warnings.warn("There appears to be an error in '{}'.".format(name),UserWarning)
+        return False
         
 NUMBA_INSTALLED = is_module_installed("numba")
 MKL_FFT_INSTALLED = is_module_installed("mkl_fft")
 SCIPY_INSTALLED = is_module_installed("scipy")
+PYFFTW_INSTALLED = is_module_installed("pyfftw")
 
 BETAMAX = _readconfig(config.getfloat, "core", "betamax", 0.8)
 SMOOTH = _readconfig(config.getfloat, "core", "smooth", 0.1)
@@ -193,7 +204,6 @@ else:
     NUMBA_FASTMATH = False
 
 
-
 #reference to all cashed functions - for automatic cache clearing with clear_cache.
 _cache = set()
 
@@ -243,9 +253,12 @@ def cached_function(f):
 
     def to_key(arg, name = None):
         from dtmm.hashing import hash_buffer 
+        
         if isinstance(arg, np.ndarray):
             arg = (arg.shape, arg.dtype, arg.strides, hash_buffer(arg))
             #return (arg.shape, arg.dtype, tuple(arg.flat))
+        elif isinstance(arg, list):
+            arg = tuple(arg)
         if name is None:
             return arg
         else:
@@ -286,8 +299,15 @@ def cached_function(f):
     def _f(*args,**kwargs):
         try_read_from_cache = (kwargs.pop("cache",True) == True) and (DTMMConfig.cache != 0) and _f.cache is not None
         if try_read_from_cache:
+            if _f.has_out: 
+                out = kwargs.pop("out",None)
+                if len(args) == _f.nargs:
+                    #no keyword arguments... this means that the last argument is out
+                    out = args[-1] 
+                    args = args[:-1]
+            else:
+                out = None
             key = tuple((to_key(arg) for arg in args)) + tuple((to_key(arg, name = key) for key,arg in kwargs.items()))
-            out = kwargs.pop("out",None)    
             try:
                 result = _f.cache[key]
                 return copy(result,out)
@@ -303,6 +323,11 @@ def cached_function(f):
         else:
             return f(*args,**kwargs)
     _f.cache = {}
+    
+    parameters = signature(f).parameters
+    
+    _f.nargs = len(parameters)
+    _f.has_out = parameters.get("out") is not None
     
     _cache.add(_f)
     #_f.delete = delete
@@ -443,21 +468,26 @@ class DTMMConfig(object):
         
         if MKL_FFT_INSTALLED:
             self.fftlib = "mkl_fft"
+        elif PYFFTW_INSTALLED:
+            self.fftlib = "pyfftw"
         elif SCIPY_INSTALLED:
             self.fftlib = "scipy"
         else:
             self.fftlib = "numpy"
         
         if _readconfig(config.getboolean, "fft", "parallel", False):
-            self.nthreads = _readconfig(config.getint, "fft", "nthreads", 
-                                        detect_number_of_cores())
-        else:
-            self.nthreads = 1
+            import warnings
+            warnings.warn("parallel option in conf.ini is deprecated, use thread_pool = True instead", DeprecationWarning)
+        
+        self.thread_pool = _readconfig(config.getboolean, "fft", "thread_pool", False)
+        self.fft_threads = 1
+        self.fft_planner = 1#_readconfig(config.getboolean, "fft", "planner", 1)
+        self.numba_threads = 1
         if _readconfig(config.getboolean, "core", "cache", True):
             self.cache = 1
         else:
             self.cache = 0
-        self.verbose = 0
+        self.verbose = _readconfig(config.getint, "core", "verbose", 0)
         
         self.gray =  _readconfig(config.getboolean, "viewer", "gray", False)
         self.show_ticks = _readconfig(config.getboolean, "viewer", "show_ticks", None)
@@ -480,7 +510,14 @@ class DTMMConfig(object):
         self.method = _readconfig(config.get, "transfer", "method", "2x2")
         self.npass = _readconfig(config.getint, "transfer", "npass", 1)
         self.reflection = _readconfig(config.getint, "transfer", "reflection", None)
-        self.eff_data = _readconfig(config.getint, "transfer", "eff_data", 0)
+        self.eff_data = _readconfig(config.getint, "transfer", "eff_data", 0)        
+        self.betamax = _readconfig(config.getfloat, "core", "betamax", np.inf)
+    
+    @property
+    def nthreads(self):
+        import warnings
+        warnings.warn("deprecated, use fft_threads instead", DeprecationWarning)
+        return self.fft_threads
         
     def __getitem__(self, item):
         return self.__dict__[item]
@@ -489,10 +526,9 @@ class DTMMConfig(object):
         return repr(self.__dict__)
     
 
-
 #: a singleton holding user configuration    
 DTMMConfig = DTMMConfig()
-if DTMMConfig.nthreads > 1:
+if DTMMConfig.thread_pool == True:
     disable_mkl_threading()
 
     
@@ -512,7 +548,6 @@ def print_config():
     options.update(DTMMConfig.__dict__)
     print(options)
 
-
 #setter functions for DTMMConfig    
 def set_verbose(level):
     """Sets verbose level (0-2) used by compute functions."""
@@ -522,9 +557,9 @@ def set_verbose(level):
     
 def set_nthreads(num):
     """Sets number of threads used by fft functions."""
-    out = DTMMConfig.nthreads
-    DTMMConfig.nthreads = max(1,int(num))
-    return out
+    import warnings
+    warnings.warn("deprecated, use set_fft_threads instead", DeprecationWarning)
+    return set_fft_threads(num)
    
 def set_cache(level):
     """Sets compute cache level."""
@@ -536,27 +571,106 @@ def set_cache(level):
     return out
 
 def set_fftlib(name = "numpy.fft"):
-    """Sets fft library. Returns previous setting."""
+    """Sets fft library name."""
     out, name = DTMMConfig.fftlib, str(name) 
     if name == "mkl_fft":
         if MKL_FFT_INSTALLED: 
             DTMMConfig.fftlib = name
         else:
             warnings.warn("MKL FFT is not installed so it can not be used! Please install mkl_fft.")            
-    elif name == "scipy.fftpack" or name == "scipy":
+    
+    elif name in ("scipy.fftpack", "scipy.fft", "scipy"):
         if SCIPY_INSTALLED:
             DTMMConfig.fftlib = "scipy"
         else:
             warnings.warn("Scipy is not installed so it can not be used! Please install scipy.") 
+    elif name == "pyfftw":
+        if PYFFTW_INSTALLED: 
+            DTMMConfig.fftlib = name
+        else:
+            warnings.warn("Pyfftw is not installed so it can not be used! Please install pyfftw.")            
     elif name == "numpy.fft" or name == "numpy":
         DTMMConfig.fftlib = "numpy"
     else:
         raise ValueError("Unsupported fft library!")
     return out    
 
+def set_betamax(value):
+    """Sets betamax value."""
+    DTMMConfig.betamax = float(value)
+
 set_fftlib(_readconfig(config.get, "fft", "fftlib", DTMMConfig.fftlib))
 
+def set_fft_threads(n):
+    """Sets number of threads used in fft functions."""
+    out = DTMMConfig.fft_threads
+    n = int(n)
+    DTMMConfig.fft_threads = n
+    if DTMMConfig.thread_pool == True:
+        _set_external_fft_threads(1)
+    else:
+        _set_external_fft_threads(n)
+    return out
+
+def set_fft_planner(n):
+    """Sets fft planner effort (pyfftw) 0-3, higher means more planning effort"""
+    out = DTMMConfig.fft_planner
+    DTMMConfig.fft_planner = max(min(int(n),3),0)
+    return out
+    
+      
+def _set_external_fft_threads(n):
+    if DTMMConfig.thread_pool:
+        #disable native threading if we are to use threadpool
+        num = 1
+    else:
+        num = n
+    try:
+        import mkl
+        mkl.set_num_threads(num)
+    except ImportError:
+        pass
+    try:
+        import pyfftw 
+        #threadpool does not seem to work properly with pyfftw, so we use n and disable it in fft.py
+        pyfftw.config.NUM_THREADS = n
+    except ImportError:
+        pass
+
+def set_thread_pool(ok):
+    """Sets or unsets ThreadPool. If set to True, a ThreadPoll is used for threading.
+    If set to False, threading is defined by the fft library."""
+    out = DTMMConfig.thread_pool
+    ok = bool(ok)
+    DTMMConfig.thread_pool = ok
+    if ok == True:
+        _set_external_fft_threads(1)
+    else:
+        _set_external_fft_threads(DTMMConfig.fft_threads)
+    return out
+    
 import numba
+    
+def set_numba_threads(n):
+    """Sets number of threads used in numba-accelerated functions."""
+    out = DTMMConfig.numba_threads
+    numba.set_num_threads(n)
+    n = numba.get_num_threads()
+    DTMMConfig.numba_threads = int(n)
+    return out
+
+try:
+    set_fft_threads(_readconfig(config.getint, "fft", "nthreads", detect_number_of_cores()))
+except:
+    #in case something wents wrong, we do not want dtmm to fail loading.
+    import warnings
+    warnings.warn("Could not set fft threads", UserWarning)
+try:
+    set_numba_threads(_readconfig(config.getint, "numba", "nthreads", detect_number_of_cores()))
+except:
+    import warnings
+    #in case something wents wrong, we do not want dtmm to fail loading.
+    warnings.warn("Could not set numba threads", UserWarning)
 
 NF32DTYPE = numba.float32
 NF64DTYPE = numba.float64
@@ -564,8 +678,7 @@ NC64DTYPE = numba.complex64
 NC128DTYPE = numba.complex128
 NU32DTYPE = numba.uint32
 
-if read_environ_variable("DTMM_DOUBLE_PRECISION",
-  default =  _readconfig(config.getboolean, "core", "double_precision", True)):
+if PRECISION == "double":
     NFDTYPE = NF64DTYPE
     NCDTYPE = NC128DTYPE
     NUDTYPE = NU32DTYPE

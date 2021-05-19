@@ -1,8 +1,28 @@
 Release Notes
 -------------
 
-V0.6.1 (Nov 10 200)
-+++++++++++++++++++
+V0.7.0 (In development)
++++++++++++++++++++++++
+
+This release focuses on computation speed improvements. Implements new ThreadPoll mechanism for parallel fft computation, which now appears to be faster than native threading in mkl_fft. This feature is still in beta, so it is disabled by defauly and you must activate it using a configuration file or using :func:`dtmm.conf.set_thread_pool`.
+Support for pyfftw
+
+New features
+////////////
+
+* Added verbose option to dtmm.ini.
+* Added support for pyfftw. You can enable it by calling :func:`dtmm.conf.set_fftlib` with 'pyfftw' as an argument.
+
+Fixes
+/////
+
+* In mode grouping (When working with diffraction > 1) the effective beam parameter is now more accurately determined. The results using low diffraction e.g 2,3,4 are now more accurate.
+* When working with single precision, atol and rtol values are now less strict when checking for real eigenvector output in eps2epsva function.
+* Cached functions now support list argument.
+* When using numpy for fft and in single precision, ouput of fft2 is checked to be of correct type ("complex64"). In previous version this check was not made, resulting in a possible calculation error if the underlying fft2 implementation in numpy chose "complex128" as an otput.
+
+V0.6.1 (Nov 10 2020)
+++++++++++++++++++++
 
 This is a bugfix release, focusing on documentation/examples improvements:
 

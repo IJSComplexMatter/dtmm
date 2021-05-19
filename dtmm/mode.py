@@ -107,6 +107,7 @@ def fft_betaxy(shape, k0):
 
 def fft_betaxy_mean(betax, betay, fft_windows):
     axis = tuple(range(-betax.ndim,0))
+    fft_windows = fft_windows**2 #weight should be the intensity, so square
     bx = betax*fft_windows
     by = betay*fft_windows
     norm = fft_windows.sum(axis = axis)
@@ -139,7 +140,7 @@ def fft_mask(shape, k0, n, betax_off = 0., betay_off = 0., betamax = BETAMAX):
     
     
 if __name__ == "__main__":
-    w,bp = fft_mask_full((64,1), (1,), 3, betax_off = 0.)
+    w,bp = fft_mask_full((64,64), (1,), 3, betax_off = 0.9, betamax = 1.2)
     import matplotlib.pyplot as plt
     fig,axes = plt.subplots(3,3)
     for i in range(3):
