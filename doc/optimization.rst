@@ -48,7 +48,11 @@ Another option is to modify the configuration file (see below). Depending on the
 
    Full transmission calculation consists of matrix creations and multiplications and 2D FFT computations. The *parallel* target will speed up matrix computations, but it will not have an impact on FFT speed. If you are using mkl_fft, FFT's are already multithreaded by default - but see below.
 
+To set the desired number of threads used in the calculation::
 
+   >>> dtmm.conf.set_numba_threads(2)
+   4
+   
 Numba cache
 -----------
 
@@ -63,38 +67,41 @@ To enable/disable caching you can modify the configuration file (see below). The
 FFT optimization
 ----------------
 
-The package was intended to work with mkl_fft FFT library. In stock numpy or spicy, there are no inplace FFT transform and FFT implementation is not optimized. Although the package works without the intel library, you are advised to install mkl_fft for best performance.
+The package was intended to work with mkl_fft or pyfftw FFT library. In stock numpy or spicy, there are no inplace FFT transform and FFT implementation is not optimized. Although the package works without the intel or fftw library, you are advised to install mkl_fft or pyfftw for best performance.
 
-You can select FFT library ("mkl_fft", "numpy", or "scipy") with the following::
+You can select FFT library ("mkl_fft", "pyfftw", "numpy", or "scipy") with the following::
 
    >>> dtmm.conf.set_fftlib("mkl_fft")
    'mkl_fft'
 
-For mkl_fft there is an additional optimization step. Intel's FFT implementation is multithreaded for single FFT computation, which works well for large sized arrays, but there is a very small increase in speed when computing smaller arrays (say 256x256 and smaller). In light transmission calculation, for each wavelength, each polarization, or ray direction there are four 2D FFT and four 2D IFFT computations performed per layer. Instead of parallelizing each of the transforms it is better to make all these transforms in parallel. 
+For mkl_fft and scipy there is an additional optimization step. Intel's FFT implementation is multithreaded for single FFT computation, which works well for large sized arrays, but there is a very small increase in speed when computing smaller arrays (say 256x256 and smaller). In light transmission calculation, for each wavelength, each polarization, or ray direction there are four 2D FFT and four 2D IFFT computations performed per layer. Instead of parallelizing each of the transforms it is better to make all these transforms in parallel. 
 
 FFT functions in the :mod:`dtmm.fft` can be parallelized using a ThreadPool. By default, this parallelization is disabled and you can enable ThreadPool parallelization of FFTs with:
 
 .. doctest::
 
-   >>> dtmm.conf.set_nthreads(4)
-   1
+   >>> dtmm.conf.set_thread_pool(True)
+   False
 
-It is important that you disable MKL's multithreading by setting the *MKL_NUM_THREADS* environment variable to "1", or if you have mkl-services installed try:
-
-   >>> import mkl
-   >>> mkl.set_num_threads(1)
-   2
-
-You must experiment with settings a little. Depending on the size of the field_data, number of cores, the ThreadPool version may work faster or it may work slower than mkl_fft version. If you are not sure what to use, stick with stock MKL threading and default setting of:
-
-.. doctest::
-
-   >>> dtmm.conf.set_nthreads(1)
-   4
-   
 .. note::
 
    Creating a ThreadPool in python adds some overhead (a few miliseconds). It makes sense to perform multithreading if computational complexity is high enough. MKL's threading works well for large arrays, but for large number of computations of small arrays, (as in multi-ray computations) ThreadPool should be faster. 
+
+You can also define number of threads used in fft. This number is independent of the number of threads used for numba-compiled functions.::
+
+   >>> dtmm.conf.set_fft_threads(4)
+   2
+   
+If you choose to use pyfftw, you can define fft planner effort with::
+
+   >>> dtmm.conf.set_fft_planner(2) #int 0-3
+   1
+
+Which may find a faster version of fft. For pyfftw, the created FFTW plans are stored in :obj:`dtmm.fft.FFTW_CACHE`. If you are running lots of computations on different fft sizes, you may be forced to clear resources to free memory::
+
+   >>> dtmm.fft.clear_cache()
+   
+After clearing the cache, pyfftw will have to prepare new plan for each new fft transform. Transform is new, if input and output arrays have different shape and stride parameters. If you call fft functions repeatedly with same input/output arrays fftw collects the plan from the cache, which speeds up the computation. 
 
 Default threading options can also be set in the configuration file (see below).
 
