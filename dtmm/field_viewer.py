@@ -503,7 +503,7 @@ def _jonesvector_type(value):
             return jvec, jvec
         
 def _lambda_jmat(wavelengths, central = 530):
-    return jones.full_waveplate(central, wavelengths, np.pi/4)
+    return jones.full_waveplate(np.pi/4, central, wavelengths)
 
 def _jmat_from_name(name):
     if name in ("qplate","$\lambda/4$","lambda/4"):

@@ -128,9 +128,9 @@ def retarder(phase, phi = 0., out = None):
     Parameters
     ----------
     phase : float or array
-        Phase difference between the fast and slow axis of the retarder.
+        Phase difference between the slow and fast axis of the retarder.
     phi : float or array 
-        Fast axis orientation
+        Slow axis orientation
     out : ndarray, optional
         Output array in which to put the result; if provided, it
         must have a shape that the inputs broadcast to.
@@ -174,7 +174,7 @@ def quarter_waveplate(phi = 0., out = None):
     Parameters
     ----------
     phi : float or array 
-        Fast axis orientation
+        Slow axis orientation
     out : ndarray, optional
         Output array in which to put the result; if provided, it
         must have a shape that the inputs broadcast to.
@@ -194,7 +194,7 @@ def half_waveplate(phi = 0., out = None):
     Parameters
     ----------
     phi : float or array 
-        Fast axis orientation
+        Slow axis orientation
     out : ndarray, optional
         Output array in which to put the result; if provided, it
         must have a shape that the inputs broadcast to.
@@ -206,20 +206,21 @@ def half_waveplate(phi = 0., out = None):
     """
     return retarder(np.pi, phi, out)  
 
-def full_waveplate(central, wavelengths = None, phi = 0., out = None):
+def full_waveplate(phi = 0., central = 530., wavelengths = None, out = None):
     """Returns jones full-wave plate matrix.
     
     Numpy broadcasting rules apply.
     
     Parameters
     ----------
+    phi : float or array 
+        Slow axis orientation
     central : float 
-        Central wavelength for which to define the lambda plate
+        Central wavelength for which to define the lambda plate. Used only if
+        wavelengths are set.
     wavelengths : array, optional
         An array of wavelength around the central wavelength for which we
         compute the retarder jones matrix.
-    phi : float or array 
-        Fast axis orientation
     out : ndarray, optional
         Output array in which to put the result; if provided, it
         must have a shape that the inputs broadcast to.
