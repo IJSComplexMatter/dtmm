@@ -1,7 +1,7 @@
-matplotlib
+matplotlib==3.3.4
 numpy 
 numba
 scipy
 sphinx-autoapi
-sphinx>=2.2
+sphinx>=4.0
 numexpr
