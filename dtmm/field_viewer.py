@@ -54,8 +54,13 @@ SAMPLE_LABELS = ("-90 ","-45 "," 0  ","+45 ", "+90 ")
 SAMPLE_NAMES = tuple((s.strip() for s in SAMPLE_LABELS))
 POLARIZER_LABELS = (" H  "," V  ","LCP ","RCP ","none")
 POLARIZER_NAMES = tuple((s.strip().lower() for s in POLARIZER_LABELS))
-RETARDER_LABELS = ("$\lambda/4$", "$\lambda/2$","none")
-RETARDER_NAMES = ("lambda/4", "lambda/2", "none")
+RETARDER_LABELS = ("$\lambda/4$", "$\lambda/2$","$\lambda$","none")
+RETARDER_NAMES = ("lambda/4", "lambda/2", "lambda", "none")
+
+def _is_full_lambda_plate(name):
+    print("looking for...", name)
+    return True if name.strip().lower() in ("$\lambda$", "lambda") else False
+    
 
 def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = None, input_fft = False, output_fft = False, out = None):
     """Calculates polarizing optical microscope field from the input field.
@@ -461,10 +466,12 @@ def _float_or_none(value):
     """
     return float(value) if value is not None else None
  
-def _jonesmatrix_type(value):
+def _jonesmatrix_type(value, wavelengths = None):
     if isinstance(value, str):
         name = value.lower().strip()
-        if name in (POLARIZER_NAMES + RETARDER_NAMES + ("x","y")+RETARDER_LABELS):
+        if _is_full_lambda_plate(name):
+            return name, _lambda_jmat(wavelengths)
+        elif name in (POLARIZER_NAMES + RETARDER_NAMES + ("x","y")+RETARDER_LABELS):
             return name, _jmat_from_name(name)
         else:
             raise ValueError("Not a valid jones matrix")
@@ -494,11 +501,14 @@ def _jonesvector_type(value):
             if jvec.shape != (2,):
                 raise ValueError("Not a valid jones vector")
             return jvec, jvec
+        
+def _lambda_jmat(wavelengths, central = 530):
+    return jones.full_waveplate(central, wavelengths, np.pi/4)
 
 def _jmat_from_name(name):
-    if name in ("qplate","$\lambda/4$"):
+    if name in ("qplate","$\lambda/4$","lambda/4"):
         return jones.quarter_waveplate(np.pi/4)
-    if name in ("hplate","$\lambda/2$"):
+    if name in ("hplate","$\lambda/2$","lambda/2"):
         return jones.half_waveplate(np.pi/4)
     if name == "none":
         return None
@@ -909,7 +919,11 @@ class FieldViewer(object):
  
     @property    
     def retarder_jmat(self):
-        return self._retarder_jmat
+        if _is_full_lambda_plate(self.retarder):
+            #we need to add axes for broadcasting
+            return self._retarder_jmat[:,None,None,:,:]
+        else:
+            return self._retarder_jmat
     
     @property    
     def retarder(self):
@@ -917,7 +931,7 @@ class FieldViewer(object):
     
     @retarder.setter    
     def retarder(self, value):
-        self._retarder, self._retarder_jmat = _jonesmatrix_type(value)
+        self._retarder, self._retarder_jmat = _jonesmatrix_type(value,self.viewer_options.wavelengths)
         self._pmat = None #force recalculation of pmat
         self._specter = None
        
@@ -1189,7 +1203,6 @@ class FieldViewer(object):
             
             #we may heve calculated diffraction before, set to None if we had
             dmat = self.diffraction_matrix if preserve_memory or modal else None
-            
             for i,data in enumerate(tmp): 
                 field = self._calculate_pom_field(data,jvec,self.output_matrix,dmat,window = self.image_parameters.window,input_fft = input_fft, out = out)
                 self._specter += self._field2specter(field)
@@ -1459,6 +1472,7 @@ class POMViewer(FieldViewer):
 
             else:
                 self._pmat = None
+
         return self._pmat
     
     @property

@@ -204,7 +204,33 @@ def half_waveplate(phi = 0., out = None):
     mat : ndarray
         Output jones matrix.    
     """
-    return retarder(np.pi, phi, out)         
+    return retarder(np.pi, phi, out)  
+
+def full_waveplate(central, wavelengths = None, phi = 0., out = None):
+    """Returns jones full-wave plate matrix.
+    
+    Numpy broadcasting rules apply.
+    
+    Parameters
+    ----------
+    central : float 
+        Central wavelength for which to define the lambda plate
+    wavelengths : array, optional
+        An array of wavelength around the central wavelength for which we
+        compute the retarder jones matrix.
+    phi : float or array 
+        Fast axis orientation
+    out : ndarray, optional
+        Output array in which to put the result; if provided, it
+        must have a shape that the inputs broadcast to.
+        
+    Returns
+    -------
+    mat : ndarray
+        Output jones matrix.    
+    """
+    phase = 2*np.pi*central/np.asarray(wavelengths) if wavelengths is not None else 2*np.pi
+    return retarder(phase, phi, out)         
 
 def polarizer(jones, out = None):
     """Returns jones polarizer matrix.
