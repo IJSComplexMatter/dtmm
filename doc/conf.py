@@ -26,7 +26,7 @@ author = 'Andrej Petelin'
 # The short X.Y version
 version = ''
 # The full version, including alpha/beta/rc tags
-release = '0.6.2'
+release = '0.7.0'
 
 numfig = True
 
@@ -243,8 +243,8 @@ pygments_style = 'sphinx'
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'default'
-#html_theme = 'alabaster'
+#html_theme = 'default'
+html_theme = 'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
