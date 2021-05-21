@@ -3,11 +3,13 @@ The 2x2 layer propagation functions
 """
 from __future__ import absolute_import, print_function, division
 
-from dtmm.conf import BETAMAX
+from dtmm.conf import BETAMAX, field_has_vec_layout, field_shape
 from dtmm.wave import eigenwave, betaphi
 from dtmm.tmm import alphaf, E2H_mat, E_mat, Eti_mat, phase_mat, Etri_mat, tr_mat
 
-from dtmm.linalg import dotmf, dotmdmf, inv, dotmd
+from dtmm.linalg import  inv, dotmd, dotmv, dotmdmv
+from dtmm.linalg import dotmdmf as _dotmdmf
+from dtmm.linalg import dotmf as _dotmf
 from dtmm.diffract import diffract, E_tr_matrix
 from dtmm.fft import fft2, ifft2
 import numpy as np
@@ -16,11 +18,23 @@ from dtmm.matrix import corrected_E_diffraction_matrix,second_E_diffraction_matr
 from dtmm.mode import fft_mask
 
 
+def dotmf(*args,**kwargs):
+    if field_has_vec_layout():
+        return dotmv(*args,**kwargs)
+    else:
+        return _dotmf(*args,**kwargs)
+
+def dotmdmf(*args,**kwargs):
+    if field_has_vec_layout():
+        return dotmdmv(*args,**kwargs)
+    else:
+        return _dotmdmf(*args,**kwargs)
+
 def _transfer_ray_2x2_1(fft_field, wavenumbers, layer, effective_layer_in,effective_layer_out, dmat1, dmat2, beta = 0, phi=0,
                     nsteps = 1, mode = +1, reflection = True, betamax = BETAMAX, refl = None, bulk = None, out = None, tmpdata = None):
     _out = {} if tmpdata is None else tmpdata
     #fft_field = fft2(fft_field, out = out)
-    shape = fft_field.shape[-2:]
+    shape = field_shape(fft_field)
     d_in, epsv_in,epsa_in = effective_layer_in     
     
     d_out, epsv_out,epsa_out = effective_layer_out    
@@ -81,8 +95,12 @@ def _transfer_ray_2x2_1(fft_field, wavenumbers, layer, effective_layer_in,effect
     if mode == +1 and bulk is not None:
         field = ifft2(fft_field)
         e2h = E2H_mat(fmat, mode = mode)
-        bulk[...,1::2,:,:] +=  dotmf(e2h, field)
-        bulk[...,::2,:,:] += field
+        if field_has_vec_layout():
+            bulk[...,1::2] +=  dotmf(e2h, field)
+            bulk[...,::2] += field            
+        else:
+            bulk[...,1::2,:,:] +=  dotmf(e2h, field)
+            bulk[...,::2,:,:] += field
     
     return fft_field, refl
 
@@ -196,7 +214,7 @@ def propagate_2x2_effective_1(field, wavenumbers, layer_in, layer_out, effective
                             betamax = BETAMAX,  mode = +1,  tmpdata = None, split_diffraction = False,
                             refl = None, bulk = None, out = None):
     d_out, epsv_out,epsa_out = effective_layer_out    
-    shape = field.shape[-2:]
+    shape = field_shape(field)
     
     if diffraction <= 1:
         if diffraction == 1:

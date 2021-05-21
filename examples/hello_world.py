@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 
 dtmm.conf.set_fftlib("pyfftw")
 dtmm.conf.set_thread_pool(False)
-
+dtmm.conf.set_numba_threads(4)
+dtmm.conf.set_fft_threads(4)
 dtmm.conf.set_verbose(2)
 #: pixel size in nm
 PIXELSIZE = 200
@@ -22,12 +23,12 @@ optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH),
 field_data_in = dtmm.field.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
                                             pixelsize = PIXELSIZE) 
 #: transfer input light through stack
-field_data_out = dtmm.transfer_field(field_data_in, optical_data)
+field_data_out = dtmm.transfer_field(field_data_in, optical_data, reflection = 0)
 
-#: visualize output field
-viewer = dtmm.pom_viewer(field_data_out)
-viewer.set_parameters(polarizer = "h", analyzer = "v", focus = -18)
-fig,ax = viewer.plot()
+# #: visualize output field
+# viewer = dtmm.pom_viewer(field_data_out)
+# viewer.set_parameters(polarizer = "h", analyzer = "v", focus = -18)
+# fig,ax = viewer.plot()
 
-plt.show()
+# plt.show()
 

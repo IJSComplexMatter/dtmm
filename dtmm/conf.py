@@ -673,9 +673,11 @@ except:
     warnings.warn("Could not set numba threads", UserWarning)
 
 def field_has_vec_layout():
-    return False
+    return True
 
 def field_shape(field):
+    if field.ndim < 3:
+        1/0
     return field.shape[-3:-1] if field_has_vec_layout() else field.shape[-2:]
 
 NF32DTYPE = numba.float32

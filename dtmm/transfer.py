@@ -5,7 +5,7 @@ Main top level calculation functions for light propagation through optical data.
 """
 from __future__ import absolute_import, print_function, division
 import time
-from dtmm.conf import DTMMConfig, SMOOTH, FDTYPE, get_default_config_option
+from dtmm.conf import DTMMConfig, SMOOTH, FDTYPE, get_default_config_option, field_shape, field_has_vec_layout
 from dtmm.wave import k0
 from dtmm.data import uniaxial_order, refind2eps, validate_optical_data
 from dtmm.tmm import E2H_mat, projection_mat, alphaf,  fvec2avec, f_iso
@@ -236,7 +236,7 @@ def normalize_total(field, dmat, window = None, ref = None, out = None):
 def _projected_field(field, wavenumbers, mode, n = 1, betamax = None,  out = None):
     betamax = get_default_config_option("betamax", betamax)
     eps = refind2eps([n]*3)
-    pmat = projection_matrix(field.shape[-2:], wavenumbers, epsv = eps, epsa = (0.,0.,0.), mode = mode, betamax = betamax)
+    pmat = projection_matrix(field_shape(field), wavenumbers, epsv = eps, epsa = (0.,0.,0.), mode = mode, betamax = betamax)
     return diffract(field, pmat, out = out) 
 
     
@@ -1011,7 +1011,10 @@ def transfer_2x2(field_data, optical_data, beta = None,
     else:
         field0 = transmitted_field_direct(field_in, beta, phi, n = nin)
     
-    field = field0[...,::2,:,:].copy()
+    if field_has_vec_layout():
+        field = field0[...,::2].copy()
+    else:
+        field = field0[...,::2,:,:].copy()
     
     if npass > 1:
         if reflection == 0:

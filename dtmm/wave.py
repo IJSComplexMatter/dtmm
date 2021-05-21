@@ -466,8 +466,8 @@ def wave2eigenwave(wave, out = None):
         o = out.reshape((n,h,w))
     else:
         o = out
-    
-    s = np.abs(fft.fft2(wave))**2
+
+    s = np.abs(np.fft.fft2(wave))**2
     
     if len(shape) == 2:
         s = s[None,...]

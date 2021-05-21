@@ -770,8 +770,7 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
             intensity2 = fvec2intensity(field)
         else:    
             intensity2 = field2intensity(field)        
-        print (intensity1.shape)
-        
+
         ratio = (intensity1.sum((-2,-1))/intensity2.sum((-2,-1)))**0.5
         norm[...] = norm * ratio[...,None,None]
     
