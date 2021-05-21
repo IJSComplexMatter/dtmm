@@ -829,9 +829,9 @@ def _dotmd2(a, b, out):
 #            out[0,i,j]= out0
 #            out[1,i,j]= out1
 #            
-@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _dotmf4(a, b, out):
-    for i in prange(b.shape[1]):
+    for i in range(b.shape[1]):
         for j in range(b.shape[2]):
             b0 = b[0,i,j]
             b1 = b[1,i,j]
@@ -848,9 +848,9 @@ def _dotmf4(a, b, out):
             out[2,i,j]= out2
             out[3,i,j]= out3  
             
-@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _dotmf2(a, b, out):
-    for i in prange(b.shape[1]):
+    for i in range(b.shape[1]):
         for j in range(b.shape[2]):
             b0 = b[0,i,j]
             b1 = b[1,i,j]
@@ -901,9 +901,9 @@ def _dotmf2(a, b, out):
 #    out[1]= a[1,0] * b0 + a[1,1] * b1 
  
             
-@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _dotmdmf4(a, d, b, f,out):
-    for i in prange(f.shape[1]):
+    for i in range(f.shape[1]):
         for j in range(f.shape[2]):
             f0 = f[0,i,j]
             f1 = f[1,i,j]
@@ -925,9 +925,9 @@ def _dotmdmf4(a, d, b, f,out):
             out[2,i,j]= a[i,j,2,0] * b0 + a[i,j,2,1] * b1 + a[i,j,2,2] * b2 +a[i,j,2,3] * b3
             out[3,i,j]= a[i,j,3,0] * b0 + a[i,j,3,1] * b1 + a[i,j,3,2] * b2 +a[i,j,3,3] * b3   
 
-@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _dotmdmf2(a, d, b, f,out):
-    for i in prange(f.shape[1]):
+    for i in range(f.shape[1]):
         for j in range(f.shape[2]):
             f0 = f[0,i,j]
             f1 = f[1,i,j]
@@ -950,7 +950,7 @@ def _dotmdmf2(a, d, b, f,out):
 #        assert a.shape[0] >= 4 #make sure it is not smaller than 4
 #        _dotm1f4(a, b, out)
 
-@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(n,m,k)->(n,m,k)",target = "cpu", cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(n,m,k)->(n,m,k)",target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _dotmf(a, b, out):
     """dotmf(a, b)
     
@@ -988,7 +988,7 @@ a field array or an E-array (in case of 2x2 matrices).
     return _dotmf(a, b, out)
 
        
-@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k)->(n,m,k)",target = "cpu", cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k)->(n,m,k)",target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _dotmdmf(a, d,b,f, out):
     if f.shape[0] == 2:
         _dotmdmf2(a, d,b,f, out)
