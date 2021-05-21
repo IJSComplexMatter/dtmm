@@ -6,13 +6,13 @@ import matplotlib.pyplot as plt
 
 dtmm.conf.set_fftlib("pyfftw")
 dtmm.conf.set_thread_pool(False)
-dtmm.conf.set_numba_threads(4)
-dtmm.conf.set_fft_threads(4)
+dtmm.conf.set_numba_threads(1)
+dtmm.conf.set_fft_threads(1)
 dtmm.conf.set_verbose(2)
 #: pixel size in nm
 PIXELSIZE = 200
 #: compute box dimensions
-NLAYERS, HEIGHT, WIDTH = 60, 96,96
+NLAYERS, HEIGHT, WIDTH = 60, 256,256
 #: illumination wavelengths in nm
 WAVELENGTHS = np.linspace(380,780,9)
 #: create some experimental data (stack)

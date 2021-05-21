@@ -862,44 +862,86 @@ def _dotmf2(a, b, out):
             out[1,i,j]= out1
 
 
-@njit([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])],cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def _dotmdmv4(a, d, b, f,out):
-    f0 = f[0]
-    f1 = f[1]
-    f2 = f[2]
-    f3 = f[3,]
+# @njit([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])],cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+# def _dotmdmv4(a, d, b, f,out):
+#     f0 = f[0]
+#     f1 = f[1]
+#     f2 = f[2]
+#     f3 = f[3,]
     
-    out0 = b[0,0] * f0 + b[0,1] * f1 + b[0,2] * f2 +b[0,3] * f3
-    out1 = b[1,0] * f0 + b[1,1] * f1 + b[1,2] * f2 +b[1,3] * f3
-    out2 = b[2,0] * f0 + b[2,1] * f1 + b[2,2] * f2 +b[2,3] * f3
-    out3 = b[3,0] * f0 + b[3,1] * f1 + b[3,2] * f2 +b[3,3] * f3
+#     out0 = b[0,0] * f0 + b[0,1] * f1 + b[0,2] * f2 +b[0,3] * f3
+#     out1 = b[1,0] * f0 + b[1,1] * f1 + b[1,2] * f2 +b[1,3] * f3
+#     out2 = b[2,0] * f0 + b[2,1] * f1 + b[2,2] * f2 +b[2,3] * f3
+#     out3 = b[3,0] * f0 + b[3,1] * f1 + b[3,2] * f2 +b[3,3] * f3
     
-    b0 = out0*d[0]
-    b1 = out1*d[1]
-    b2 = out2*d[2]
-    b3 = out3*d[3]
+#     b0 = out0*d[0]
+#     b1 = out1*d[1]
+#     b2 = out2*d[2]
+#     b3 = out3*d[3]
     
-    out[0]= a[0,0] * b0 + a[0,1] * b1 + a[0,2] * b2 +a[0,3] * b3
-    out[1]= a[1,0] * b0 + a[1,1] * b1 + a[1,2] * b2 +a[1,3] * b3
-    out[2]= a[2,0] * b0 + a[2,1] * b1 + a[2,2] * b2 +a[2,3] * b3
-    out[3]= a[3,0] * b0 + a[3,1] * b1 + a[3,2] * b2 +a[3,3] * b3   
+#     out[0]= a[0,0] * b0 + a[0,1] * b1 + a[0,2] * b2 +a[0,3] * b3
+#     out[1]= a[1,0] * b0 + a[1,1] * b1 + a[1,2] * b2 +a[1,3] * b3
+#     out[2]= a[2,0] * b0 + a[2,1] * b1 + a[2,2] * b2 +a[2,3] * b3
+#     out[3]= a[3,0] * b0 + a[3,1] * b1 + a[3,2] * b2 +a[3,3] * b3   
 
 
-@njit([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def _dotmdmv2(a, d, b, f,out):
-    f0 = f[0]
-    f1 = f[1]
+# @njit([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+# def _dotmdmv2(a, d, b, f,out):
+#     f0 = f[0]
+#     f1 = f[1]
     
-    out0 = b[0,0] * f0 + b[0,1] * f1
-    out1 = b[1,0] * f0 + b[1,1] * f1
+#     out0 = b[0,0] * f0 + b[0,1] * f1
+#     out1 = b[1,0] * f0 + b[1,1] * f1
 
     
-    b0 = out0*d[0]
-    b1 = out1*d[1]
+#     b0 = out0*d[0]
+#     b1 = out1*d[1]
     
-    out[0]= a[0,0] * b0 + a[0,1] * b1
-    out[1]= a[1,0] * b0 + a[1,1] * b1 
+#     out[0]= a[0,0] * b0 + a[0,1] * b1
+#     out[1]= a[1,0] * b0 + a[1,1] * b1 
  
+
+@njit([(NCDTYPE[:,:,:],NCDTYPE[:,:],NCDTYPE[:,:,:],NCDTYPE[:,:],NCDTYPE[:,:])],cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def _dotmdmv4(a, d, b, f,out):
+    for i in range(a.shape[0]):
+        f0 = f[i,0]
+        f1 = f[i,1]
+        f2 = f[i,2]
+        f3 = f[i,3]
+        
+        out0 = b[i,0,0] * f0 + b[i,0,1] * f1 + b[i,0,2] * f2 +b[i,0,3] * f3
+        out1 = b[i,1,0] * f0 + b[i,1,1] * f1 + b[i,1,2] * f2 +b[i,1,3] * f3
+        out2 = b[i,2,0] * f0 + b[i,2,1] * f1 + b[i,2,2] * f2 +b[i,2,3] * f3
+        out3 = b[i,3,0] * f0 + b[i,3,1] * f1 + b[i,3,2] * f2 +b[i,3,3] * f3
+        
+        b0 = out0*d[i,0]
+        b1 = out1*d[i,1]
+        b2 = out2*d[i,2]
+        b3 = out3*d[i,3]
+        
+        out[i,0]= a[i,0,0] * b0 + a[i,0,1] * b1 + a[i,0,2] * b2 +a[i,0,3] * b3
+        out[i,1]= a[i,1,0] * b0 + a[i,1,1] * b1 + a[i,1,2] * b2 +a[i,1,3] * b3
+        out[i,2]= a[i,2,0] * b0 + a[i,2,1] * b1 + a[i,2,2] * b2 +a[i,2,3] * b3
+        out[i,3]= a[i,3,0] * b0 + a[i,3,1] * b1 + a[i,3,2] * b2 +a[i,3,3] * b3   
+
+
+@njit([(NCDTYPE[:,:,:],NCDTYPE[:,:],NCDTYPE[:,:,:],NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def _dotmdmv2(a, d, b, f,out):
+    for i in range(a.shape[0]):
+        
+        f0 = f[i,0]
+        f1 = f[i,1]
+        
+        out0 = b[i,0,0] * f0 + b[i,0,1] * f1
+        out1 = b[i,1,0] * f0 + b[i,1,1] * f1
+    
+        
+        b0 = out0*d[i,0]
+        b1 = out1*d[i,1]
+        
+        out[i,0]= a[i,0,0] * b0 + a[i,0,1] * b1
+        out[i,1]= a[i,1,0] * b0 + a[i,1,1] * b1 
+
             
 @njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _dotmdmf4(a, d, b, f,out):
@@ -1020,8 +1062,28 @@ This is equivalent to
 #    return _dotmdmf(a, d,b,f, out)
     
 
-@guvectorize([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])],"(n,n),(n),(n,n),(n)->(n)",target =NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def dotmdmv(a, d,b,f, out):
+# @guvectorize([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:])],"(n,n),(n),(n,n),(n)->(n)",target =NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+# def dotmdmv(a, d,b,f, out):
+#     """dotmdmv(a, d, b, f)
+    
+# Computes a dot product of an array of 4x4 (or 2x2) matrices, array of diagonal matrices, 
+# another array of matrices and a vector.
+
+# Notes
+# -----
+# This is equivalent to
+
+# >>> dotmv(dotmdm(a,d,b),f)
+# """
+#     if f.shape[0] == 2:
+#         _dotmdmv2(a, d,b,f, out)
+#     else:    
+#         assert f.shape[0] >= 4 #make sure it is not smaller than 4
+#         _dotmdmv4(a,d, b, f,out)
+                
+
+@guvectorize([(NCDTYPE[:,:,:],NCDTYPE[:,:],NCDTYPE[:,:,:],NCDTYPE[:,:],NCDTYPE[:,:])],"(m,n,n),(m,n),(m,n,n),(m,n)->(m,n)",target =NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def _dotmdmv(a, d,b,f, out):
     """dotmdmv(a, d, b, f)
     
 Computes a dot product of an array of 4x4 (or 2x2) matrices, array of diagonal matrices, 
@@ -1033,12 +1095,18 @@ This is equivalent to
 
 >>> dotmv(dotmdm(a,d,b),f)
 """
-    if f.shape[0] == 2:
+    if f.shape[1] == 2:
         _dotmdmv2(a, d,b,f, out)
     else:    
-        assert f.shape[0] >= 4 #make sure it is not smaller than 4
+        assert f.shape[1] >= 4 #make sure it is not smaller than 4
         _dotmdmv4(a,d, b, f,out)
-                
+        
+def dotmdmv(a,d,b,f,out = None):
+    try:
+        return _dotmdmv(a,d,b,f,out)
+    except:
+        m = dotmdm(a,d,b)
+        return dotmv(m,f,out)
                 
 @guvectorize([(NCDTYPE[:,:],NCDTYPE[:,:],NCDTYPE[:,:])],"(n,k),(k,m)->(n,m)",target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def dotmm(a, b, out):
