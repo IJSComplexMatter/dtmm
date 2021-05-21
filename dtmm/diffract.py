@@ -5,11 +5,11 @@ Diffraction calculation functions.
 """
 from __future__ import absolute_import, print_function, division
 
-from dtmm.conf import cached_function, BETAMAX, FDTYPE, CDTYPE
+from dtmm.conf import cached_function, BETAMAX, FDTYPE, CDTYPE, field_has_vec_layout, field_shape
 from dtmm.wave import betaphi
 from dtmm.data import refind2eps
 from dtmm.tmm import phase_mat,  alphaffi, alphaf,  alphaEEi, tr_mat, alphaE
-from dtmm.linalg import dotmdm, dotmf
+from dtmm.linalg import dotmdm, dotmf, dotmv
 from dtmm.fft import fft2, ifft2
 
 
@@ -282,7 +282,10 @@ def diffract(field, dmat, window = None, input_fft = False, output_fft = False, 
         field = fft2(field, out = out)
         out = field
     if dmat is not None:
-        out = dotmf(dmat, field ,out = out)
+        if field_has_vec_layout():
+            out = dotmv(dmat, field ,out = out)
+        else:
+            out = dotmf(dmat, field ,out = out)
     else:
         #make it work for dmat = None input... so just copy data
         if out is None:
@@ -295,12 +298,15 @@ def diffract(field, dmat, window = None, input_fft = False, output_fft = False, 
     if window is not None:
         if output_fft:
             raise ValueError("Cannot use window function if ouput is fft field.")
-        out = np.multiply(out,window,out = out)
+        if field_has_vec_layout():
+            out = np.multiply(out,window[...,None],out = out)
+        else:
+            out = np.multiply(out,window,out = out)
     return out
 
 def diffracted_field(field, wavenumbers, d = 0.,n = 1, mode = "t", betamax = BETAMAX, out = None):
     eps = refind2eps([n]*3)
-    pmat = field_diffraction_matrix(field.shape[-2:], wavenumbers, d = d, epsv = eps, epsa = (0.,0.,0.), mode = mode, betamax = betamax)
+    pmat = field_diffraction_matrix(field_shape(field), wavenumbers, d = d, epsv = eps, epsa = (0.,0.,0.), mode = mode, betamax = betamax)
     return diffract(field, pmat, out = out) 
 #
 #def transmitted_field(field, wavenumbers, n = 1, betamax = BETAMAX, out = None):

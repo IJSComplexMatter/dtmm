@@ -672,6 +672,12 @@ except:
     #in case something wents wrong, we do not want dtmm to fail loading.
     warnings.warn("Could not set numba threads", UserWarning)
 
+def field_has_vec_layout():
+    return False
+
+def field_shape(field):
+    return field.shape[-3:-1] if field_has_vec_layout() else field.shape[-2:]
+
 NF32DTYPE = numba.float32
 NF64DTYPE = numba.float64
 NC64DTYPE = numba.complex64

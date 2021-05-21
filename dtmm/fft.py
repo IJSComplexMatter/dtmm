@@ -10,7 +10,7 @@ Also, for mkl_fft and scipy, the computation can be performed in parallel using 
 """
 from __future__ import absolute_import, print_function, division
 
-from dtmm.conf import DTMMConfig, CDTYPE, MKL_FFT_INSTALLED, SCIPY_INSTALLED, PYFFTW_INSTALLED
+from dtmm.conf import DTMMConfig, CDTYPE, MKL_FFT_INSTALLED, SCIPY_INSTALLED, PYFFTW_INSTALLED, field_has_vec_layout
 import numpy as np
 
 import numpy.fft as npfft
@@ -114,13 +114,15 @@ def _copy(x,y):
 _copy_if_needed = lambda x,y: _copy(x,y) if x is not y else x
     
 def _sequential_inplace_fft(fft,array,**kwargs):
-    [fft(d,overwrite_x = True,**kwargs) for d in array] 
+    axes = (-3,-2) if field_has_vec_layout() else (-2,-1)
+    [fft(d,axes = axes, overwrite_x = True,**kwargs) for d in array] 
 
 def _sequential_fft(fft,array, out, overwrite_x = False, **kwargs):
+    axes = (-3,-2) if field_has_vec_layout() else (-2,-1)
     if out is array:
-        [_copy_if_needed(fft(d, overwrite_x = True, **kwargs),out[i]) for i,d in enumerate(array)] 
+        [_copy_if_needed(fft(d, axes = axes, overwrite_x = True, **kwargs),out[i]) for i,d in enumerate(array)] 
     else:
-        [_copy_if_needed(fft(d, overwrite_x = overwrite_x, **kwargs),out[i]) for i,d in enumerate(array)] 
+        [_copy_if_needed(fft(d, axes = axes, overwrite_x = overwrite_x, **kwargs),out[i]) for i,d in enumerate(array)] 
 
 def _optimal_workers(size, nthreads):
     if size%nthreads == 0:
@@ -213,45 +215,47 @@ def clear_planner():
         pyfftw.forget_wisdom()
         
 def _fftw_fft2(a, out = None):
+    axes = (-3,-2) if field_has_vec_layout() and a.ndim > 2 else (-2,-1)
     planner = FFTW_PLANNERS.get(DTMMConfig.fft_planner, "FFTW_MEASURE")
     if out is None:
         out = np.empty_like(a)
 
     if out is not a:
-        key = ("fft2o",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides
+        key = ("fft2o",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides + a.shape
     else:
-        key = ("fft2i",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides
+        key = ("fft2i",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides + a.shape
     try:
         fft = FFTW_CACHE[key]
     except KeyError:
         a0 = a.copy()
         test_array = a
         if out is a:
-            fft = pyfftw.FFTW(test_array,test_array, axes = (-2,-1), threads = DTMMConfig.fft_threads, flags = ["FFTW_DESTROY_INPUT", planner])
+            fft = pyfftw.FFTW(test_array,test_array, axes = axes, threads = DTMMConfig.fft_threads, flags = ["FFTW_DESTROY_INPUT", planner])
         else:
-            fft = pyfftw.FFTW(test_array,out, axes = (-2,-1), threads = DTMMConfig.fft_threads, flags = [planner])
+            fft = pyfftw.FFTW(test_array,out, axes = axes, threads = DTMMConfig.fft_threads, flags = [planner])
         a[...] = a0   
         FFTW_CACHE[key] = fft
     fft(a,out)    
     return out
 
 def _fftw_ifft2(a, out = None):
+    axes = (-3,-2) if field_has_vec_layout() and a.ndim > 2 else (-2,-1)
     planner = FFTW_PLANNERS.get(DTMMConfig.fft_planner, "FFTW_MEASURE")
     if out is None:
         out = np.empty_like(a)
     if out is not a:
-        key = ("ifft2o",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides
+        key = ("ifft2o",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides + a.shape
     else:
-        key = ("ifft2i",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides
+        key = ("ifft2i",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides + a.shape
     try:
         fft = FFTW_CACHE[key]
     except KeyError:
         a0 = a.copy()
         test_array = a
         if out is a:
-            fft = pyfftw.FFTW(test_array,test_array, axes = (-2,-1), threads = DTMMConfig.fft_threads, direction = "FFTW_BACKWARD", flags = ["FFTW_DESTROY_INPUT", planner])
+            fft = pyfftw.FFTW(test_array,test_array, axes = axes, threads = DTMMConfig.fft_threads, direction = "FFTW_BACKWARD", flags = ["FFTW_DESTROY_INPUT", planner])
         else:
-            fft = pyfftw.FFTW(test_array,out, axes = (-2,-1), threads = DTMMConfig.fft_threads, direction = "FFTW_BACKWARD", flags = [planner])
+            fft = pyfftw.FFTW(test_array,out, axes = axes, threads = DTMMConfig.fft_threads, direction = "FFTW_BACKWARD", flags = [planner])
         a[...] = a0
         FFTW_CACHE[key] = fft
     fft(a,out,normalise_idft=True)    
@@ -259,10 +263,11 @@ def _fftw_ifft2(a, out = None):
 
         
 def __np_fft(fft,a,out):
+    axes = (-3,-2) if field_has_vec_layout() else (-2,-1)
     if out is None:
-        return np.asarray(fft(a),a.dtype)
+        return np.asarray(fft(a,axes = axes),a.dtype)
     else:
-        out[...] = fft(a)
+        out[...] = fft(a,axes = axes)
         return out
         
 def _np_fft2(a, out = None):

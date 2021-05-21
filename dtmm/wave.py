@@ -75,7 +75,8 @@ def betaphi(shape, k0, out = None):
     """
     if out is None:
         out = None, None
-    if len(shape) not in (2,3):
+    if len(shape) not in (2,):
+        1/0
         deprecation("In the future exception will be raised if shape is not of length 2 or 3")
     k0 = np.abs(np.asarray(k0, FDTYPE)[...,np.newaxis,np.newaxis]) #make it broadcastable
     ay, ax = map(lambda x : np.asarray(np.fft.fftfreq(x), dtype = FDTYPE), shape[-2:])
@@ -102,7 +103,8 @@ def betaxy(shape, k0, out = None):
     out : array, array
         beta, phi arrays      
     """
-    if len(shape) not in (2,3):
+    if len(shape) not in (2,):
+        1/0
         deprecation("In the future exception will be raised if shape is not of length 2 or 3")
     #ax, ay = map(np.fft.fftfreq, shape,(d,)*len(shape))
     k0 = np.asarray(k0,dtype = FDTYPE)[...,np.newaxis,np.newaxis] #make it broadcastable

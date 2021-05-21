@@ -6,7 +6,7 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_TARGET, NUMBA_CACHE, BETAMAX , DTMMConfig, get_default_config_option
+from dtmm.conf import NCDTYPE,NFDTYPE, FDTYPE, CDTYPE, NUMBA_PARALLEL, NUMBA_TARGET, NUMBA_CACHE, BETAMAX , DTMMConfig, get_default_config_option, field_has_vec_layout, field_shape
 from dtmm.wave import planewave, betaphi, wave2eigenwave
 from dtmm.diffract import diffracted_field, diffraction_alphaf
 from dtmm.window import aperture
@@ -23,16 +23,17 @@ from numba import prange
 
 if NUMBA_PARALLEL == False:
     prange = range
+
     
 sqrt = np.sqrt
 
 def field2fvec(field):
     """transposes field array from shape (..., k,n,m) to (...,n,m,k)."""
-    return np.moveaxis(field,-3,-1)
+    return field if field_has_vec_layout() else np.moveaxis(field,-3,-1)
 
 def fvec2field(vec):
     """transposes vector from shape (..., n,m,k) to (...,k,n,m)"""
-    return np.moveaxis(vec,-1,-3)
+    return vec if field_has_vec_layout() else np.moveaxis(vec,-1,-3)
 
 def field2jones(field, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0.,0.,0.), mode = +1, input_fft = False, output_fft = False, betamax = BETAMAX):
     """Converts (..., 4,n,m) field array to (..., 2,n,m) jones array
@@ -73,12 +74,15 @@ def field2jones(field, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0
     modal = beta is None and phi is None
     
     field = np.asarray(field)
-    out = np.empty(field.shape[:-3] + (2,) + field.shape[-2:], field.dtype)
+    if field_has_vec_layout():
+        out = np.empty(field.shape[:-1] + (2,), field.dtype)
+    else:
+        out = np.empty(field.shape[:-3] + (2,) + field.shape[-2:], field.dtype)
     if input_fft == False and modal:
         field = fft2(field)  
     elif input_fft == True and not modal:
         field = ifft2(field) 
-    shape = field.shape[-3:]
+    shape = field_shape(field)
     if modal:
         a,fmat = diffraction_alphaf(shape, ks, epsv, epsa, betamax = betamax)
     else:
@@ -132,13 +136,16 @@ def jones2field(jones, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0
     jones= np.asarray(jones)
     modal = beta is None and phi is None
     
-    out = np.empty(jones.shape[:-3] + (4,) + jones.shape[-2:], jones.dtype)
+    if field_has_vec_layout():
+        out = np.empty(jones.shape[:-1] + (4,), jones.dtype)
+    else:
+        out = np.empty(jones.shape[:-3] + (4,) + jones.shape[-2:], jones.dtype)
     if input_fft == False and modal:
         jones = fft2(jones)   
     elif input_fft == True and not modal:
         jones = ifft2(jones)  
         
-    shape = jones.shape[-3:]
+    shape = field_shape(jones)
     if modal:
         a,fmat = diffraction_alphaf(shape, ks, epsv, epsa, betamax = betamax)
     else:
@@ -152,11 +159,11 @@ def jones2field(jones, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0
         fft2(out, out = out)
     return out
 
-def _field2modes(field, k0, betamax = BETAMAX):
-    f = fft2(field)
-    mask = eigenmask(f.shape[-2:], k0, betamax)
-    f = f[mask]
-    return np.moveaxis(f,-2,-1)
+# def _field2modes(field, k0, betamax = BETAMAX):
+#     f = fft2(field)
+#     mask = eigenmask(field_shape(f), k0, betamax)
+#     f = f[mask]
+#     return np.moveaxis(f,-2,-1)
 
 def field2modes(field, k0, betamax = BETAMAX):
     """Converts 2D field array to modes array.
@@ -189,18 +196,27 @@ def field2modes(field, k0, betamax = BETAMAX):
     
     f = fft2(field)
     k0 = np.asarray(k0)
-    mask = eigenmask(f.shape[-2:], k0, betamax)
+    mask = eigenmask(field_shape(f), k0, betamax)
     if k0.ndim == 0:
-        return mask, np.moveaxis(f[...,mask],-2,-1)
+        if field_has_vec_layout():
+            return mask, f[...,mask,:]
+        else:
+            return mask, np.moveaxis(f[...,mask],-2,-1)
     else:
-        return mask, tuple((np.moveaxis(f[...,i,:,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
+        if field_has_vec_layout():
+            return mask, tuple((f[...,i,:,:,:][...,mask[i],:] for i in range(len(k0))))
+        else:
+            return mask, tuple((np.moveaxis(f[...,i,:,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
 
 def ffield2modes(ffield, k0, betamax = BETAMAX):
 
     k0 = np.asarray(k0)
-    mask = eigenmask(ffield.shape[-2:], k0, betamax)
+    mask = eigenmask(field_shape(ffield), k0, betamax)
     if k0.ndim == 0:
-        return mask, np.moveaxis(ffield[...,mask],-2,-1)
+        if field_has_vec_layout():
+            return mask, ffield[...,mask,:]
+        else:
+            return mask, np.moveaxis(ffield[...,mask],-2,-1)
     else:
         return mask, tuple((np.moveaxis(ffield[...,i,:,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
     
@@ -235,11 +251,18 @@ def field2modes1(field, k0, betamax = BETAMAX):
     
     f = fft(field)
     k0 = np.asarray(k0)
-    mask = eigenmask1(f.shape[-1], k0, betamax)
+    mask = eigenmask1(field_shape(f)[-1], k0, betamax)
     if k0.ndim == 0:
-        return mask, np.moveaxis(f[...,mask],-2,-1)
+        if field_has_vec_layout():
+            return mask, f[...,mask,:]
+        else:
+            return mask, np.moveaxis(f[...,mask],-2,-1)
     else:
-        return mask, tuple((np.moveaxis(f[...,i,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
+        if field_has_vec_layout():
+            return mask, tuple((f[...,i,:,:][...,mask[i],:] for i in range(len(k0))))
+                
+        else:
+            return mask, tuple((np.moveaxis(f[...,i,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
     
     
 def modes2ffield(mask, modes, out = None):
@@ -260,26 +283,37 @@ def modes2ffield(mask, modes, out = None):
 
     shape = mask.shape[-2:]
     if mask.ndim == 2:
-        shape = modes.shape[:-2] + (4,) + shape
+        if field_has_vec_layout():
+            shape = modes.shape[:-2] +  shape + (4,)
+        else:
+            shape = modes.shape[:-2] + (4,) + shape
         if out is None:
             out = np.zeros(shape =shape, dtype = CDTYPE )
         else:
             out[...] = 0.
-        modes = np.moveaxis(modes,-1,-2)
-        out[...,mask] = modes
+        if field_has_vec_layout():
+            out[...,mask,:] = modes            
+        else:
+            modes = np.moveaxis(modes,-1,-2)
+            out[...,mask] = modes
     else:
-        shape = modes[0].shape[:-2] + (len(mask),4,) + shape
+        if field_has_vec_layout():
+            shape = modes[0].shape[:-2] + (len(mask),) + shape + (4,)
+        else:
+           shape = modes[0].shape[:-2] + (len(mask),4,) + shape
         if out is None:
             out = np.zeros(shape =shape, dtype = CDTYPE )
         else:
             out[...] = 0.
         for i,(mode, m) in enumerate(zip(modes,mask)):
-            mode = np.moveaxis(mode,-1,-2)
-            o = out[...,i,:,:,:]
-            o[...,m] = mode
-            #print(o[...,m].shape)
-            #print(mode.shape)
-       
+            
+            if field_has_vec_layout():
+                o = out[...,i,:,:,:]
+                o[...,m,:] = mode                
+            else:
+                mode = np.moveaxis(mode,-1,-2)
+                o = out[...,i,:,:,:]
+                o[...,m] = mode
     return out
 
 def modes2field(mask, modes, out = None):
@@ -312,22 +346,34 @@ def modes2field1(mask, modes):
 
     shape = mask.shape[-1:]
     if mask.ndim == 1:
-        shape = modes.shape[:-2] + (4,) + shape
+        if field_has_vec_layout():
+            shape = modes.shape[:-2] + shape + (4,)
+        else:
+            shape = modes.shape[:-2] + (4,) + shape
         out = np.zeros(shape =shape, dtype = CDTYPE )
-
-        modes = np.moveaxis(modes,-1,-2)
-        out[...,mask] = modes
+        
+        if field_has_vec_layout():
+            out[...,mask,:] = modes
+        else:
+            modes = np.moveaxis(modes,-1,-2)
+            out[...,mask] = modes
         return ifft(out, overwrite_x = True)
     else:
-        shape = modes[0].shape[:-2] + (len(mask),4,) + shape
+        if field_has_vec_layout():
+            shape = modes[0].shape[:-2] + (len(mask),) + shape + (4,)
+        else:
+            shape = modes[0].shape[:-2] + (len(mask),4,) + shape
+        
         out = np.zeros(shape =shape, dtype = CDTYPE )
 
         for i,(mode, m) in enumerate(zip(modes,mask)):
-            mode = np.moveaxis(mode,-1,-2)
-            o = out[...,i,:,:]
-            o[...,m] = mode
-            #print(o[...,m].shape)
-            #print(mode.shape)
+            if field_has_vec_layout():
+                o = out[...,i,:,:]
+                o[...,m,:] = mode                
+            else:
+                mode = np.moveaxis(mode,-1,-2)
+                o = out[...,i,:,:]
+                o[...,m] = mode
        
         return ifft(out, overwrite_x = True)
 
@@ -490,39 +536,72 @@ def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0.,
         
     waves = waves/(nrays**0.5)  
     
-        
-    if jones is None:
-        fieldv = np.zeros(beta.shape + (2,) + k0.shape + (4,) + waves.shape[-2:], dtype = CDTYPE)
-    else:
-        c,s = jones
-        fieldv = np.zeros(beta.shape + k0.shape + (4,) + waves.shape[-2:], dtype = CDTYPE)
-    
-    if beta.ndim == 1: 
-        for i,data in enumerate(fieldv):
-            if jones is None:
-                data[0,...,0,:,:] = waves[i]
-                data[0,...,1,:,:] = waves[i]
-                
-                data[1,...,2,:,:] = waves[i]
-                data[1,...,3,:,:] = -waves[i]
-            else:
-                data[...,0,:,:] = waves[i]*c
-                data[...,1,:,:] = waves[i]*c
-                data[...,2,:,:] = waves[i]*s
-                data[...,3,:,:] = -waves[i]*s
+    if field_has_vec_layout():     
+        if jones is None:
+            fieldv = np.zeros(beta.shape + (2,) + k0.shape + waves.shape[-2:] +(4,) , dtype = CDTYPE)
+        else:
+            c,s = jones
+            fieldv = np.zeros(beta.shape + k0.shape + waves.shape[-2:] + (4,) , dtype = CDTYPE)
                 
     else:
         if jones is None:
-            fieldv[0,...,0,:,:] = waves
-            fieldv[0,...,1,:,:] = waves
-            
-            fieldv[1,...,2,:,:] = waves
-            fieldv[1,...,3,:,:] = -waves
+            fieldv = np.zeros(beta.shape + (2,) + k0.shape + (4,) + waves.shape[-2:], dtype = CDTYPE)
         else:
-            fieldv[...,0,:,:] = waves*c
-            fieldv[...,1,:,:] = waves*c
-            fieldv[...,2,:,:] = waves*s
-            fieldv[...,3,:,:] = -waves*s   
+            c,s = jones
+            fieldv = np.zeros(beta.shape + k0.shape + (4,) + waves.shape[-2:], dtype = CDTYPE)
+        
+    if beta.ndim == 1: 
+        for i,data in enumerate(fieldv):
+            if field_has_vec_layout():
+                if jones is None:
+                    data[0,...,0] = waves[i]
+                    data[0,...,1] = waves[i]
+                    
+                    data[1,...,2] = waves[i]
+                    data[1,...,3] = -waves[i]
+                else:
+                    data[...,0] = waves[i]*c
+                    data[...,1] = waves[i]*c
+                    data[...,2] = waves[i]*s
+                    data[...,3] = -waves[i]*s                
+            else:
+                if jones is None:
+                    data[0,...,0,:,:] = waves[i]
+                    data[0,...,1,:,:] = waves[i]
+                    
+                    data[1,...,2,:,:] = waves[i]
+                    data[1,...,3,:,:] = -waves[i]
+                else:
+                    data[...,0,:,:] = waves[i]*c
+                    data[...,1,:,:] = waves[i]*c
+                    data[...,2,:,:] = waves[i]*s
+                    data[...,3,:,:] = -waves[i]*s
+                
+    else:
+        if field_has_vec_layout():
+            if jones is None:
+                fieldv[0,...,0] = waves
+                fieldv[0,...,1] = waves
+                
+                fieldv[1,...,2] = waves
+                fieldv[1,...,3] = -waves
+            else:
+                fieldv[...,0] = waves*c
+                fieldv[...,1] = waves*c
+                fieldv[...,2] = waves*s
+                fieldv[...,3] = -waves*s  
+        else:
+            if jones is None:
+                fieldv[0,...,0,:,:] = waves
+                fieldv[0,...,1,:,:] = waves
+                
+                fieldv[1,...,2,:,:] = waves
+                fieldv[1,...,3,:,:] = -waves
+            else:
+                fieldv[...,0,:,:] = waves*c
+                fieldv[...,1,:,:] = waves*c
+                fieldv[...,2,:,:] = waves*s
+                fieldv[...,3,:,:] = -waves*s  
     if diffraction == True:       
         diffracted_field(fieldv,k0, d = -focus, n = n, mode = mode, betamax = betamax, out = fieldv)
     
@@ -533,7 +612,10 @@ def waves2field(waves, k0, beta = 0., phi = 0., n = 1., focus = 0.,
             
             #-2 element must be polarization. make it broadcastable to field intensity
             intensity = intensity[...,None,:]
-        norm = (intensity/(field2intensity(fieldv).sum((-2,-1))))**0.5
+        if field_has_vec_layout():
+            norm = (intensity/(fvec2intensity(fieldv).sum((-3,-2))))**0.5
+        else:
+            norm = (intensity/(field2intensity(fieldv).sum((-2,-1))))**0.5
         np.multiply(fieldv, norm[...,None,None,None], fieldv)
         
     return fieldv
@@ -675,16 +757,28 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
     epsa = np.asarray((0.,0.,0.),FDTYPE)
     alpha, fmat = alphaf(beta, phi, refind2eps([n]*3), epsa)
     field = waves2field2(waves, fmat, jones = jones, phi = phi, mode = mode)
-    intensity1 = field2intensity(field)
+    if field_has_vec_layout():
+        intensity1 = fvec2intensity(field)
+    else:    
+        intensity1 = field2intensity(field)
     norm = np.ones_like(intensity1)
     norm[:,...] = (intensity/nrays)**0.5    
+
     if diffraction == True:  
         diffracted_field(field,wavenumbers, d = -focus, n = n, mode = mode, betamax = betamax, out = field)
-        intensity2 = field2intensity(field)
+        if field_has_vec_layout():
+            intensity2 = fvec2intensity(field)
+        else:    
+            intensity2 = field2intensity(field)        
+        print (intensity1.shape)
+        
         ratio = (intensity1.sum((-2,-1))/intensity2.sum((-2,-1)))**0.5
         norm[...] = norm * ratio[...,None,None]
-            
-    np.multiply(norm[...,None,:,:], field, field)
+    
+    if field_has_vec_layout():  
+        np.multiply(norm[...,:,:,None], field, field)
+    else:
+        np.multiply(norm[...,None,:,:], field, field)
     
     return (field, wavelengths, pixelsize)
 
@@ -744,6 +838,11 @@ def illumination_data(shape, wavelengths, pixelsize = 1., beta = 0., phi = 0., i
 #    return (field, wavelengths, pixelsize)
 
 
+
+def fvec2intensity(field, out = None):
+    field = np.moveaxis(field, (-3,-2),(-2,-1))
+    return field2intensity(field, out)
+
 @nb.njit([(NCDTYPE[:,:,:],NFDTYPE[:,:])], cache = NUMBA_CACHE)
 def _field2intensity(field, out):
     for j in range(field.shape[1]):
@@ -796,6 +895,10 @@ def _field2spectersum(field, out):
                     else:
                         out[j,k,i] += (tmp1 -tmp2)
 
+def fvec2specter(field, out = None):
+    field = np.moveaxis(field, (-3,-2),(-2,-1))   
+    return field2specter(field, out)
+
 @nb.guvectorize([(NCDTYPE[:,:,:,:],NFDTYPE[:,:,:])],"(w,k,n,m)->(n,m,w)", target = "cpu", cache = NUMBA_CACHE)
 def field2specter(field, out):
     """field2specter(field)
@@ -841,9 +944,14 @@ def _fft_betaphi(f, betax, betay, beta, phi):
 
 def mean_betaphi(field,k0):
     """Calculates mean beta and phi of a given field."""
-    b = blackman(field.shape[-2:])
-    f = fft2(field*b) #filter it with blackman..
-    betax, betay = betaxy(field.shape[-2:], k0)
+    shape = field_shape(field)
+    betax, betay = betaxy(shape, k0)
+    b = blackman(shape)
+    if field_has_vec_layout():
+        f = fft2(field*b[...,None])
+        f = np.moveaxis(f,(-3,-2),(-2,-1))
+    else:
+        f = fft2(field*b) #filter it with blackman..
     beta, phi = _fft_betaphi(f,betax,betay)
     return beta, phi
 
@@ -941,6 +1049,8 @@ def load_field(file):
     finally:
         if own_fid == True:
             f.close()
+            
 field2poynting = field2intensity
+fvec2poynting = fvec2intensity
     
 __all__ = ["illumination_rays","load_field", "save_field", "validate_field_data","field2specter","field2intensity", "illumination_data"]
