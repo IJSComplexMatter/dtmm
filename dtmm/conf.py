@@ -673,7 +673,7 @@ except:
     warnings.warn("Could not set numba threads", UserWarning)
 
 def field_has_vec_layout():
-    return True
+    return False
 def field_shape(field):
     if field.ndim < 3:
         1/0

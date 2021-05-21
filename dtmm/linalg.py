@@ -952,9 +952,9 @@ def _dotmdmv2(a, d, b, f,out):
         out[i,1]= a[i,1,0] * b0 + a[i,1,1] * b1 
 
             
-@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _dotmdmf4(a, d, b, f,out):
-    for i in prange(f.shape[1]):
+    for i in range(f.shape[1]):
         for j in range(f.shape[2]):
             f0 = f[0,i,j]
             f1 = f[1,i,j]
@@ -976,9 +976,9 @@ def _dotmdmf4(a, d, b, f,out):
             out[2,i,j]= a[i,j,2,0] * b0 + a[i,j,2,1] * b1 + a[i,j,2,2] * b2 +a[i,j,2,3] * b3
             out[3,i,j]= a[i,j,3,0] * b0 + a[i,j,3,1] * b1 + a[i,j,3,2] * b2 +a[i,j,3,3] * b3   
 
-@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],parallel = NUMBA_PARALLEL, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+@njit([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _dotmdmf2(a, d, b, f,out):
-    for i in prange(f.shape[1]):
+    for i in range(f.shape[1]):
         for j in range(f.shape[2]):
             f0 = f[0,i,j]
             f1 = f[1,i,j]
@@ -1039,7 +1039,7 @@ a field array or an E-array (in case of 2x2 matrices).
     return _dotmf(a, b, out)
 
        
-@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k)->(n,m,k)",target = "cpu", cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+@guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k)->(n,m,k)",target = "parallel", cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _dotmdmf(a, d,b,f, out):
     if f.shape[0] == 2:
         _dotmdmf2(a, d,b,f, out)
@@ -1064,6 +1064,45 @@ This is equivalent to
     except:
         m = dotmdm(a,d,b)
         return dotmf(m,f, out)
+
+
+# def _as_strided(a,shape):
+#     return np.lib.stride_tricks.as_strided(a,shape, (0,) * (len(shape)-len(a.shape)) + a.data.strides)
+
+# def dotmdmf2(a,d,b,f, out = None):
+#     """dotmdmf(a, d, b, f)
+    
+# Computes a dot product of an array of 4x4 (or 2x2) matrices, array of diagonal matrices, 
+# another array of matrices and a field array or an E-array (in case of 2x2 matrices).
+
+# Notes
+# -----
+# This is equivalent to
+
+# >>> dotmf(dotmdm(a,d,b),f)
+# """
+#     try:
+#         shape = np.broadcast_shapes(a.shape[0:-4],d.shape[0:-3],b.shape[0:-4],f.shape[0:-3])
+#         a_shape = shape + a.shape[-4:]
+#         d_shape = shape + d.shape[-3:]
+#         b_shape = shape + b.shape[-4:]
+#         f_shape = shape + f.shape[-3:]
+        
+#         a = _as_strided(a,a_shape)
+#         d = _as_strided(d,d_shape)
+#         b = _as_strided(b,b_shape)
+#         f = _as_strided(f,f_shape)
+        
+#         if out is None:
+#             out = np.empty_like(f)
+                
+#         [_dotmdmf2(_a, _d,_b,_f, _out) for (_a, _d,_b,_f, _out) in zip(a,d,b,f,out)]
+        
+#         return out
+#     except:
+#         m = dotmdm(a,d,b)
+#         return dotmf(m,f, out)
+
         
 #    a = broadcast_m(a, f)
 #    d = broadcast_d(d, f)
