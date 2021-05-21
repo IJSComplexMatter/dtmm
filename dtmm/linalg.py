@@ -739,7 +739,16 @@ def _dotmv2(a, b, out):
     out[0]= out0
     out[1]= out1
     
-
+@njit([(NCDTYPE[:,:,:],NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def _dotmv4_vec(a, b, out):
+    for i in range(a.shape[0]):
+        _dotmv4(a[i],b[i],out[i])
+        
+@njit([(NCDTYPE[:,:,:],NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def _dotmv2_vec(a, b, out):
+    for i in range(a.shape[0]):
+        _dotmv2(a[i],b[i],out[i])
+    
     
 @njit([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def _dotmd4(a, b, out):
@@ -1294,6 +1303,15 @@ Computes a dot product of a 4x4 or 2x2 matrix with a vector.
         _dotmv4(a, b, out)
     else:
         _dotmv(a, b, out)
+
+@guvectorize([(NCDTYPE[:,:,:],NCDTYPE[:,:],NCDTYPE[:,:])],"(m,n,n),(m,n)->(m,n)",target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
+def dotmv_vec(a, b, out):
+    if a.shape[1] == 2:
+        _dotmv2_vec(a, b, out)
+    elif a.shape[1] == 4:
+        assert a.shape[1] >= 4 #make sure it is not smaller than 4
+        _dotmv4_vec(a, b, out)
+    
     
 @guvectorize([(NCDTYPE[:,:],NCDTYPE[:],NCDTYPE[:,:],NCDTYPE[:,:])],"(n,n),(n),(n,n)->(n,n)",target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
 def dotmdm(a, d, b, out):

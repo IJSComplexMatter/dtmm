@@ -674,7 +674,6 @@ except:
 
 def field_has_vec_layout():
     return True
-
 def field_shape(field):
     if field.ndim < 3:
         1/0

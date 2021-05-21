@@ -7,7 +7,7 @@ from dtmm.conf import BETAMAX, field_has_vec_layout, field_shape
 from dtmm.wave import eigenwave, betaphi
 from dtmm.tmm import alphaf, E2H_mat, E_mat, Eti_mat, phase_mat, Etri_mat, tr_mat
 
-from dtmm.linalg import  inv, dotmd, dotmv, dotmdmv
+from dtmm.linalg import  inv, dotmd, dotmv, dotmdmv, dotmv_vec
 from dtmm.linalg import dotmdmf as _dotmdmf
 from dtmm.linalg import dotmf as _dotmf
 from dtmm.diffract import diffract, E_tr_matrix
@@ -20,7 +20,7 @@ from dtmm.mode import fft_mask
 
 def dotmf(*args,**kwargs):
     if field_has_vec_layout():
-        return dotmv(*args,**kwargs)
+        return dotmv_vec(*args,**kwargs)
     else:
         return _dotmf(*args,**kwargs)
 
@@ -201,8 +201,12 @@ def _transfer_ray_2x2_2(field, wavenumbers, in_layer, out_layer, dmat = None, be
             
     if mode == +1 and bulk is not None:
         e2h = E2H_mat(fmat, mode = mode)
-        bulk[...,1::2,:,:] +=  dotmf(e2h, field)
-        bulk[...,::2,:,:] += field
+        if field_has_vec_layout():
+            bulk[...,1::2] +=  dotmf(e2h, field)
+            bulk[...,::2] += field            
+        else:
+            bulk[...,1::2,:,:] +=  dotmf(e2h, field)
+            bulk[...,::2,:,:] += field
      
 
     return field, refl
