@@ -982,10 +982,13 @@ def dotmf(a,b, out = None):
 Computes a dot product of an array of 4x4 (or 2x2) matrix with 
 a field array or an E-array (in case of 2x2 matrices).
 """
-    a = np.asarray(a)
-    b = np.asarray(b)
-    a = broadcast_m(a, b)
-    return _dotmf(a, b, out)
+    try:
+        return _dotmf(a, b, out)
+    except:
+        a = np.asarray(a)
+        b = np.asarray(b)
+        a = broadcast_m(a, b)  
+        return _dotmf(a, b, out)
 
        
 @guvectorize([(NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:,:],NCDTYPE[:,:,:],NCDTYPE[:,:,:])],"(m,k,n,n),(m,k,n),(m,k,n,n),(n,m,k)->(n,m,k)",target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
