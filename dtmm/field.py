@@ -346,9 +346,18 @@ def aperture2rays(diaphragm, betastep = 0.1, norm = True):
     return np.asarray(beta[mask],FDTYPE), np.asarray(phi[mask],FDTYPE), np.asarray(intensity,FDTYPE)
 
 def illumination_aperture(diameter = 5., smooth = 0.1):
-    n = int(round(diameter))
+    try:
+        inner, outer = diameter
+        inner = int(round(inner))
+        outer = int(round(outer))
+        if inner >= outer:
+            raise ValueError("Invalid dimater, rounded inner diameter should be lower that outer diameter.")
+    except TypeError:
+        inner = 0
+        outer = int(round(diameter))
+
     alpha = min(max(smooth,0),1)
-    a = aperture((n,n), diameter/n, alpha)
+    a = aperture((outer,outer), (inner/outer, 1.), alpha)
     return a
   
 def illumination_rays(NA, diameter = 5., smooth = 0.1):
@@ -362,11 +371,12 @@ def illumination_rays(NA, diameter = 5., smooth = 0.1):
     
     Parameters
     ----------
-    NA : float
-        Approximate numerical aperture of the illumination.
-    diameter : int
+    NA : float 
+        Approximate max numerical aperture of the illumination. 
+    diameter : int or (int,int)
         Field aperture diaphragm diameter in pixels. Approximate number of rays
-        is np.pi*(diameter/2)**2
+        is np.pi*(diameter/2)**2. If set as a tuple, it describes the inner and
+        outer diameter.
     smooth : float, optional
         Smoothness of diaphragm edge between 0. and 1.
         
@@ -375,8 +385,14 @@ def illumination_rays(NA, diameter = 5., smooth = 0.1):
     beta,phi, intensity : ndarrays
         Ray parameters  
     """
-    betastep = 2.*NA/(diameter-1)
-    a = illumination_aperture(diameter, smooth)
+    try:
+        low, high = diameter
+    except:
+        low = 0
+        high = diameter
+    
+    betastep = 2.*NA/(high-1)
+    a = illumination_aperture((low,high), smooth)
     return aperture2rays(a, betastep = betastep, norm = True)
 
 

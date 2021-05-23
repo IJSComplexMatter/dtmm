@@ -105,16 +105,15 @@ def gaussian_beam(shape, waist, k0, z = 0., n = 1):
     return w0/w*np.exp(-(r/w)**2)*np.exp(1j*(k*z- psi))*np.exp(1j*(r*Rm2)**2)
     
 def aperture(shape, diameter = 1., smooth = 0.05, out = None):
-    """Returns aperture window function. 
-    
-    Aperture is basically a tukey filter with a given diameter
-    
+    """Returns (annular) aperture window function. 
+        
     Parameters
     ----------
     shape : (int,int)
         A shape of the 2D window
-    diameter : float
-        Width of the aperture (1. for max height/width)
+    diameter : float or (float,float)
+        Width of the aperture (1. for max height/width). If set as a tuple of
+        two elements, it describes the inner and outer width of the annular aperture.
     smooth : float
         Smoothnes parameter - defines smoothness of the edge of the aperture
         (should be between 0. and 1.; 0.05 by default)
@@ -126,8 +125,20 @@ def aperture(shape, diameter = 1., smooth = 0.05, out = None):
     window : ndarray
         Aperture window
     """
-    r = _r(shape, scale = diameter)
-    return tukey(r,smooth, out = out)
+    try:
+        dim1,dim2 = diameter
+    except TypeError:
+        dim1, dim2 = 0, diameter
+        
+    if dim1 == 0:
+        r = _r(shape, scale = dim2)
+        return tukey(r,smooth, out = out)
+    else:
+        r = _r(shape, scale = dim2)
+        a1 = tukey(r,smooth, out = out)
+        r = _r(shape, scale = dim1)
+        a2 = 1-tukey(r,smooth)
+        return np.multiply(a1,a2,out)
 
 def tukey(r,alpha = 0.1, rmax = 1., out =  None):
     if out is None:
@@ -149,6 +160,6 @@ __all__ = ["aperture", "blackman", "gaussian_beam", "gaussian"]
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     plt.subplot(121)
-    plt.imshow(aperture((32,32),diameter = 0.9))
+    plt.imshow(aperture((32,32),diameter = (0.8,1), smooth = 0.2))
     plt.subplot(122)
     plt.imshow(gaussian((32,32),0.5))

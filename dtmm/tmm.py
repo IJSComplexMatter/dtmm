@@ -578,28 +578,19 @@ def alphaEEi(beta,phi,epsv,epsa, mode = +1, out = None):
         Ei = inv(E,out = Ei)
         return alpha, E, Ei 
 
-from dtmm.conf import _numba_0_39_or_greater
 
-if _numba_0_39_or_greater:
-    @nb.vectorize([NCDTYPE(NCDTYPE,NFDTYPE)],
-        target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
-    def _phase_mat_vec(alpha,kd):
-        return np.exp(NCDTYPE(1j)*kd*alpha)
+@nb.vectorize([NCDTYPE(NCDTYPE,NFDTYPE)],
+    target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
+def _phase_mat_vec(alpha,kd):
+    return np.exp(NCDTYPE(1j)*kd*alpha)
 
-    def _phasem(alpha,kd,out = None):
-        kd = np.asarray(kd,FDTYPE)[...,None]
-        out = _phase_mat_vec(alpha,kd,out)
-        #if out.shape[-1] == 4:
-        #    out[...,1::2]=0.
-        return out
-else:
-    @nb.guvectorize([(NCDTYPE[:],NFDTYPE[:], NCDTYPE[:])],
-                    "(n),()->(n)", target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)       
-    def _phase_mat_vec(alpha,kd,out):
-        for i in range(alpha.shape[0]):
-            out[i] = np.exp(NCDTYPE(1j)*kd[0]*(alpha[i]))
-                    
-    _phasem = _phase_mat_vec
+def _phasem(alpha,kd,out = None):
+    kd = np.asarray(kd,FDTYPE)[...,None]
+    out = _phase_mat_vec(alpha,kd,out)
+    #if out.shape[-1] == 4:
+    #    out[...,1::2]=0.
+    return out
+
 
 #to make autoapi happy...    
 def phasem(*args,**kwargs):

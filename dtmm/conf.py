@@ -66,15 +66,15 @@ HOMEDIR = get_home_dir()
 
 DTMM_CONFIG_DIR = os.path.join(HOMEDIR, ".dtmm")
 
-NUMBA_CACHE_DIR = os.path.join(DTMM_CONFIG_DIR, "numba_cache")
+# NUMBA_CACHE_DIR = os.path.join(DTMM_CONFIG_DIR, "numba_cache")
 
 
-if not os.path.exists(DTMM_CONFIG_DIR):
-    try:
-        os.makedirs(DTMM_CONFIG_DIR)
-    except:
-        warnings.warn("Could not create folder in user's home directory! Is it writeable?",stacklevel=2)
-        NUMBA_CACHE_DIR = ""
+# if not os.path.exists(DTMM_CONFIG_DIR):
+#     try:
+#         os.makedirs(DTMM_CONFIG_DIR)
+#     except:
+#         warnings.warn("Could not create folder in user's home directory! Is it writeable?",stacklevel=2)
+#         NUMBA_CACHE_DIR = ""
 
 #FILE_LOCK = os.path.join(DTMM_CONFIG_DIR, "lock")        
 # if os.path.exists(NUMBA_CACHE_DIR):
@@ -164,45 +164,30 @@ else:
     NUMBA_TARGET = "cpu"
     NUMBA_PARALLEL = False
 
-NUMBA_CACHE = False   
 
-_numba_0_39_or_greater = False
-_numba_0_45_or_greater = False
-try: 
-    import numba as nb
-    major, minor = nb.__version__.split(".")[0:2]
-    if int(major) == 0 and int(minor) >=45:
-        _numba_0_45_or_greater = True
-    if int(major) == 0 and int(minor) >=39:
-        _numba_0_39_or_greater = True
+
+_matplotlib_3_4_or_greater = False
+
+
+try:
+    import matplotlib
+    major, minor = matplotlib.__version__.split(".")[0:2]
+    if int(major) >= 3 and int(minor) >=4:
+        _matplotlib_3_4_or_greater = True
 except:
-    print("Could not determine numba version you are using, assuming < 0.39")
+    print("Could not determine matplotlib version you are using, assuming < 3.4")
 
+NUMBA_CACHE = False   
 
 if read_environ_variable("DTMM_NUMBA_CACHE",
             default = _readconfig(config.getboolean, "numba", "cache", True)):
-    if NUMBA_CACHE_DIR == "":
-        NUMBA_CACHE = False
-    elif NUMBA_PARALLEL == False:
-        NUMBA_CACHE = True  
-    else:
-        try: 
-            import numba as nb
-            major, minor = nb.__version__.split(".")[0:2]
-            if int(major) == 0 and int(minor) >=45:
-                NUMBA_CACHE = True 
-            else:
-                NUMBA_CACHE = False
-                warnings.warn("Numba caching was disabled because version of numba < 0.45 cannot use caching with parallelization enabled!")
-        except:
-            NUMBA_CACHE = False
+    NUMBA_CACHE = True
 
 if read_environ_variable("DTMM_FASTMATH",
         default = _readconfig(config.getboolean, "numba", "fastmath", False)):        
     NUMBA_FASTMATH = True
 else:
     NUMBA_FASTMATH = False
-
 
 #reference to all cashed functions - for automatic cache clearing with clear_cache.
 _cache = set()

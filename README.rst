@@ -21,17 +21,16 @@ dtmm: Diffractive Transfer Matrix Method
 Requisites
 ----------
 
-* numba >=0.35.0
+* numba >=0.45.0
 * numpy
-* scipy
 * matplotlib
+* scipy
 
 
-Optional:
+Optional (for faster fft):
 
 * mkl_fft
 * pyfftw
-
 
 Installation
 ------------

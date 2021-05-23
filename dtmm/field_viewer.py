@@ -30,6 +30,12 @@ from matplotlib.widgets import Slider, AxesWidget, RadioButtons
 from matplotlib.image import imsave
 import scipy.ndimage as nd
 
+from dtmm.conf import _matplotlib_3_4_or_greater
+
+if _matplotlib_3_4_or_greater:
+    from matplotlib.widgets import RangeSlider
+    import matplotlib.widgets
+    
 
 #from dtmm.project import projection_matrix, project
 from dtmm.color import load_tcmf, specter2color
@@ -54,8 +60,13 @@ SAMPLE_LABELS = ("-90 ","-45 "," 0  ","+45 ", "+90 ")
 SAMPLE_NAMES = tuple((s.strip() for s in SAMPLE_LABELS))
 POLARIZER_LABELS = (" H  "," V  ","LCP ","RCP ","none")
 POLARIZER_NAMES = tuple((s.strip().lower() for s in POLARIZER_LABELS))
-RETARDER_LABELS = ("$\lambda/4$", "$\lambda/2$","none")
-RETARDER_NAMES = ("lambda/4", "lambda/2", "none")
+RETARDER_LABELS = ("$\lambda/4$", "$\lambda/2$","$\lambda$","none")
+RETARDER_NAMES = ("lambda/4", "lambda/2", "lambda", "none")
+
+def _is_full_lambda_plate(name):
+    print("looking for...", name)
+    return True if name.strip().lower() in ("$\lambda$", "lambda") else False
+    
 
 def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = None, input_fft = False, output_fft = False, out = None):
     """Calculates polarizing optical microscope field from the input field.
@@ -179,10 +190,15 @@ class CustomRadioButtons(RadioButtons):
         self.box = ax.legend(circles, labels, loc="center", **kwargs)
         self.labels = self.box.texts
         self.circles = self.box.legendHandles
-        for c in self.circles:
+        for c in self.circles:        
             c.set_picker(5)
-        self.cnt = 0
-        self.observers = {}
+            
+        if _matplotlib_3_4_or_greater:
+            self._observers = matplotlib.widgets.cbook.CallbackRegistry()
+            
+        else:
+            self.cnt = 0
+            self.observers = {}
 
         self.connect_event('pick_event', self._clicked)
 
@@ -228,7 +244,7 @@ def bulk_viewer(field_data, **kwargs):
     return field_viewer(field_data, bulk_data=True, **kwargs)
 
 def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None, is_polarized = None, 
-                 window=None, diffraction=True, polarization_mode="normal", betamax=BETAMAX, beta = None, **parameters):
+                 window=None, diffraction=True, polarization_mode="normal", betamax=BETAMAX, beta = None,  **parameters):
     """
     Returns a FieldViewer object for field data visualization.
     
@@ -250,10 +266,10 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None, is_pola
         Viewer mode 't' for transmission mode, 'r' for reflection mode None for
         as is data (no projection calculation - default).
     is_polarized : bool, optional
-        If specified, it defines whether the field is polarize or not. For 
+        If specified, it defines whether the field is polarized or not. For 
         non-polarized fields, the field must be of shape [...,2,:,4,:,:]. If 
         not provided, the polarization state is guessed from the shape of the
-        input data. Setting this to False(and having non-polarized field)
+        input data. Setting this to False (and having non-polarized field)
         will allow setting the polarizer and sample rotation.
     window : ndarray, optional
         Window function by which the calculated field is multiplied. This can 
@@ -272,6 +288,10 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None, is_pola
     betamax : float
         Betamax parameter used in the diffraction calculation function. With this
         you can simulate finite NA of the microscope (NA = betamax).
+    beta : ndarray, optional
+        For multi-ray fields you must provide the beta array that was used to
+        build the illumination data. Defining this parameter will allow you to
+        re-adjust the aperture of the illumination by the 'aperture' parameter.
     parameters : kwargs, optional
         Extra parameters passed directly to the :meth:`FieldViewer.set_parameters`
         
@@ -347,7 +367,7 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None, is_pola
 
 def pom_viewer(field_data, cmf=None, n = None, immersion = None, n_cover = None, d_cover = None, mode = +1, 
                  
-                 is_polarized = None, window=None, NA = None, beta = None, **parameters):
+                 is_polarized = None, window=None, NA = None, beta = None,  **parameters):
     """
     Returns a FieldViewer object for optical microscope simulation.
     
@@ -362,6 +382,10 @@ def pom_viewer(field_data, cmf=None, n = None, immersion = None, n_cover = None,
     n : float, optional
         Refractive index of the output material. If not set, it is set to 1 
         if immerion == False or n_cover if immersion == True.
+    immersion : bool
+        Specified whether immersion objective is being used or not. Note that
+        setting the 'n' parameter defines the immersion refractive index in
+        this case.
     n_cover : float
         Refractive index of the cover medium. To simulate thick cover you should prepare 
         simulation results with nout = n_cover, (or nin = n_cover, if in reflection mode), 
@@ -369,12 +393,6 @@ def pom_viewer(field_data, cmf=None, n = None, immersion = None, n_cover = None,
     d_cover : float
         Thickness ot the thick isotropic layer (cover glass).When d_cover != 0, t
         his simulates thick isotropic layer effect.
-    immersion : bool
-        Specified whether immersion objective is being used or not. Note that
-        setting the 'n' parameter defines the immersion refractive index in
-        this case.
-    NA : float
-        Numerical aperture of the objective. 
     mode : [ 't' | 'r' | +1 | -1 ]
         Viewer mode 't' or +1 for transmission mode, 'r' or -1 for reflection mode.
     is_polarized : bool, optional
@@ -386,6 +404,12 @@ def pom_viewer(field_data, cmf=None, n = None, immersion = None, n_cover = None,
     window : ndarray, optional
         Window function by which the calculated field is multiplied. This can 
         be used for removing artefact from the boundaries.
+    NA : float
+        Numerical aperture of the objective. 
+    beta : ndarray, optional
+        For multi-ray fields you must provide the beta array that was used to
+        build the illumination data. Defining this parameter will allow you to
+        set condenser aperture by the 'aperture' parameter. 
     parameters : kwargs, optional
         Extra parameters passed directly to the :meth:`FieldViewer.set_parameters`
         
@@ -461,10 +485,12 @@ def _float_or_none(value):
     """
     return float(value) if value is not None else None
  
-def _jonesmatrix_type(value):
+def _jonesmatrix_type(value, wavelengths = None):
     if isinstance(value, str):
         name = value.lower().strip()
-        if name in (POLARIZER_NAMES + RETARDER_NAMES + ("x","y")+RETARDER_LABELS):
+        if _is_full_lambda_plate(name):
+            return name, _lambda_jmat(wavelengths)
+        elif name in (POLARIZER_NAMES + RETARDER_NAMES + ("x","y")+RETARDER_LABELS):
             return name, _jmat_from_name(name)
         else:
             raise ValueError("Not a valid jones matrix")
@@ -494,11 +520,14 @@ def _jonesvector_type(value):
             if jvec.shape != (2,):
                 raise ValueError("Not a valid jones vector")
             return jvec, jvec
+        
+def _lambda_jmat(wavelengths, central = 530):
+    return jones.full_waveplate(np.pi/4, central, wavelengths)
 
 def _jmat_from_name(name):
-    if name in ("qplate","$\lambda/4$"):
+    if name in ("qplate","$\lambda/4$","lambda/4"):
         return jones.quarter_waveplate(np.pi/4)
-    if name in ("hplate","$\lambda/2$"):
+    if name in ("hplate","$\lambda/2$","lambda/2"):
         return jones.half_waveplate(np.pi/4)
     if name == "none":
         return None
@@ -726,21 +755,23 @@ class FieldViewer(object):
     _dmat = None
     _ofield = None
     _specter = None
+    _aperture = None
+    _aperture_mask = None
     
         
-    def __init__(self,shape, wavelengths, pixelsize, **kwargs):
+    def __init__(self,shape, wavelengths, pixelsize,  **kwargs):
         self.viewer_options = FieldViewerOptions()
         self.image_parameters = ImageParameters()
         
         self.viewer_options.wavelengths = wavelengths
         self.viewer_options.pixel_size = pixelsize 
-        self.viewer_options.shape = shape 
+        self.viewer_options.shape = shape
         self.image_parameters._wavelengths = wavelengths
         
         for key, value in kwargs.items():
             setattr(self.viewer_options, key, value)
             
-        self._aperture = None if self.viewer_options.beta is None else max(self.viewer_options.beta)
+        self.aperture = None if self.viewer_options.beta is None else max(self.viewer_options.beta)
         
         if not self.viewer_options.is_polarized:
             self.polarizer = "none"
@@ -753,6 +784,7 @@ class FieldViewer(object):
         print(" $ retarder: {}".format(self.retarder)) 
         print(" $ analyzer: {}".format(self.analyzer)) 
         print(" $ focus: {}".format(self.focus))
+        print(" $ aperture: {}".format(self.aperture))
 
     def _clear_all_field_data(self):
         self._field = None
@@ -798,23 +830,6 @@ class FieldViewer(object):
         """Focus position, relative to the calculated field position."""
         return self._focus   
     
-    @property
-    def masked_field(self):
-        if self.aperture is not None:
-            mask = self.viewer_options.beta <= self.aperture
-            return self.field[mask]
-        else:
-            return self.field
-    
-    @property
-    def masked_ffield(self):
-        """Fourier transform of the field"""
-        if self.aperture is not None:
-            mask = self.viewer_options.beta <= self.aperture
-            return self.ffield[mask]
-        else:
-            return self.ffield
-
     @focus.setter     
     def focus(self, z):
         if self.viewer_options.diffraction == True or z is None:
@@ -878,8 +893,53 @@ class FieldViewer(object):
     
     @aperture.setter    
     def aperture(self, value):
-        self._aperture = _float_or_none(value)
+        if self.viewer_options.beta is None and value is not None:
+            raise ValueError("Trying to set condenser aperture, but illumination beta values have not been defined.")
+        try:
+            value = _float_or_none(value)
+            if value is not None:
+                value = 0, value            
+        except:
+            low, high = value
+            value = float(low),float(high) 
+            
         self._specter = None
+        
+        if value is not None:
+
+            mask1 = self.viewer_options.beta <= value[1]
+            mask2 = self.viewer_options.beta >= value[0]
+            mask = np.logical_and(mask1,mask2)
+            if np.any(mask):
+                self._aperture_mask = mask
+                self._aperture = value
+            else:
+                import warnings
+                warnings.warn("Could not set aperture to desired values. Using pprevious setting.", UserWarning)
+        else:
+            self._aperture = value
+            self._aperture_mask = None
+            
+    @property        
+    def aperture_mask(self):
+        """Illuminetion field aperture mask array"""
+        return self._aperture_mask
+                
+    @property
+    def masked_field(self):
+        """Field masked with aperture_mask."""
+        if self.aperture_mask is not None:
+            return self.field[self.aperture_mask]
+        else:
+            return self.field
+    
+    @property
+    def masked_ffield(self):
+        """Fourier transform of the field masked with aperture_mask."""
+        if self.aperture_mask is not None:
+            return self.ffield[self.aperture_mask]
+        else:
+            return self.ffield
 
     @property
     def polarizer(self):
@@ -909,15 +969,25 @@ class FieldViewer(object):
  
     @property    
     def retarder_jmat(self):
-        return self._retarder_jmat
+        if _is_full_lambda_plate(self.retarder):
+            #we need to add axes for broadcasting
+            return self._retarder_jmat[:,None,None,:,:]
+        else:
+            return self._retarder_jmat
     
     @property    
     def retarder(self):
+        """Name of the retarder placed in front of the analyzer. 
+        Can be any of 'lambda', 'lambda/4' or 'lambda/2'. The 
+        'lambda/4' or 'lambda/2 are simulated as a pozitive birefringent ideal
+        (non-dispersive) quarte and half wave plate with the slow axis at +45 degrees
+        with respect to the horizontal axis. The 'lambda' plate is a full 
+        plate for 530 nm with the slow axis at +45 degrees"""
         return self._retarder
     
     @retarder.setter    
     def retarder(self, value):
-        self._retarder, self._retarder_jmat = _jonesmatrix_type(value)
+        self._retarder, self._retarder_jmat = _jonesmatrix_type(value,self.viewer_options.wavelengths)
         self._pmat = None #force recalculation of pmat
         self._specter = None
        
@@ -1001,7 +1071,7 @@ class FieldViewer(object):
         
         Parameters
         ----------
-        show_slider : bool, optional
+        show_sliders : bool, optional
             Specifies whether to show sliders or not.
         show_scalebar : bool, optional
             Specifies whether to show scalebar or not.
@@ -1058,6 +1128,16 @@ class FieldViewer(object):
                     setattr(self,name,d)
                     self.update_plot()
                 return update
+
+            def update_range_slider_func(name):
+                def update(d):
+                    if _matplotlib_3_4_or_greater:
+                        setattr(self,name,(d[0],d[1]))
+                    else:
+                        low,high = getattr(self,name)
+                        setattr(self,name,(low,d))
+                    self.update_plot()
+                return update
                 
             axes = [[0.25, 0.19, 0.65, 0.03],
                     [0.25, 0.16, 0.65, 0.03],
@@ -1087,10 +1167,29 @@ class FieldViewer(object):
                     id = self.sliders[name].on_clicked(func)
                     
                 return id, ax
+            
+            def add_range_slider(name, axpos, min_name = None, max_name = None, min_value = 0, max_value = 1, valfmt = '%.1f'):
+                func = update_range_slider_func(name)
+                if self.sliders.get(name) is None:
+                    ax = self.fig.add_axes(axpos)
+                    obj = getattr(self,name)
+                    
+                    if _matplotlib_3_4_or_greater:
+                        print("obj",obj)
+                        self.sliders[name] = RangeSlider(ax, name,min(kwargs.pop(min_name,min_value),obj[0]),max(kwargs.pop(max_name,max_value),obj[1]), valfmt=valfmt)
+                    else:
+                        self.sliders[name] = Slider(ax, name,min(kwargs.pop(min_name,min_value),obj[1]),max(kwargs.pop(max_name,max_value),obj[1]),valinit = obj[1], valfmt=valfmt)
+                try:
+                    id = self.sliders[name].on_changed(func)
+                except AttributeError:
+                    id = self.sliders[name].on_clicked(func)
+                    
+                return id, ax
+                
 
             if self.aperture is not None:   
                 axpos = axes.pop() 
-                self._ids6, self.axaperture = add_slider("aperture", axpos, labels = POLARIZER_LABELS, min_name = "namin", max_name = "namax", min_value = 0, max_value = self.viewer_options.beta.max())
+                self._ids6, self.axaperture = add_range_slider("aperture", axpos, min_name = "namin", max_name = "namax", min_value = 0, max_value = self.viewer_options.beta.max())
                             
             if self.intensity is not None:
                 axpos = axes.pop() 
@@ -1189,7 +1288,6 @@ class FieldViewer(object):
             
             #we may heve calculated diffraction before, set to None if we had
             dmat = self.diffraction_matrix if preserve_memory or modal else None
-            
             for i,data in enumerate(tmp): 
                 field = self._calculate_pom_field(data,jvec,self.output_matrix,dmat,window = self.image_parameters.window,input_fft = input_fft, out = out)
                 self._specter += self._field2specter(field)
@@ -1363,10 +1461,9 @@ class POMViewer(FieldViewer):
     _jones = None
     _cmat = None
     
-    def __init__(self,shape, wavelengths, pixelsize, **kwargs):
+    def __init__(self,shape, wavelengths, pixelsize,  **kwargs):
         self.viewer_options = POMViewerOptions()
-        self.image_parameters = ImageParameters()
-        
+        self.image_parameters = ImageParameters()       
         self.viewer_options.wavelengths = wavelengths
         self.viewer_options.pixel_size = pixelsize 
         self.viewer_options.shape = shape 
@@ -1375,7 +1472,7 @@ class POMViewer(FieldViewer):
         for key, value in kwargs.items():
             setattr(self.viewer_options, key, value)
             
-        self._aperture = None if self.viewer_options.beta is None else max(self.viewer_options.beta)
+        self.aperture = None if self.viewer_options.beta is None else max(self.viewer_options.beta)
         
         if not self.viewer_options.is_polarized:
             self.polarizer = "none"
@@ -1389,6 +1486,7 @@ class POMViewer(FieldViewer):
          
     @property
     def jones(self):
+        """Jones field, an E-field projection of the field vector."""
         if self._jones is None:   
             vp = self.viewer_options
             epsv = refind2eps((vp.n_cover,)*3)
@@ -1406,6 +1504,7 @@ class POMViewer(FieldViewer):
     
     @property
     def fjones(self):
+        """Fourier tranform of the jones field"""
         if self._fjones is None:
             vp = self.viewer_options
             epsv = refind2eps((vp.n_cover,)*3)
@@ -1424,13 +1523,12 @@ class POMViewer(FieldViewer):
 
     @property
     def masked_fjones(self):
-        """Fourier transform of the field"""
-        if self.aperture is not None:
-            mask = self.viewer_options.beta <= self.aperture
-            return self.fjones[mask]
+        """Masked version of the Fourier transform of the jones field"""
+        if self.aperture_mask is not None:
+            return self.fjones[self.aperture_mask]
         else:
             return self.fjones
-        
+    
     def _calculate_diffraction(self):
         #diffraction is calculated during 
         self._ofield = self.masked_fjones
@@ -1459,10 +1557,12 @@ class POMViewer(FieldViewer):
 
             else:
                 self._pmat = None
+
         return self._pmat
     
     @property
     def cover_matrix(self):
+        """A matrix describing the cover glass"""
         if self._cmat is None:
             vp = self.viewer_options
             # vp.d_cover is in mm, calculat d_cover in pixel units

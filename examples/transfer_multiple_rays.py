@@ -17,20 +17,19 @@ optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
            profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
 #NA 0.25, diaphragm with diameter 4 pixels, around 2*2*pi rays
-beta, phi, intensity = dtmm.illumination_rays(0.25,4)
+beta, phi, intensity = dtmm.illumination_rays(0.25,5)
 
 window = dtmm.aperture((HEIGHT,WIDTH), 1,0.1)
 
 field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, PIXELSIZE, 
                                        beta,phi, intensity,
                                        window = window, 
-                                       n = 1.5, focus = 30) 
+                                       focus = 30) 
 
-field_data_out = dtmm.transfer_field(field_data_in, optical_data, diffraction = 1, multiray = True,
-                                     nin = 1.5,nout =1.5)
+field_data_out = dtmm.transfer_field(field_data_in, optical_data, multiray = True)
 
-viewer = dtmm.field_viewer(field_data_out, sample = 0, intensity = 2, n=1.5,
-                           polarizer = 0, focus = -30, analyzer = 90, polarization_mode="mode")
-fig, ax = viewer.plot()
+viewer = dtmm.pom_viewer(field_data_out, sample = 0, intensity = 2, NA = 1, immersion = True,
+                           polarizer = "h", focus = -30, analyzer = "v", beta = beta)
+fig, ax = viewer.plot(show_scalebar = True)
 fig.show()
 

@@ -218,9 +218,9 @@ def _fftw_fft2(a, out = None):
         out = np.empty_like(a)
 
     if out is not a:
-        key = ("fft2o",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides
+        key = ("fft2o",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides + a.shape
     else:
-        key = ("fft2i",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides
+        key = ("fft2i",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides+ a.shape
     try:
         fft = FFTW_CACHE[key]
     except KeyError:
@@ -240,9 +240,9 @@ def _fftw_ifft2(a, out = None):
     if out is None:
         out = np.empty_like(a)
     if out is not a:
-        key = ("ifft2o",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides
+        key = ("ifft2o",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides + a.shape
     else:
-        key = ("ifft2i",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides
+        key = ("ifft2i",a.dtype,DTMMConfig.fft_threads) + a.strides + out.strides + a.shape
     try:
         fft = FFTW_CACHE[key]
     except KeyError:
