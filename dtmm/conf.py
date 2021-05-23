@@ -166,6 +166,7 @@ else:
 
 NUMBA_CACHE = False   
 
+_matplotlib_3_4_or_greater = False
 _numba_0_39_or_greater = False
 _numba_0_45_or_greater = False
 try: 
@@ -178,6 +179,13 @@ try:
 except:
     print("Could not determine numba version you are using, assuming < 0.39")
 
+try:
+    import matplotlib
+    major, minor = matplotlib.__version__.split(".")[0:2]
+    if int(major) >= 3 and int(minor) >=4:
+        _matplotlib_3_4_or_greater = True
+except:
+    print("Could not determine matplotlib version you are using, assuming < 3.4")
 
 if read_environ_variable("DTMM_NUMBA_CACHE",
             default = _readconfig(config.getboolean, "numba", "cache", True)):
