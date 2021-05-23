@@ -24,14 +24,13 @@ Requisites
 * numba >=0.45.0
 * numpy
 * matplotlib
+* scipy
 
 
 Optional (for faster fft):
 
 * mkl_fft
 * pyfftw
-* scipy
-
 
 Installation
 ------------
