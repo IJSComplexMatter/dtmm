@@ -4,14 +4,14 @@ Release Notes
 V0.7.0 (In development)
 +++++++++++++++++++++++
 
-This release improves computation speed and adds new features. It implements a new thread poll for parallel fft computation, which is faster than native threading in mkl_fft or scipy. This feature is still in beta, so it is disabled by defauly and you must activate it using a configuration file or using :func:`dtmm.conf.set_thread_pool`.
-Add support for pyfftw and matplotlib>=3.4.
+This release improves multi-threading computation speed and adds new features.
+It add support for pyfftw and matplotlib>=3.4.
 
 New features
 ////////////
 
 * Several new options for computation optimization in dtmm.ini. See the documentation for details.
-* New thread pool for faster fft computation. Activate it using dtmm.conf.set_thread_pool(True).
+* Implements a new thread poll for parallel fft computation, which is faster than native threading in mkl_fft or scipy. This feature is still in beta, so it is disabled by defauly and you must activate it using a configuration file or using :func:`dtmm.conf.set_thread_pool`.
 * Support for pyfftw. You can enable it by calling :func:`dtmm.conf.set_fftlib` with 'pyfftw' as an argument.
 * New RangeSlider for condenser aperture setting, allowing you to set annular aperture in matplotlib figure (matplotlib 3.4 only).
 * Added an option to specify annular aperture in illumination_data and in the viewer's aperture atrribute.
