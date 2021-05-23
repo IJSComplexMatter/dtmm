@@ -18,6 +18,10 @@ Prior to installing, you should have a working python 3.x environment consisting
 
 * numba >=0.45.0
 * numpy
+
+For matplotlib-based GUI:
+
+* scipy
 * matplotlib
 
 To install these, it is best to go with one of the python distributions, e.g. `anaconda`_, or any other python distribution that is shipped with the above packages. 
