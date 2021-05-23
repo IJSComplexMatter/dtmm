@@ -4,22 +4,32 @@ Release Notes
 V0.7.0 (In development)
 +++++++++++++++++++++++
 
-This release focuses on computation speed improvements. Implements new ThreadPoll mechanism for parallel fft computation, which now appears to be faster than native threading in mkl_fft. This feature is still in beta, so it is disabled by defauly and you must activate it using a configuration file or using :func:`dtmm.conf.set_thread_pool`.
-Support for pyfftw
+This release improves computation speed and adds new features. It implements a new thread poll for parallel fft computation, which is faster than native threading in mkl_fft or scipy. This feature is still in beta, so it is disabled by defauly and you must activate it using a configuration file or using :func:`dtmm.conf.set_thread_pool`.
+Add support for pyfftw and matplotlib>=3.4.
 
 New features
 ////////////
 
-* Added verbose option to dtmm.ini.
-* Added support for pyfftw. You can enable it by calling :func:`dtmm.conf.set_fftlib` with 'pyfftw' as an argument.
+* Several new options for computation optimization in dtmm.ini. See the documentation for details.
+* New thread pool for faster fft computation. Activate it using dtmm.conf.set_thread_pool(True).
+* Support for pyfftw. You can enable it by calling :func:`dtmm.conf.set_fftlib` with 'pyfftw' as an argument.
+* New RangeSlider for condenser aperture setting, allowing you to set annular aperture in matplotlib figure (matplotlib 3.4 only).
+* Added an option to specify annular aperture in illumination_data and in the viewer's aperture atrribute.
 
 Fixes
 /////
 
+* Fixes broken CustomSlider, which stopped working in matplotlib 3.4.
 * In mode grouping (When working with diffraction > 1) the effective beam parameter is now more accurately determined. The results using low diffraction e.g 2,3,4 are now more accurate.
 * When working with single precision, atol and rtol values are now less strict when checking for real eigenvector output in eps2epsva function.
 * Cached functions now support list argument.
 * When using numpy for fft and in single precision, ouput of fft2 is checked to be of correct type ("complex64"). In previous version this check was not made, resulting in a possible calculation error if the underlying fft2 implementation in numpy chose "complex128" as an otput.
+
+Changes
+///////
+
+* In previous versions, the :func:set_nthreads changed the number of fft threads and activated the thread pool. Now it changes number of threads used both for fft and numba computation, but it does not activate the thread pool. You must explicitly call dtmm.conf.set_thread_pool(True).
+* Drops support for older versions of numba. Minimum version of numba is now 0.45.
 
 V0.6.1 (Nov 10 2020)
 ++++++++++++++++++++
