@@ -33,6 +33,8 @@ Parameter :math:`\beta` is a fundamental parameter in transfer matrix method. Th
 Optical Data
 ++++++++++++
 
+Nondispersive model
+-------------------
 
 .. doctest::
 
@@ -127,6 +129,28 @@ We can plot the director around the center (around the point defect) of the drop
 
    where :math:`\epsilon_{m}` is the mean value of dielectric tensor elements and :math:`\epsilon_{a} = \epsilon_{3}-\epsilon_{1}` is the anisotropy. 
 
+
+Dispersive model
+----------------
+
+If you want to simulate wavelength dispersion, epsv must no longer be a constant array, but you must define it to be a callable. For each wavelength, the algorithm computes the epsv  array from the provided callable. For instance, to use Cauchy approximation with two coefficients, there is a helper object to create such callable:
+
+   >>> epsc = EpsilonCauchy((NLAYERS,HEIGHT,WIDTH), n = 2)
+   >>> epsc.coefficients[...,0] = (material_eps)**0.5  # a term, just set to refractive index
+   >>> epsc.coefficients[...,0:2,1] = 0.005*(material_eps[...,0:2])**0.5   # b term ordinary
+   >>> epsc.coefficients[...,2,1] = 0.005*(material_eps[...,2])**0.5  # b term extraordinary
+
+Now you can compute the epsilon tensor eigenvalues by calling the callable with the wavelength in 
+nanometers as an argument, e.g.::
+
+   >>> material_eps = epsc(550)
+
+To use the dispersive material in computations, you must pass the following optical data tuple to the tranfer_field function::
+
+   >>> optical_data = thickness, epsc, material_angles
+
+Note that you may create your own callable for material_eps, but the callable must return a valid numpy array describing the epsilon tensor eigenvalues that is compatible with material_angles matrix and the thickness array.
+ 
 .. _field-waves:
 
 Field Data

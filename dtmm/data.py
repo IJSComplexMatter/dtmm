@@ -20,6 +20,7 @@ Conversion functions
 * :func:`.uniaxial_order` creates uniaxial tensor from a biaxial eigenvalues.
 * :func:`.eig_symmetry` creates effective tensor of given symmetry.
 * :func:`.effective_data` computes effective (mean layers) 1D data from 3D data.
+* :func:`.sellmeier2eps` computes epsilon from sellmeier coefficients.
 
 IO functions
 ------------
@@ -42,8 +43,6 @@ Data creation
 * :func:`.rot90_director` rotates director by 90 degrees
 * :func:`.rotate_director` rotates data by any angle
 """
-
-from __future__ import absolute_import, print_function, division
 
 import numpy as np
 import numba
@@ -427,9 +426,9 @@ def Q2eps(tensor, no = 1.5, ne = 1.6,scale_factor = 1., out = None):
         A 4D array describing the Q tensor. If provided as a matrix, rhe elemnents are
         Q[0,0], Q[1,1], Q[2,2], Q[0,1], Q[0,2], Q[1,2]
     no : float
-        Ordinary refractive index
+        Ordinary refractive index when S = 1/scale_factor.
     ne : float
-        Extraordinary refractive index 
+        Extraordinary refractive index when S = 1/scale_factor.
     scale_factor : float
         The order parameter S obtained from the Q tensor is scaled by this factor. 
         Optical anisotropy is then `epsa = S/scale_factor * (epse - epso)`.
@@ -520,8 +519,8 @@ def epsva2eps(epsv,epsa):
     r = rotation_matrix(epsa)
     return rotate_diagonal_tensor(r,epsv)
 
-        
-def validate_optical_data(data, homogeneous = False):
+
+def validate_optical_data(data, homogeneous = False, wavelength = None):
     """Validates optical data.
     
     This function inspects validity of the optical data, and makes proper data
@@ -534,6 +533,9 @@ def validate_optical_data(data, homogeneous = False):
         A valid optical data tuple.
     homogeneous : bool, optional
         Whether data is for a homogenous layer. (Inhomogeneous by defult)
+    wavelength : float
+        Wavelength in nanometers at which to compute epsilon, in case epsv is 
+        a callable function.
     
     Returns
     -------
@@ -547,6 +549,12 @@ def validate_optical_data(data, homogeneous = False):
     elif thickness.ndim != 1:
         raise ValueError("Thickess dimension should be 1.")
     n = len(thickness)
+    
+    if is_callable(material):
+        #if material is callable, obtain eps values by calling the function
+        if wavelength is None:
+            raise ValueError("Epsilon is a callable. You must provide wavelength! Use split_wavelength = True.")
+        material = material(wavelength)    
     material = np.asarray(material)
     if np.issubdtype(material.dtype, np.complexfloating):
         material = np.asarray(material, dtype = CDTYPE)
@@ -556,6 +564,7 @@ def validate_optical_data(data, homogeneous = False):
         material = np.broadcast_to(material, (n,)+material.shape)# np.asarray([material for i in range(n)], dtype = material.dtype)
     if len(material) != n:
         raise ValueError("Material length should match thickness length")
+
     if (material.ndim != 2 and homogeneous) or (material.ndim != 4 and not homogeneous):
         raise ValueError("Invalid dimensions of the material.")
 
@@ -947,6 +956,84 @@ def refind2eps(refind):
     """Converts refractive index to epsilon"""
     return refind**2
 
+_SELLMEIER_DECL = [(NF32DTYPE[:],NF32DTYPE[:],NF32DTYPE[:]), (NF64DTYPE[:],NF64DTYPE[:],NFDTYPE[:]),(NC64DTYPE[:],NF32DTYPE[:],NC64DTYPE[:]), (NC128DTYPE[:],NF64DTYPE[:],NCDTYPE[:])]
+
+@numba.guvectorize(_SELLMEIER_DECL, "(n),()->()", cache = NUMBA_CACHE)
+def sellmeier2eps(coeff, wavelength, out):
+    """Converts Sellmeier coefficents to epsilon
+    
+    Sellmeier formula is:
+    
+    eps = A + \sum_i B_i * w**2 / (w**2 - C_i)
+    
+    where A = coeff[0], B_1 = coeff[1], C_1 = coeff[2], ...
+    and w is wavelength in microns. 
+    
+    Input coefficients array must be of odd length. How many elements (n) are there
+    in the teries expansion of the Sellmeier formula depends on the length of
+    the input coefficients n = (len(coeff)-1)//2
+    """
+    #number of sums in sellmeier formula
+    n = (len(coeff)-1)//2
+    out[0] = coeff[0] # A term
+    for i in range(n):
+        out[0] += (coeff[1 + i*2] * wavelength[0]**2)/(wavelength[0]**2 - coeff[2 + i*2])    
+
+@numba.guvectorize(_SELLMEIER_DECL, "(n),()->()", cache = NUMBA_CACHE)
+def cauchy2eps(coeff, wavelength, out):
+    """Converts Cauchy coefficents to epsilon
+    
+    Cauchy formula is
+    
+    n = A + \sum_i B_i / (w**(2*i)
+    
+    where sumation is from i = 1 to imax = len(coeff)-1
+    A = coeff[0], B_1 = coeff[1], B_2 = coeff[2], ...
+    and w is wavelength in microns. 
+    """
+    #number of sums in sellmeier formula
+    n = (len(coeff))
+    out[0] = coeff[0] # A term
+    for i in range(1,n):
+        out[0] += (coeff[i] / wavelength[0]**(2*i))  
+    out[0] = out[0]**2
+
+class EpsilonCauchy(object):
+    """A callable epsilon tensor described with Cauchy coefficients"""
+    def __init__(self, shape, n = 1, values = None):
+        n = int(n)
+        if n < 1:
+            raise ValueError("n must be greater than 1")
+        self.coefficients = np.empty(shape + (3,n),FDTYPE)
+        if values is None:
+            self.coefficients[...,0] = 1.
+            self.coefficients[...,1:] = 0.
+        else:
+            self.coefficients[...] = values
+            
+    def __call__(self, wavelength):
+        return cauchy2eps(self.coefficients,wavelength/1000)    
+    
+class EpsilonSellmeier(object):
+    """A callable epsilon tensor described with Sellmeier coefficients"""
+    def __init__(self, shape, n = 1, values = None):
+        n = int(n)
+        if n < 1:
+            raise ValueError("n must be greater than 1")
+        self.coefficients = np.empty(shape + (3,n*2+1),FDTYPE)
+        if values is None:
+            self.coefficients[...,0] = 1.
+            self.coefficients[...,1:] = 0.
+        else:
+            self.coefficients[...] = values
+            
+    def __call__(self, wavelength):
+        return sellmeier2eps(self.coefficients,wavelength/1000)       
+
+def is_callable(func):
+    """Determines if func is a callable function or not"""
+    return True if hasattr(func, "__call__") else False
+
 _EPS_DECL = [(NF32DTYPE,NF32DTYPE[:],NF32DTYPE[:]), (NF64DTYPE, NF64DTYPE[:],NFDTYPE[:]),
              (NF32DTYPE,NC64DTYPE[:],NC64DTYPE[:]), (NF64DTYPE, NC128DTYPE[:],NCDTYPE[:])
              ]
@@ -1281,7 +1368,7 @@ def matrix2tensor(matrix, out = None):
     out[...,4] = matrix[...,0,2]
     out[...,5] = matrix[...,1,2]
     return out
-    
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod()

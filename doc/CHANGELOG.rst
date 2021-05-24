@@ -1,8 +1,8 @@
 Release Notes
 -------------
 
-V0.7.0 (In development)
-+++++++++++++++++++++++
+V0.7.0 (May 23 2021)
+++++++++++++++++++++
 
 This release improves multi-threading computation speed and adds new features.
 It add support for pyfftw and matplotlib>=3.4.

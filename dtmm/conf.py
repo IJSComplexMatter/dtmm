@@ -539,12 +539,6 @@ def set_verbose(level):
     out = DTMMConfig.verbose
     DTMMConfig.verbose = max(0,int(level))
     return out
-    
-def set_nthreads(num):
-    """Sets number of threads used by fft functions."""
-    import warnings
-    warnings.warn("deprecated, use set_fft_threads instead", DeprecationWarning)
-    return set_fft_threads(num)
    
 def set_cache(level):
     """Sets compute cache level."""
@@ -644,6 +638,14 @@ def set_numba_threads(n):
     DTMMConfig.numba_threads = int(n)
     return out
 
+def set_nthreads(num):
+    """Sets number of threads used by numba and fft functions."""
+    out1 = set_numba_threads(num)
+    out2 = set_fft_threads(num)
+    if out1 == out2:
+        return out1
+     #if not the same no return... 
+
 try:
     set_fft_threads(_readconfig(config.getint, "fft", "nthreads", detect_number_of_cores()))
 except:
@@ -656,6 +658,8 @@ except:
     import warnings
     #in case something wents wrong, we do not want dtmm to fail loading.
     warnings.warn("Could not set numba threads", UserWarning)
+
+
 
 NF32DTYPE = numba.float32
 NF64DTYPE = numba.float64

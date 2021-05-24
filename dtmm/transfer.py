@@ -7,7 +7,7 @@ from __future__ import absolute_import, print_function, division
 import time
 from dtmm.conf import DTMMConfig, SMOOTH, FDTYPE, get_default_config_option
 from dtmm.wave import k0
-from dtmm.data import uniaxial_order, refind2eps, validate_optical_data
+from dtmm.data import uniaxial_order, refind2eps, validate_optical_data, is_callable
 from dtmm.tmm import E2H_mat, projection_mat, alphaf,  fvec2avec, f_iso
 from dtmm.tmm3d import transfer3d
 from dtmm.linalg import  dotmf, dotmv
@@ -17,7 +17,7 @@ from dtmm.field import field2intensity, field2betaphi, field2fvec
 from dtmm.fft import fft2, ifft2
 from dtmm.jones import jonesvec, polarizer
 from dtmm.jones4 import ray_jonesmat4x4
-from dtmm.data import effective_data
+from dtmm.data import effective_data, sellmeier2eps
 import numpy as np
 from dtmm.denoise import denoise_fftfield, denoise_field
 
@@ -28,6 +28,7 @@ from dtmm.propagate_2x2 import propagate_2x2_full, propagate_2x2_effective_1,pro
 #norm flags
 DTMM_NORM_FFT = 1<<0 #normalize in fft mode
 DTMM_NORM_REF = 1<<1 #normalize using reference field
+    
 
 def _isotropic_effective_data(data):
     d, material, angles = data
@@ -505,15 +506,16 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = None
             if verbose_level >0:
                 print("Wavelength {}/{}".format(i+1,nwavelengths))
             field_data = f,w,pixelsize
-            o = _transfer_field(field_data, optical_data, beta, phi, nin, nout,  
+            _optical_data = validate_optical_data(optical_data, wavelength = w)
+            o = _transfer_field(field_data, _optical_data, beta, phi, nin, nout,  
                 npass , nstep, diffraction, reflection , method, 
                 multiray, norm, betamax, smooth, split_rays,
                 split_diffraction, eff_data, ret_bulk, o) 
             out[i] = o
         out = tuple(out)
     else:
-    
-        out = _transfer_field(field_data, optical_data, beta, phi, nin, nout,  
+        _optical_data = validate_optical_data(optical_data, wavelength = wavelengths)
+        out = _transfer_field(field_data, _optical_data, beta, phi, nin, nout,  
                npass , nstep, diffraction, reflection , method, 
                multiray, norm, betamax, smooth, split_rays,
                split_diffraction ,
