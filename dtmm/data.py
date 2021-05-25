@@ -520,7 +520,7 @@ def epsva2eps(epsv,epsa):
     return rotate_diagonal_tensor(r,epsv)
         
 
-def validate_optical_data(data, shape = None, wavelength = None, broadcast = True, copy = True, homogeneous = None):
+def validate_optical_data(data, shape = None, wavelength = None, broadcast = False, copy = True, homogeneous = None):
     """Validates optical data.
     
     This function inspects validity of the optical data, and makes proper data
@@ -552,7 +552,7 @@ def validate_optical_data(data, shape = None, wavelength = None, broadcast = Tru
     if isinstance(data, list):
         if shape is None:
             raise ValueError("For heterogeneous data, you must provide the `shape` argument.")
-        return [validate_optical_data(d, shape, wavelength) for d in data]
+        return [validate_optical_data(d, shape, wavelength, broadcast, copy) for d in data]
     
     thickness, material, angles = data
     

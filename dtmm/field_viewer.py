@@ -1433,11 +1433,10 @@ class BulkViewer(FieldViewer):
         self._focus = i
         # to trigger rspecter ecalcuation
         self._specter = None
-        # we have to remove diffraction to trigger new layer selectioand data recalculation
+        # we have to remove diffraction to trigger new layer selection and data recalculation
         self._dmat = None
 
 
-        
     @property
     def masked_field(self):
         if self.aperture_mask is not None:
