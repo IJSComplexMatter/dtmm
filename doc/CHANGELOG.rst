@@ -1,7 +1,7 @@
 Release Notes
 -------------
 
-V0.7.0 (May 23 2021)
+V0.7.0 (May 25 2021)
 ++++++++++++++++++++
 
 This release improves multi-threading computation speed and adds several new features.

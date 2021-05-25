@@ -34,6 +34,7 @@ Highlights
 - Computes **transmission and reflection** from the material.
 - Computes **interference and diffraction** effects.
 - **Biaxial, uniaxial and isotropic** material supported.
+- Support for **dispersive material**: Cauchy or Sellmeier data.
 - **Fast iterative algorithm** for 3D data - with tunable accuracy.
 - Non-iterative algorithm for 2D data - equivalent to the iterative algorithm with max accuracy settings. 
 - Exact calculation for homogeneous layers (1D). 
@@ -58,7 +59,6 @@ Status and limitations
 ``dtmm`` was developed mainly for light propagation through liquid crystals, but it can also be used for simple 1D simulations using Jones calculus, or transfer matrix method. See the tutorial section for details. There are still some unresolved issues and limitations.  These limitations are likely to be improved/implemented in the future (**Contributions are welcome**):
  
 - Limited color rendering functions and settings - no white balance correction of computed images.
-- Optimized for non-dispersive material. You have to split the calculation over different wavelengths and provide the optical data manually to simulate dispersive material. 
 - Regular-spaced mesh only with equal spacing in x and y directions.  
 
 .. note::

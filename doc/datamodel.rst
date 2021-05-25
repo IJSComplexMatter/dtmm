@@ -267,3 +267,18 @@ For 1D and 2D simulations with a non-iterative algorithm we use field vector ins
    >>> field.shape
    (3, 2, 4, 128, 128)
 
+Jones field
++++++++++++
+
+For 2x2 methods, the computation is done using jones fields, which is Electric field-only representation of the electro-magnetic field. To complete the transform you need to add
+additional info about the material and field. One can convert the field data to jones field by::
+
+   >>> jones = dtmm.field.field2jones(field, beta = 0, phi = 0, epsv = (1,1,1))  
+   >>> jones.shape
+   (3, 2, 2, 128, 128)
+   
+Above transform assumes that field has a well-defined wave vector and is propagating in vacuum along z direction. For wide beams of light, the assumption of a well-defined wave vector is valid, but for narrow beams, or for beams with high frequency components, you should instead call the function without the beta and phi terms and provide the wave numbers, e.g.::
+
+   >>> jones = dtmm.field.field2jones(field, dtmm.wave.k0(wavelengths, pixelsize), epsv = (1,1,1))  
+
+The above transform takes the modes of the field and takes the forward propagating part (you can also compute back-propagating part using `mode = -1` argument) of the field, then it takes the Ex and Ey components of the field and stores them into the output array. Note that the resulting jones field is not a true Jones vector (except for beta = 0), because the Electric field components of the jones field are represented in the laboratory coordinate frame. The light intensity is not simply :math:`|jones|^2`. You should convert back to EM field, if you plan to compute anything with jones field.

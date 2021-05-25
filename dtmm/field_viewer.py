@@ -103,7 +103,7 @@ def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = N
     Returns
     -------
     pom_field : ndarray
-        Computed field od
+        Computed field.
         
     Examples
     --------

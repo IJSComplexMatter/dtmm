@@ -20,7 +20,9 @@ Conversion functions
 * :func:`.uniaxial_order` creates uniaxial tensor from a biaxial eigenvalues.
 * :func:`.eig_symmetry` creates effective tensor of given symmetry.
 * :func:`.effective_block` computes effective (mean layers) 1D data from 3D data.
-* :func:`.sellmeier2eps` computes epsilon from sellmeier coefficients.
+* :func:`.sellmeier2eps` computes epsilon from Sellmeier coefficients.
+* :func:`.cauchy2eps` computes epsilon from Cauchy coefficients.
+
 
 IO functions
 ------------
@@ -338,8 +340,8 @@ def Q2data(tensor, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 
     
     Returns
     -------
-    optical_data : tuple
-        A valid optical data tuple.
+    optical_data : list
+        A valid optical data list.
     """
     tensor = np.asarray(tensor)
     eps = Q2eps(tensor, no = no, ne = ne,scale_factor = scale_factor)
@@ -358,7 +360,7 @@ def Q2data(tensor, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 
         
     if thickness is None:
         thickness = np.ones(shape = (material.shape[0],))
-    return  thickness, material, epsa
+    return  [(thickness, material, epsa)]
 
 
 def director2Q(director, order = 1.):
@@ -646,7 +648,7 @@ def validate_optical_data(data, shape = None, wavelength = None, broadcast = Fal
         return [validate_optical_block(d, shape, wavelength, broadcast, copy) for d in data]
     else:
         import warnings
-        warnings.warn("A single-block optical data must be a list of length 1. I am convertingoptical data to list. In the future, exception will be raised", DeprecationWarning)
+        warnings.warn("A single-block optical data must be a list of length 1. Converting optical data to list. In the future, exception will be raised.", DeprecationWarning)
         return validate_optical_data([data], shape, wavelength, broadcast, copy)
 
 def raw2director(data, order = "zyxn", nvec = "xyz"):
