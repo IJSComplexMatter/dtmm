@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 
 wavelengths, tcmf = dc.load_tcmf(retx = True)
 
-plt.plot(wavelengths,tcmf[...,0], label = "X")
-plt.plot(wavelengths,tcmf[...,1], label = "Y")
-plt.plot(wavelengths,tcmf[...,2], label = "Z")
+plt.plot(wavelengths,tcmf[...,0], "r-",label = "X")
+plt.plot(wavelengths,tcmf[...,1], "g-",label = "Y")
+plt.plot(wavelengths,tcmf[...,2], "b-",label = "Z")
 
 plt.xlabel("Wavelength [nm]")
 
