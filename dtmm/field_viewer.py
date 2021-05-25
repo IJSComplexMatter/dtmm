@@ -60,11 +60,11 @@ SAMPLE_LABELS = ("-90 ","-45 "," 0  ","+45 ", "+90 ")
 SAMPLE_NAMES = tuple((s.strip() for s in SAMPLE_LABELS))
 POLARIZER_LABELS = (" H  "," V  ","LCP ","RCP ","none")
 POLARIZER_NAMES = tuple((s.strip().lower() for s in POLARIZER_LABELS))
-RETARDER_LABELS = ("$\lambda/4$", "$\lambda/2$","$\lambda$","none")
+RETARDER_LABELS = (r"$\lambda/4$", r"$\lambda/2$",r"$\lambda$","none")
 RETARDER_NAMES = ("lambda/4", "lambda/2", "lambda", "none")
 
 def _is_full_lambda_plate(name):
-    return True if name.strip().lower() in ("$\lambda$", "lambda") else False
+    return True if name.strip().lower() in (r"$\lambda$", "lambda") else False
     
 
 def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = None, input_fft = False, output_fft = False, out = None):
@@ -524,9 +524,9 @@ def _lambda_jmat(wavelengths, central = 530):
     return jones.full_waveplate(np.pi/4, central, wavelengths)
 
 def _jmat_from_name(name):
-    if name in ("qplate","$\lambda/4$","lambda/4"):
+    if name in ("qplate",r"$\lambda/4$","lambda/4"):
         return jones.quarter_waveplate(np.pi/4)
-    if name in ("hplate","$\lambda/2$","lambda/2"):
+    if name in ("hplate",r"$\lambda/2$","lambda/2"):
         return jones.half_waveplate(np.pi/4)
     if name == "none":
         return None
