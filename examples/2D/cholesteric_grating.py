@@ -63,11 +63,11 @@ field_data_in = dtmm.illumination_data((HEIGHT, 1), WAVELENGTHS, jones = None,
                       beta= beta, phi = phi, intensity = intensity, pixelsize = PIXELSIZE, n = nin, betamax = 0.8) 
 field_data_in2d = field_data_in[0][...,0],field_data_in[1],field_data_in[2]
 
-optical_data2d = (d,epsv,epsa)
+optical_data2d = [(d,epsv,epsa)]
 
 f,w,p = field_data_in2d 
 shape = f.shape[-1]
-d,epsv,epsa = optical_data2d
+
 k0 = wave.k0(w, p)
 
 mask, fmode_in = field.field2modes1(f,k0)
