@@ -7,7 +7,7 @@ dtmm.conf.set_verbose(2)
 #: pixel size in nm
 PIXELSIZE = 200
 #: compute box dimensions
-NLAYERS, HEIGHT, WIDTH = 60,96,96
+NLAYERS, HEIGHT, WIDTH = 60, 96, 96
 #: illumination wavelengths in nm
 WAVELENGTHS = np.linspace(380,780,9)
 #: create some experimental data (stack)

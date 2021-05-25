@@ -7,7 +7,7 @@ from __future__ import absolute_import, print_function, division
 import time
 from dtmm.conf import DTMMConfig, SMOOTH, FDTYPE, get_default_config_option
 from dtmm.wave import k0
-from dtmm.data import uniaxial_order, refind2eps, validate_optical_data, is_callable
+from dtmm.data import uniaxial_order, refind2eps, validate_optical_data, is_callable, validate_optical_block
 from dtmm.tmm import E2H_mat, projection_mat, alphaf,  fvec2avec, f_iso
 from dtmm.tmm3d import transfer3d
 from dtmm.linalg import  dotmf, dotmv
@@ -38,7 +38,7 @@ def _isotropic_effective_data(data):
     epseff = np.broadcast_to(epseff,(n,3)).copy()#better to make copy.. to make it c contiguous
     aeff = np.array((0.,0.,0.))
     aeff = np.broadcast_to(aeff,(n,3)).copy()#better to make copy.. to make it c contiguous
-    return validate_optical_data((d,epseff,aeff), copy = True)
+    return [validate_optical_block((d,epseff,aeff))]
 
 def _validate_betaphi(beta,phi, extendeddim = 0):
     if beta is None or phi is None:
@@ -737,7 +737,7 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
             _betamax = betamax
         
         for pindex, j in enumerate(indices):
-            print_progress(pindex,n,level = verbose_level, suffix = suffix, prefix = prefix) 
+            print_progress(pindex,n, suffix = suffix, prefix = prefix) 
             
             nstep, (thickness,ev,ea) = layers[j]
             output_layer = (thickness*direction,ev,ea)
@@ -791,7 +791,7 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
             _reuse = True
         if ref is not None:
             ref[...,1::2,:,:] = jones2H(ref2,ks,betamax = _betamax, n = nout)
-        print_progress(n,n,level = verbose_level, suffix = suffix, prefix = prefix) 
+        print_progress(n,n, suffix = suffix, prefix = prefix) 
         
         indices.reverse()
         
@@ -926,7 +926,7 @@ def _layers_list(optical_block, eff_data, nin, nout, nstep, shape, is_first = Fa
             layers.append((1,(0., np.broadcast_to(refind2eps([nout]*3), epsv[0].shape), np.broadcast_to(np.array((0.,0.,0.), dtype = FDTYPE), epsa[0].shape))))
 
         try:
-            d_eff, epsv_eff, epsa_eff = validate_optical_data(eff_data, shape = (1,1), copy = True)        
+            d_eff, epsv_eff, epsa_eff = validate_optical_block(eff_data, shape = (1,1))        
         except (TypeError, ValueError):
             if eff_data is None:
                 d_eff, epsv_eff, epsa_eff = _isotropic_effective_data(optical_block)
@@ -948,7 +948,7 @@ def _layers_list(optical_block, eff_data, nin, nout, nstep, shape, is_first = Fa
             layers.append((1,(0., np.broadcast_to(refind2eps([nout,nout,nout,0,0,0]), epsv[0].shape), None)))
 
         try:
-            d_eff, epsv_eff, epsa_eff = validate_optical_data(eff_data, shape = (1,1), copy = True)        
+            d_eff, epsv_eff, epsa_eff = validate_optical_block(eff_data, shape = (1,1))        
         except (TypeError,ValueError):
             if eff_data is None:
                 d_eff, epsv_eff, epsa_eff = _isotropic_effective_data(optical_block)
@@ -970,7 +970,6 @@ def _create_layers(optical_data, eff_data, nin, nout, nstep, shape):
         return True if i == len(optical_data)-1 else False
     
     if isinstance(optical_data, list):
-        validate_optical_data(optical_data, shape = shape, copy = False) 
         if isinstance(eff_data, str) or isinstance(eff_data, int):
             # one identifier for all layers
             builder =(_layers_list(d, eff_data, nin, nout, nstep, shape, is_first(i), is_last(i)) for i,d in enumerate(optical_data))
@@ -1103,7 +1102,7 @@ def transfer_2x2(field_data, optical_data, beta = None,
         _nstep, (thickness,ev,ea)  = layers[indices[0]]
 
         for pindex, j in enumerate(indices):
-            print_progress(pindex,n,level = verbose_level, suffix = suffix, prefix = prefix) 
+            print_progress(pindex,n,suffix = suffix, prefix = prefix) 
             
             jin = j+(1-direction)//2
             jout = j+(1+direction)//2
@@ -1161,7 +1160,7 @@ def transfer_2x2(field_data, optical_data, beta = None,
                     nsteps = 1,  reflection = reflection, mode = direction,
                     betamax = betamax, refl = refl[j], bulk = bulk)
 
-        print_progress(n,n,level = verbose_level, suffix = suffix, prefix = prefix) 
+        print_progress(n,n,suffix = suffix, prefix = prefix) 
         
         indices.reverse()
 

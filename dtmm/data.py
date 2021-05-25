@@ -520,30 +520,35 @@ def epsva2eps(epsv,epsa):
     return rotate_diagonal_tensor(r,epsv)
         
 
-def validate_optical_data(data, shape = None, wavelength = None, broadcast = False, copy = True, homogeneous = None):
-    """Validates optical data.
+def validate_optical_block(data, shape = None, wavelength = None, broadcast = False, copy = False, homogeneous = None):
+    """Validates optical block.
     
-    This function inspects validity of the optical data, and makes proper data
-    conversions to match the optical data format. In case data is not valid and 
-    it cannot be converted to a valid data it raises an exception (ValueError). 
+    This function inspects validity of the optical block data, and makes proper data
+    conversions to match the optical block format. In case data is not valid and 
+    it cannot be converted to a valid block data it raises an exception (ValueError). 
     
     Parameters
     ----------
     data : tuple or list of tuples
-        A valid optical data tuple, or a list of valid optica data tuples.
-    homogeneous : bool, optional
-        Whether data is for a homogenous layer. (Inhomogeneous by defult)
+        An optical data: either a single optical block tuple, or a list of block tuples.
+    shape : (int,int)
+        If defined input epsilon tensor shape (eps.shape[:-1]) is checked to 
+        be broadcastable with the given shape.
     wavelength : float
         Wavelength in nanometers at which to compute epsilon, in case epsv is 
         a callable function.
-    shape : (int,int), optional
-        If defined input epsilon tensor shape (data.shape[:-1]) is checked to 
-        be broadcastable with the given shape.
+    broadcast : bool, optional
+        Ehether to actually perform broadcasting of arrays. If set to False, only
+        tests whether arrays can broadcast to a common shape, but no broadcasting
+        is made. 
+    copy: bool, optional
+        Whether to copy data. If not set, (broadcasted) view of the input arrays
+        is returned.
         
     Returns
     -------
     data : tuple
-        Validated optical data tuple. 
+        Validated optical block tuple. 
     """
     if homogeneous is not None:
         import warnings
@@ -605,7 +610,45 @@ def validate_optical_data(data, shape = None, wavelength = None, broadcast = Fal
     else:
         return thickness, material, angles
 
+def validate_optical_data(data, shape = None, wavelength = None, broadcast = False, copy = False, homogeneous = None):
+    """Validates optical data.
     
+    This function inspects validity of the optical data, and makes proper data
+    conversions to match the optical data format. In case data is not valid and 
+    it cannot be converted to a valid optical data it raises an exception (ValueError). 
+    
+    Parameters
+    ----------
+    data : tuple or list of tuples
+        An optical data: either a single optical block tuple, or a list of block tuples.
+    shape : (int,int)
+        Each block's epsilon tensor shape (eps.shape[:-1]) is checked to 
+        be broadcastable with the given shape.
+    wavelength : float
+        Wavelength in nanometers at which to compute epsilon, in case epsv is 
+        a callable function.
+    broadcast : bool, optional
+        Ehether to actually perform broadcasting of arrays. If set to False, only
+        tests whether arrays can broadcast to a common shape, but no broadcasting
+        is made. 
+    copy: bool, optional
+        Whether to copy data. If not set, (broadcasted) view of the input arrays
+        is returned.
+        
+    Returns
+    -------
+    data : list of tuples
+        Validated optical data list. 
+    """
+    if isinstance(data, list):
+        if shape is None:
+            raise ValueError("For heterogeneous data, you must provide the `shape` argument.")
+        return [validate_optical_block(d, shape, wavelength, broadcast, copy) for d in data]
+    else:
+        import warnings
+        warnings.warn("A single-block optical data must be a list of length 1. I am convertingoptical data to list. In the future, exception will be raised", DeprecationWarning)
+        return validate_optical_data([data], shape, wavelength, broadcast, copy)
+
 def raw2director(data, order = "zyxn", nvec = "xyz"):
     """Converts raw data to director array.
     

@@ -12,6 +12,8 @@ import numpy as np
 from functools import wraps
 import os, warnings, shutil
 
+warnings.simplefilter('always', DeprecationWarning)
+
 try:
     from configparser import ConfigParser
 except:
@@ -23,6 +25,7 @@ try:
 except:
     #python 2.7
     from funcsigs import signature
+    
     
     
 #These will be defined later at runtime... here we hold reference to disable warnings in autoapi generation
