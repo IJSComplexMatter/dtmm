@@ -12,7 +12,7 @@ NLAYERS, HEIGHT, WIDTH = 60, 96, 96
 WAVELENGTHS = np.linspace(380,780,9)
 #: create some experimental data (stack)
 optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
-          radius = 30, profile = "r", no = 3.5, ne = 3.6, nhost = 3.5)
+          radius = 30, profile = "r", no = 3.5, ne = 3.6, nhost = 3.5)[0]
 
 betamax = np.inf #no need to cutoff in 2x2 mode, in the 4x4 mode, filtering is done automatically
 NA = 0.9 #NA of the microscope objective... also this filters out high frequency modes

@@ -8,7 +8,7 @@ The rest of the elements are the computed field after
 passing each of the layers (depending o the direction of propagation - number of pass) 
 
 With 4x4 method to view the bulk field you need to use even number of passes 
-(or npass = 1) with odd number of passes you will se the residual field propagation.
+(or npass = 1) with odd number of passes you will see the residual field propagation.
 
 """
 
@@ -24,9 +24,6 @@ WAVELENGTHS = np.linspace(380,780,9)
 #: create some experimental data (stack)
 optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
           radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
-#optical_data[0][...]=1
-#optical_data[1][0,...]=1
-#optical_data[1][-1,...]=1
 
 window = dtmm.aperture((96,96),0.95,0.)
 window = None
@@ -35,7 +32,7 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, beta = 0.,
                                             pixelsize = PIXELSIZE, window = window) 
 
 f,w,p  = dtmm.transfer_field(field_data_in, optical_data,  beta = 0., phi = 0., betamax = 0.8,
-             method = "2x2", ret_bulk = True, npass = 4, reflection = 2, smooth = 0.1) #must be even for 4x4 method
+             method = "2x2", ret_bulk = True, npass = 4, reflection = 2, smooth = 0.1) 
 
 
 viewer_bulk = dtmm.field_viewer((f,w,p), bulk_data = True)

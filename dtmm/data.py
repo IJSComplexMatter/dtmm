@@ -19,7 +19,7 @@ Conversion functions
 * :func:`.refind2eps` convert refractive index eigenvalues to epsilon eigenvalues.
 * :func:`.uniaxial_order` creates uniaxial tensor from a biaxial eigenvalues.
 * :func:`.eig_symmetry` creates effective tensor of given symmetry.
-* :func:`.effective_data` computes effective (mean layers) 1D data from 3D data.
+* :func:`.effective_block` computes effective (mean layers) 1D data from 3D data.
 * :func:`.sellmeier2eps` computes epsilon from sellmeier coefficients.
 
 IO functions
@@ -305,7 +305,7 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_
         
     if thickness is None:
         thickness = np.ones(shape = (material.shape[0],))
-    return  thickness, material, director2angles(director)
+    return [(thickness, material, director2angles(director))]
 
 def Q2data(tensor, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 1., 
            biaxial = False, thickness = None):
@@ -518,9 +518,9 @@ def epsva2eps(epsv,epsa):
     """
     r = rotation_matrix(epsa)
     return rotate_diagonal_tensor(r,epsv)
+        
 
-
-def validate_optical_data(data, homogeneous = False, wavelength = None):
+def validate_optical_data(data, shape = None, wavelength = None, broadcast = True, copy = True, homogeneous = None):
     """Validates optical data.
     
     This function inspects validity of the optical data, and makes proper data
@@ -529,58 +529,82 @@ def validate_optical_data(data, homogeneous = False, wavelength = None):
     
     Parameters
     ----------
-    data : tuple of optical data
-        A valid optical data tuple.
+    data : tuple or list of tuples
+        A valid optical data tuple, or a list of valid optica data tuples.
     homogeneous : bool, optional
         Whether data is for a homogenous layer. (Inhomogeneous by defult)
     wavelength : float
         Wavelength in nanometers at which to compute epsilon, in case epsv is 
         a callable function.
-    
+    shape : (int,int), optional
+        If defined input epsilon tensor shape (data.shape[:-1]) is checked to 
+        be broadcastable with the given shape.
+        
     Returns
     -------
     data : tuple
         Validated optical data tuple. 
     """
+    if homogeneous is not None:
+        import warnings
+        warnings.warn("homogeneous argument is not used any more and it will be removed in future versions", DeprecationWarning)
+    
+    if isinstance(data, list):
+        if shape is None:
+            raise ValueError("For heterogeneous data, you must provide the `shape` argument.")
+        return [validate_optical_data(d, shape, wavelength) for d in data]
+    
     thickness, material, angles = data
-    thickness = np.asarray(thickness, dtype = FDTYPE)
-    if thickness.ndim == 0:
-        thickness = thickness[None] #make it 1D
-    elif thickness.ndim != 1:
-        raise ValueError("Thickess dimension should be 1.")
-    n = len(thickness)
     
     if is_callable(material):
         #if material is callable, obtain eps values by calling the function
         if wavelength is None:
             raise ValueError("Epsilon is a callable. You must provide wavelength! Use split_wavelength = True.")
-        material = material(wavelength)    
+        material = material(wavelength)   
+    
+    thickness = np.asarray(thickness, dtype = FDTYPE)
     material = np.asarray(material)
     if np.issubdtype(material.dtype, np.complexfloating):
         material = np.asarray(material, dtype = CDTYPE)
     else:
         material = np.asarray(material, dtype = FDTYPE)
-    if (material.ndim == 1 and homogeneous) or (material.ndim==3 and not homogeneous):
-        material = np.broadcast_to(material, (n,)+material.shape)# np.asarray([material for i in range(n)], dtype = material.dtype)
-    if len(material) != n:
-        raise ValueError("Material length should match thickness length")
-
-    if (material.ndim != 2 and homogeneous) or (material.ndim != 4 and not homogeneous):
-        raise ValueError("Invalid dimensions of the material.")
-
     angles = np.asarray(angles, dtype = FDTYPE)
-    if (angles.ndim == 1 and homogeneous) or (angles.ndim==3 and not homogeneous):
-        angles = np.broadcast_to(angles, (n,)+angles.shape)
-        #angles = np.asarray([angles for i in range(n)], dtype = angles.dtype)
-    if len(angles) != n:
-        raise ValueError("Angles length should match thickness length")
-    if (angles.ndim != 2 and homogeneous) or (angles.ndim!=4 and not homogeneous):
-        raise ValueError("Invalid dimensions of the angles.")
+    
+    if thickness.ndim == 0:
+        thickness = thickness[None] #make it 1D
+        material = material[None,...]
+        angles = angles[None,...]
+    elif thickness.ndim != 1:
+        raise ValueError("Thickess dimension should be 1.")
+        
+    n = len(thickness)
+    
+    if shape is None:
+        broadcast_shape = (n,1,1,3)
+    else:
+        height,width = shape
+        broadcast_shape = (n,height,width,3) 
+    
+    if material.ndim == 2:
+        material = material[:,None,None,:]
+    elif material.ndim == 3:
+        material = material[:,None,:,:]
+    elif material.ndim != 4:
+        raise ValueError("Invalid material dimensions.")
+    
+    material_shape = np.broadcast_shapes(material.shape, broadcast_shape)
+    
+    if broadcast:
+        material = np.broadcast_to(material, material_shape)
+    
+    angles_shape = np.broadcast_shapes(angles.shape, broadcast_shape)
+    if broadcast:
+        angles = np.broadcast_to(angles, angles_shape)
+    if copy:
+        return thickness.copy(), material.copy(), angles.copy()
+    else:
+        return thickness, material, angles
 
-    if material.shape != angles.shape:
-        raise ValueError("Incompatible shapes for angles and material")
- 
-    return thickness.copy(), material.copy(), angles.copy()
     
 def raw2director(data, order = "zyxn", nvec = "xyz"):
     """Converts raw data to director array.
@@ -1133,7 +1157,9 @@ def eig_symmetry(order, eig, out = None):
     return uniaxial_order(order ,eig, out)  
     
 MAGIC = b"dtms" #legth 4 magic number for file ID
-VERSION = b"\x01"
+
+_VERSION_X01 = b"\x01"
+VERSION = b"\x02"
 
 
 #IOs fucntions
@@ -1153,7 +1179,12 @@ def save_stack(file, optical_data):
         A valid optical data
     """    
     own_fid = False
-    d,epsv,epsa = validate_optical_data(optical_data)
+    if not isinstance(optical_data, list):
+        optical_data = [optical_data]
+    
+    #validate first, to make sure everything is OK.
+    optical_data = validate_optical_data(optical_data, broadcast = False)
+    
     try:
         if isinstance(file, str):
             if not file.endswith('.dtms'):
@@ -1164,10 +1195,11 @@ def save_stack(file, optical_data):
             f = file
         f.write(MAGIC)
         f.write(VERSION)
-        np.save(f,d)
-        np.save(f,epsv)
-        if epsa is not None:
-            np.save(f,epsa)
+        
+        for data in optical_data:
+            d,epsv,epsa = data
+            np.save(f,d)
+            np.save(f,epsv)
     finally:
         if own_fid == True:
             f.close()
@@ -1191,22 +1223,31 @@ def load_stack(file):
         if magic == MAGIC:
             if ord(f.read(1)) > ord(VERSION):
                 raise OSError("This file was created with a more recent version of dtmm. Please upgrade your dtmm package!")
-            d = np.load(f)
-            epsv = np.load(f)
-            if f.peek(1) == b"":
-                #no more data to read.. epsa is not present
-                epsa =  None
+            elif ord(f.read(1)) == ord(_VERSION_X01):
+                d = np.load(f)
+                epsv = np.load(f)
+                if f.peek(1) == b"":
+                    #no more data to read.. epsa is not present
+                    epsa =  None
+                else:
+                    epsa = np.load(f)
+                return [d, epsv, epsa]
             else:
-                epsa = np.load(f)
-            return d, epsv, epsa
+                out = []
+                while f.peek(1) != b"":
+                    d = np.load(f)
+                    epsv = np.load(f) 
+                    epsa = np.load(f) 
+                    out.append((d,epsv,epsa))
+                return out                
         else:
             raise OSError("Failed to interpret file {}".format(file))
     finally:
         if own_fid == True:
             f.close()
 
-def filter_data(optical_data, wavelength, pixelsize, betamax = 1, symmetry = "isotropic"):
-    d, epsv, epsa = optical_data
+def filter_block(optical_block, wavelength, pixelsize, betamax = 1, symmetry = "isotropic"):
+    d, epsv, epsa = optical_block
     k = k0(wavelength, pixelsize) 
     epsv, epsa = filter_epsva(epsv, epsa, k, betamax )
     if symmetry == "uniaxial":
@@ -1216,7 +1257,13 @@ def filter_data(optical_data, wavelength, pixelsize, betamax = 1, symmetry = "is
     elif symmetry != "biaxial":
         raise ValueError("Unknown symmetry.")    
     return d, epsv, epsa
-       
+
+def filter_data(optical_data, wavelength, pixelsize, betamax = 1, symmetry = "isotropic"):
+    #for legacy optical data format
+    if isinstance(optical_data, tuple):
+        optical_data = [optical_data]
+    return [filter_block(optical_block, wavelength, pixelsize, betamax, symmetry) for optical_block in optical_data]
+         
 def filter_eps(eps, k, betamax = 1):
     eps = np.moveaxis(eps,-1,-3)
     feps = fft2(eps)
@@ -1254,16 +1301,15 @@ def _parse_symmetry_argument(arg):
         except TypeError:
             return _symmetry_arg_to_int(arg)
         
-
-def effective_data(optical_data, symmetry = 0):
-    """Builds effective data from the optical_data.
+def effective_block(optical_block, symmetry = 0):
+    """Builds effective block from the optical_block.
     
     The material epsilon is averaged over the layers.
     
     Parameters
     ----------
-    optical_data : tuple
-        A valid optical_data tuple.
+    optical_block : tuple
+        A valid optical block tuple.
 
     symmetry : str, int or array 
         Either 'isotropic' or 0,  'uniaxial' or 1 or 'biaxial' or 2 .
@@ -1276,9 +1322,9 @@ def effective_data(optical_data, symmetry = 0):
     Returns
     -------
     out : tuple
-        A valid optical data tuple of the effective layers.
+        A valid optical block tuple of the effective layers.
     """
-    d, epsv,epsa = optical_data
+    d, epsv,epsa = optical_block
     #Whic axes are used for averaging averaging
     axis = list(range(len(epsv.shape)-1))
     
@@ -1311,6 +1357,34 @@ def effective_data(optical_data, symmetry = 0):
         epsa = np.asarray((epsa,)*len(d)).copy()
     
     return d, epsv, epsa
+
+def effective_data(optical_data, symmetry = 0):
+    """Builds effective data from the optical_data.
+    
+    The material epsilon is averaged over the layers.
+    
+    Parameters
+    ----------
+    optical_data : list
+        A valid optical data list .
+
+    symmetry : str, int or array 
+        Either 'isotropic' or 0,  'uniaxial' or 1 or 'biaxial' or 2 .
+        Defines the symmetry of the effective layer. When set to 'isotropic', 
+        the averaging is done so that the effective layer tensor is isotropic. 
+        When set to 'uniaxial' the  effective layer tensor is an uniaxial medium. 
+        If it is an array, it defines the symmetry of each individual layers
+        independetly.
+        
+    Returns
+    -------
+    out : list
+        A valid optical data of the effective layer blocks.
+    """
+    #for legacy format, convert to new-style format
+    if isinstance(optical_data, tuple):
+        optical_data = [optical_data]
+    return [effective_block(optical_block, symmetry) for optical_block in optical_data]
     
 def tensor2matrix(tensor, out = None):
     """Converts  matrix to tensor

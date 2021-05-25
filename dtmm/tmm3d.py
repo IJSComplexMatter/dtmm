@@ -276,6 +276,8 @@ def transfer3d(field_data_in, optical_data, nin = 1., nout = 1., method = "4x4",
     
     f,w,p = field_data_in
     shape = f.shape[-2:]
+    if isinstance(optical_data, list):
+        raise ValueError("Heterogeneous optical data not supported. You must provide an optical data tuple.")
     d,epsv,epsa = optical_data
     k0 = wavenumber(w, p)
     

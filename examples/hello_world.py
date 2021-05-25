@@ -18,7 +18,7 @@ optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH),
 field_data_in = dtmm.field.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
                                             pixelsize = PIXELSIZE) 
 #: transfer input light through stack
-field_data_out = dtmm.transfer_field(field_data_in, optical_data)
+field_data_out = dtmm.transfer_field(field_data_in, optical_data[0])
 
 #: visualize output field
 viewer = dtmm.pom_viewer(field_data_out)

@@ -33,8 +33,12 @@ Parameter :math:`\beta` is a fundamental parameter in transfer matrix method. Th
 Optical Data
 ++++++++++++
 
+Starting with version 0.7.0, optical data format has changed. In previous version optical data was what is now termed an optical block and it was a tuple. Optical data is now a list of optical blocks. Optical block can be a single or multiple-layer data. Optical data structure is defined below. 
+
 Nondispersive model
 -------------------
+
+First we will explain the noondispersive model, where material parameters are treated as fixed (independent on wavelength). Let us build an example data:
 
 .. doctest::
 
@@ -42,11 +46,11 @@ Nondispersive model
    >>> optical_data = dtmm.nematic_droplet_data((60, 128, 128), 
    ...    radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
-Here we have generated some test optical data, a nematic droplet with a radius of 30 pixels placed in a bounding box of shape (60,128,128), that is, 60 layers of (height - *y*, width - *x*) of (128,128). Director profile is radial, with ordinary refractive index of 1.5 and extraordinary refractive index of 1.6 placed in an isotropic host with refractive index of 1.5. The optical data is a tuple of three arrays
+Here we have generated some test optical data, a nematic droplet with a radius of 30 pixels placed in a bounding box of shape (60,128,128), that is, 60 layers of (height - *y*, width - *x*) of (128,128). Director profile is radial, with ordinary refractive index of 1.5 and extraordinary refractive index of 1.6 placed in an isotropic host with refractive index of 1.5. The optical data is a list of one element - a single optical block, which is tuple of three arrays
 
 .. doctest::
 
-   >>> thickness, material_eps, eps_angles = optical_data
+   >>> thickness, material_eps, eps_angles = optical_data[0]
 
 `thickness` describes the thickness of layers in the optical data. It is an array of floats. It is measured in pixel units. In our case it is an array of ones of length 60:
 
@@ -145,11 +149,53 @@ nanometers as an argument, e.g.::
 
    >>> material_eps = epsc(550)
 
-To use the dispersive material in computations, you must pass the following optical data tuple to the tranfer_field function::
+To use the dispersive material in computations, you must pass the following optical data to the tranfer_field function::
 
-   >>> optical_data = thickness, epsc, material_angles
+   >>> optical_data = [(thickness, epsc, material_angles)]
 
 Note that you may create your own callable for material_eps, but the callable must return a valid numpy array describing the epsilon tensor eigenvalues that is compatible with material_angles matrix and the thickness array.
+ 
+Multi-block data
+----------------
+
+Above, we demonstrated usage of single-block data. A multi-block data consists if several data blocks. These may be multi-layer blocks as in the examples above, or a single-layer data.  For instance, an uniaxial retarder of a thickness of 1. and with optical axes in the deposition plane and rotated by 45 degrees with respect to the horizontal axis is::
+
+   >>> retarder_data = [(1.,(1.5**2, 1.5**2, 1.6.**2),(0., np.pi/2, np.pi/4))]
+   
+Above retarder data is a valid optical data. It describes a single block, which itself is a single-layer data. Note that we could have set the block as a multi-layered block with the length of layers equal to 1, e.g.::
+
+   >>> retarder_data = [((1.,),((1.5**2, 1.5**2, 1.6.**2),),((0., np.pi/2, np.pi/4)),)]
+   
+For 2D blocks (1D grating structure)you can do::
+
+   >>> grating_data = [(1.,((1.5**2, 1.5**2, 1.6.**2),)*128,((0., np.pi/2, np.pi/4),))*128)]  
+    
+All examples above are actually shorthand for creating 1D or 2D data. Internally, true data format is 3D.
+You can validate data format (to make it 3D) by calling::
+
+   >>> validated_grating_data = dtmm.data.validate_optical_data(grating_data)
+   
+This function converts the data to a valid 3D data format. For 1D and 2D input data, it adds dimensions to data. You do not need to validate optical data yourself, as this is done internally when calling the computation functions.
+Now we have::
+
+   >>> d,epsv,epsa = validated_grating_data[0]
+   >>> epsv.shape
+   (1,1,128,3)
+   >>> epsa.shape
+   (1,1,128,3)
+   
+You can add blocks together to form a new stack of data::
+
+    >>> new_optical_data = retarder_data + optical_data + grating_data
+    >>> validated_optical_data = dtmm.data.validate_optical_data(new_optical_data, shape = (128,128), wavelength = 500)
+    
+There are two things to notice here. First, we used the wavelength argument for the validation. This ensures that we evaluate the refractive indices (epsilon values) at a given wavelength because we were using dispersive data for one of the blocks. Second, we used the shape argument, which describes the requested cross-section shape of the optical blocks. Because we are mixing different dimensionalities of the blocks (1D, 2D and 3D in our case), we have to provide a common shape for all blocks to which each block is broadcasted to. Therefore, now ee have::
+
+   >>> validated_retarder_data = validated_optical_data[0]
+   >>> validated_retarder_data.shape 
+   (1,128,128,3)
+   
+Function :func:`dtmm.data.validate_optical_data` raises an exception if it cannot produce a valid optical data if shapes of the blocks do not match. It is up to the user  to prepare each data block with a cross-section shapes which can all broadcast together.
  
 .. _field-waves:
 

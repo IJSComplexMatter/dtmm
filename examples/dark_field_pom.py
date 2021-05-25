@@ -1,4 +1,11 @@
-"""Demonstrates dark field microscopy simulation."""
+"""Demonstrates dark field microscopy simulation.
+
+Here we define illumination field data at larger beta values, and viewe the computed
+filed with pom_viewer that cuts large beta values to simulate dark field microscopy.
+
+Therefore, we set NA (0.5) of the microscope objective lower than that of the illumination
+annular eperture inner width (0.6). 
+"""
 
 import dtmm
 import numpy as np

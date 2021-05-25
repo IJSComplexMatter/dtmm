@@ -85,7 +85,10 @@ class Pool:
             t.join()
                  
     def __del__(self):
-        self.close()
+        try:
+            self.close()
+        except:
+            pass
 
 def clear_pool():
     """Clears thread pool. Deletes all Pool objects, which terminates all
