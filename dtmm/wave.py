@@ -48,12 +48,8 @@ Conversion functions
 from __future__ import absolute_import, print_function, division
 
 import numpy as np
-from dtmm.conf import FDTYPE,CDTYPE, cached_function, get_default_config_option
+from dtmm.conf import FDTYPE,CDTYPE, cached_function, get_default_config_option, deprecation
 import dtmm.fft as fft
-
-def deprecation(message):
-    import warnings
-    warnings.warn(message, DeprecationWarning, stacklevel=2)
 
 def betaphi(shape, k0, out = None):
     """Returns beta and phi arrays of all possible plane eigenwaves.
@@ -76,7 +72,7 @@ def betaphi(shape, k0, out = None):
     if out is None:
         out = None, None
     if len(shape) not in (2,3):
-        deprecation("In the future exception will be raised if shape is not of length 2 or 3")
+        deprecation("betaphi: In the future exception will be raised if shape is not of length 2 or 3")
     k0 = np.abs(np.asarray(k0, FDTYPE)[...,np.newaxis,np.newaxis]) #make it broadcastable
     ay, ax = map(lambda x : np.asarray(np.fft.fftfreq(x), dtype = FDTYPE), shape[-2:])
     xx, yy = np.meshgrid(ax, ay,copy = False, indexing = "xy") 
@@ -103,7 +99,7 @@ def betaxy(shape, k0, out = None):
         beta, phi arrays      
     """
     if len(shape) not in (2,3):
-        deprecation("In the future exception will be raised if shape is not of length 2 or 3")
+        deprecation("betaxy: In the future exception will be raised if shape is not of length 2 or 3")
     #ax, ay = map(np.fft.fftfreq, shape,(d,)*len(shape))
     k0 = np.asarray(k0,dtype = FDTYPE)[...,np.newaxis,np.newaxis] #make it broadcastable
     ay, ax = map(lambda x : np.asarray(np.fft.fftfreq(x), dtype = FDTYPE), shape[-2:])
@@ -366,7 +362,7 @@ def mask2indices(mask, k0 = None):
     """
     mask = np.asarray(mask)
     if k0 is not None:
-        deprecation("This function will only take one argument in the future")
+        deprecation("mask2indices: This function will only take one argument in the future")
     shape = mask.shape[-2:]
     ii, jj = np.meshgrid(range(shape[-2]), range(shape[-1]),copy = False, indexing = "ij") 
     if mask.ndim == 3: #multiwavelength
@@ -598,7 +594,7 @@ def mask2indices1(mask, k0 = None):
         Array(s) of maksed indices values.
     """
     if k0 is not None:
-        deprecation("This function will only take one argument in the future")
+        deprecation("mask2indices1: This function will only take one argument in the future")
     n = mask.shape[-1]
     ii = np.arange(n)
     if mask.ndim == 2: #multiwavelength

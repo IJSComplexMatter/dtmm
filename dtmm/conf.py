@@ -14,6 +14,10 @@ import os, warnings, shutil
 
 warnings.simplefilter('always', DeprecationWarning)
 
+def deprecation(message):
+    import warnings
+    warnings.warn(message, DeprecationWarning, stacklevel=2)
+
 try:
     from configparser import ConfigParser
 except:
