@@ -190,6 +190,23 @@ You can add blocks together to form a new stack of data::
 There are two things to notice here. First, we used the wavelength argument for the validation. This ensures that we evaluate the refractive indices (epsilon values) at a given wavelength because we used dispersive data for one of the blocks. Second, we used the shape argument, which describes the requested cross-section shape of the optical blocks. Because we mix different dimensions of the blocks (1D, 2D, and 3D in our case), we have to provide a common shape for all blocks to which each block is broadcasted. 
    
 Function :func:`dtmm.data.validate_optical_data` raises an exception if it cannot produce a valid optical data, if shapes of the blocks do not match. It is up to the user to prepare each data block with a cross-section shapes which can all broadcast together.
+
+Layered data
+------------
+
+Finally, there is yet another valid optical data format, labeled layered data. You can build layers data from list of blocks. E.g.::
+
+   >>> layered_data = dtmm.data.layered_data(validated_optical_data)
+   >>> isinstance(layered_data, list)
+   True
+   >>> len(layered_data)
+   62
+
+which constructs a list of 62 elements, 2 for the extra two blocks, and 60 for the LC block. Each  element of the layered_data now describes a single layer.
+
+   >>> d, epsv, epsa = layered_data[0]
+   >>> d
+   1.
  
 .. _field-waves:
 

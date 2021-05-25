@@ -1029,7 +1029,7 @@ _SELLMEIER_DECL = [(NF32DTYPE[:],NF32DTYPE[:],NF32DTYPE[:]), (NF64DTYPE[:],NF64D
 
 @numba.guvectorize(_SELLMEIER_DECL, "(n),()->()", cache = NUMBA_CACHE)
 def sellmeier2eps(coeff, wavelength, out):
-    """Converts Sellmeier coefficents to epsilon
+    r"""Converts Sellmeier coefficents to epsilon
     
     Sellmeier formula is:
     
@@ -1050,7 +1050,7 @@ def sellmeier2eps(coeff, wavelength, out):
 
 @numba.guvectorize(_SELLMEIER_DECL, "(n),()->()", cache = NUMBA_CACHE)
 def cauchy2eps(coeff, wavelength, out):
-    """Converts Cauchy coefficents to epsilon
+    r"""Converts Cauchy coefficents to epsilon
     
     Cauchy formula is
     
@@ -1497,6 +1497,18 @@ def matrix2tensor(matrix, out = None):
     out[...,3] = matrix[...,0,1]
     out[...,4] = matrix[...,0,2]
     out[...,5] = matrix[...,1,2]
+    return out
+
+def split_block(block_data):
+    """Splits optical block data into a list of layers"""
+    block_data = validate_optical_block(block_data)
+    return [(d,epsv,epsa) for d,epsv,epsa in zip(*block_data)]
+
+def layered_data(optical_data):
+    """Converts a list of blocks to a list of layers."""
+    out = []
+    for block in optical_data:
+        out = out + split_block(block)
     return out
 
 if __name__ == "__main__":
