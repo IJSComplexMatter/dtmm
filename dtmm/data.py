@@ -51,7 +51,7 @@ import numba
 import sys
 
 from dtmm.conf import FDTYPE, CDTYPE, NFDTYPE, NCDTYPE, NUMBA_CACHE,\
-NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE, DTMMConfig
+NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE, DTMMConfig, deprecation
 from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector, rotation_angles, rotation_matrix, rotate_diagonal_tensor
 from dtmm.wave import betaphi, k0
 from dtmm.fft import fft2, ifft2
@@ -1382,7 +1382,7 @@ def effective_block(optical_block, symmetry = 0):
         
         if order.ndim != 0:
             if len(order) != len(d):
-                raise ValueError("Shape of the symmetry argument is incompatible.")
+                raise ValueError("Shape of the symmetry argument is incompatible with block size.")
             #do not average over thickness axis, so pop it out.
             axis.pop(0) 
             
@@ -1413,7 +1413,7 @@ def effective_data(optical_data, symmetry = 0):
     optical_data : list
         A valid optical data list .
 
-    symmetry : str, int or array 
+    symmetry : str, int,array 
         Either 'isotropic' or 0,  'uniaxial' or 1 or 'biaxial' or 2 .
         Defines the symmetry of the effective layer. When set to 'isotropic', 
         the averaging is done so that the effective layer tensor is isotropic. 
@@ -1429,7 +1429,18 @@ def effective_data(optical_data, symmetry = 0):
     #for legacy format, convert to new-style format
     if isinstance(optical_data, tuple):
         optical_data = [optical_data]
-    return [effective_block(optical_block, symmetry) for optical_block in optical_data]
+        deprecation("effective_data: optical_data is not a list. This will raise exception in the future.")
+    if isinstance(symmetry, tuple):
+        optical_data = [optical_data]
+        deprecation("effective_data: optical_data is not a list. This will raise exception in the future.")
+        
+    if isinstance(symmetry,int) or isinstance(symmetry,str):
+        symmetry = [symmetry] * len(optical_data)
+        
+    if len(symmetry) != len(optical_data):
+        raise Exception("symmetry and optical data length mismatch.")
+
+    return [effective_block(optical_block, sym) for optical_block, sym in zip(optical_data,symmetry)]
     
 def tensor2matrix(tensor, out = None):
     """Converts  matrix to tensor

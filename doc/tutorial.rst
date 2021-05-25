@@ -173,7 +173,7 @@ Basics
 Computation is performed in two steps. First we build a characteristic matrix of the stack, then we calculate transmitted (and reflected) field from a given field vector. Field vector now is a single 4-component vector. We will demonstrate the use on a 3D data that we were working on till now.
 
 >>> d, epsv, epsa = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
-...          radius = 30, profile = "x", no = 1.5, ne = 1.6, nhost = 1.5)
+...          radius = 30, profile = "x", no = 1.5, ne = 1.6, nhost = 1.5)[0]
 
 >>> f,w,p = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, diffraction = False,
 ...               pixelsize = PIXELSIZE, beta = 0., phi = 0.) 
@@ -310,22 +310,22 @@ which computes the spatially-varying dielectric tensor for each of the layers, p
 
 For even higher accuracy, in more non-uniform systems where the mean dielectric tensor varies considerably across the layers you should define the effective medium for each of the layers separately:
 
->>> n_layers = len(data[0])
->>> eff_data = dtmm.data.eff_data(data, ("uniaxial",)*n_layers)
+>>> n_layers = len(epsv)
+>>> eff_data = dtmm.data.eff_data(data, [("uniaxial",)*n_layers])
 
 which performs averaging of the dielectric tensor only across the individual layer and defines a unique effective data for each of the layers. You can also do:
 
->>> out = dtmm.transfer_field(field, data, eff_data = ("uniaxial",)*n_layers)
+>>> out = dtmm.transfer_field(field, data, eff_data = [("uniaxial",)*n_layers])
 
 You can also mix the symmetry e.g.
 
->>> eff_data = ("uniaxial","isotropic","biaxial",...) #length must match the number of layers
+>>> eff_data = [("uniaxial","isotropic","biaxial",...)] #length must match the number of layers
 
 Please note that having different effective layers in the system significantly slows down the computation because the diffraction matrices need to be calculated for each of the layers, whereas if 
 
 >>> eff_data = "uniaxial"
 
-the calculation of the diffraction matrix is done only once. 
+the calculation of the diffraction matrix is done only once for each block. 
 
 .. note:: 
 
