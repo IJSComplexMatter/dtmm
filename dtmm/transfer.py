@@ -18,7 +18,7 @@ from dtmm.fft import fft2, ifft2
 from dtmm.jones import jonesvec, polarizer
 from dtmm.jones4 import ray_jonesmat4x4
 from dtmm.data import sellmeier2eps
-from dtmm.data import effective_block
+from dtmm.data import effective_block, is_optical_data_dispersive
 import numpy as np
 from dtmm.denoise import denoise_fftfield, denoise_field
 
@@ -521,6 +521,8 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = None
     else:
     
         _optical_data = validate_optical_data(optical_data, shape = shape)
+        if is_optical_data_dispersive(_optical_data):
+            raise ValueError("You are using dispersive data, so you must use `split_wavelengths=True`")
         out = _transfer_field(field_data, _optical_data, beta, phi, nin, nout,  
                npass , nstep, diffraction, reflection , method, 
                multiray, norm, betamax, smooth, split_rays,

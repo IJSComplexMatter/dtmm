@@ -15,7 +15,7 @@ NLAYERS, HEIGHT, WIDTH = 60,96,96
 WAVELENGTHS = np.linspace(380,780,9)
 #: create some experimental data (stack)
 d, epsv, epsa = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
-          radius = 30, profile = "x", no = 1.5, ne = 1.6, nhost = 1.5)[0]
+          radius = 30, profile = "x", no = 1.5, ne = 1.6, nhost = 1.5)
 
 #: create non-polarized input light
 f,w,p = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, 

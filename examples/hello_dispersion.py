@@ -14,7 +14,7 @@ NLAYERS, HEIGHT, WIDTH = 60, 96,96
 WAVELENGTHS = np.linspace(380,780,9)
 #: create some experimental data (stack)
 d, epsv, epsa = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
-          radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)[0]
+          radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 """
 we will be using Cauchy approximation with n = 2 coefficients.
 refind = a + b/lambda**2
@@ -25,7 +25,7 @@ anistropy.
 
 units of coefficient b are microns**2
 """
-epsc = EpsilonCauchy((NLAYERS,HEIGHT,WIDTH), n = 2)
+epsc = EpsilonCauchy(shape = (NLAYERS,HEIGHT,WIDTH), n = 2)
 epsc.coefficients[...,0] = (epsv)**0.5  # a term, just set to refractive index
 epsc.coefficients[...,0:2,1] = 0.005*(epsv[...,0:2])**0.5   # b term ordinary
 epsc.coefficients[...,2,1] = 0.005*(epsv[...,2])**0.5  # b term extraordinary

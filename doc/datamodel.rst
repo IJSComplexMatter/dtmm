@@ -38,19 +38,19 @@ Starting with version 0.7.0, the optical data format has changed. In the previou
 Nondispersive model
 -------------------
 
-First we will explain the noondispersive model, where material parameters are treated as fixed (independent on wavelength). Let us build an example data:
+First we will explain the noondispersive model, where material parameters are treated as fixed (independent on wavelength). Let us build an example optical block data:
 
 .. doctest::
 
    >>> import dtmm
-   >>> optical_data = dtmm.nematic_droplet_data((60, 128, 128), 
+   >>> optical_block = dtmm.nematic_droplet_data((60, 128, 128), 
    ...    radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
 Here we have generated some test optical data, a nematic droplet with a radius of 30 pixels placed in a bounding box of shape (60,128,128), that is, 60 layers of (height - *y*, width - *x*) of (128,128). Director profile is radial, with ordinary refractive index of 1.5 and extraordinary refractive index of 1.6 placed in an isotropic host with refractive index of 1.5. The optical data is a list of one element - a single **optical block**, which is tuple of three arrays
 
 .. doctest::
 
-   >>> thickness, material_eps, eps_angles = optical_data[0]
+   >>> thickness, material_eps, eps_angles = block_data
 
 `thickness` describes the thickness of layers in the optical data. It is an array of floats. It is measured in pixel units. In our case it is an array of ones of length 60:
 
