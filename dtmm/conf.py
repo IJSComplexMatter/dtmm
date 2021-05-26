@@ -12,11 +12,15 @@ import numpy as np
 from functools import wraps
 import os, warnings, shutil
 
-warnings.simplefilter('always', DeprecationWarning)
+#warnings.simplefilter('always', DeprecationWarning)
 
 def deprecation(message):
     import warnings
     warnings.warn(message, DeprecationWarning, stacklevel=2)
+    
+def warning(message):
+    import warnings
+    warnings.warn(message, UserWarning, stacklevel=2)
 
 try:
     from configparser import ConfigParser
