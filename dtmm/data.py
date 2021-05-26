@@ -45,6 +45,10 @@ Data creation
 * :func:`.sphere_mask` builds a masking array.
 * :func:`.rot90_director` rotates director by 90 degrees
 * :func:`.rotate_director` rotates data by any angle
+* :func:`.validate_optical_block` validates data.
+* :func:`.validate_optical_data` validates data.
+* :func:`.evaluate_optical_block` evaluates data.
+* :func:`.evaluate_optical_data` evaluates data.
 """
 
 import numpy as np
@@ -671,6 +675,18 @@ def validate_optical_data(data, shape = None, wavelength = None, broadcast = Fal
         import warnings
         warnings.warn("A single-block optical data must be a list of length 1. Converting optical data to list. In the future, exception will be raised.", DeprecationWarning)
         return validate_optical_data([data], shape, wavelength, broadcast, copy)
+
+def evaluate_optical_block(optical_block, wavelength = 550):
+    """In case of dispersive material. This function evaluates and returns optical block at a given wavelength"""
+    d, epsv, epsa = optical_block
+    if is_callable(epsv):
+        epsv = epsv(wavelength)
+    return d, epsv, epsa
+    
+def evaluate_optical_data(optical_data, wavelength = 550):
+    """In case of dispersive material. This function evaluates and return optical data at a given wavelength"""
+    return [evaluate_optical_block(block,wavelength) for block in optical_data]
+    
 
 def raw2director(data, order = "zyxn", nvec = "xyz"):
     """Converts raw data to director array.
