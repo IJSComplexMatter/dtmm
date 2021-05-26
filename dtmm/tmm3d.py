@@ -42,7 +42,7 @@ def layer_mat3d(k0, d, epsv,epsa, mask = None, method = "4x4"):
     epsa : array_like
         Optical axes orientation angles (psi, theta, phi).
     method : str, optional
-        Either a 4x4 or 4x4_1
+        Either 2x2, 4x4 or 4x4_1
     
     Returns
     -------

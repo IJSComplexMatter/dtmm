@@ -561,7 +561,9 @@ def _transfer_field(field_data, optical_data, beta, phi, nin, nout,
     if split_rays == False:
         if method  == "4x4":
             if npass == -1 or npass == np.inf:
-                out = transfer3d(field_data, optical_data,nin = nin, nout =nout, betamax = betamax)
+                if len(optical_data) != 1:
+                    raise ValueError("Only single-block data supported.")
+                out = transfer3d(field_data, optical_data[0],nin = nin, nout =nout, betamax = betamax)
             else:
                 out = transfer_4x4(field_data, optical_data, beta = beta, 
                            phi = phi, eff_data = eff_data, nin = nin, nout = nout, npass = npass,nstep=nstep,

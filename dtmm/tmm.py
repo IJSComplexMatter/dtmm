@@ -1239,7 +1239,7 @@ def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, cfact = 0.01, method = "4x4", out
         One of 4x4 (4x4 berreman), 2x2 (2x2 jones), 
         4x4_1 (4x4, single reflections), 2x2_1 (2x2, single reflections) 
         4x4_r (4x4, incoherent to compute reflection) or 
-        4x4_t (4x4, incoherent to compute transmission) 
+        4x4_2 (4x4, incoherent to compute transmission) 
     out : ndarray, optional
     
     Returns
