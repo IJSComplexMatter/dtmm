@@ -17,7 +17,7 @@ from dtmm.field import field2intensity, field2betaphi, field2fvec
 from dtmm.fft import fft2, ifft2
 from dtmm.jones import jonesvec, polarizer
 from dtmm.jones4 import ray_jonesmat4x4
-from dtmm.data import sellmeier2eps
+from dtmm.data import sellmeier2eps, layered_data
 from dtmm.data import effective_block, is_optical_data_dispersive
 import numpy as np
 from dtmm.denoise import denoise_fftfield, denoise_field
@@ -323,7 +323,7 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = None
            npass = None, nstep=1, diffraction = None, reflection = None, method = None, 
            multiray = False,
            norm = DTMM_NORM_FFT, betamax = None, smooth = SMOOTH, split_rays = False,
-           split_diffraction = False,split_wavelengths = False,
+           split_diffraction = False,split_wavelengths = False, split_layers = False,
            eff_data = None, ret_bulk = False, out = None):
     """Tranfers input field data through optical data.
     
@@ -409,13 +409,20 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = None
         difference, however, for small simulation volumes (compared to the 
         wavelength) and at large incidence angles, you should set this to True
         for simulations of multi-wavelength fields.
+    split_layers : bool, optional
+        Specifieas whether to split layers. This affects how the diffraction
+        propagation step, which is block-specific, handles the effective data.
+        With split_layers set, each layer in the stack gets its own diffraction
+        matrix, based on the effective parameters of the layer. This argument
+        calls the :func:`.data.layered_data`. This also affects the eff_data
+        argument.
     eff_data : Optical data tuple or symmetry, optional
         Optical data tuple of homogeneous layers through which light is diffracted
         in the diffraction calculation when diffraction >= 1. If not provided, 
         an effective data is build from optical_data by taking the mean value 
         of the epsilon tensor. You can also provide the symmetry argument, e.g.
         'isotropic', 'uniaxial' or 'biaxial', or a list of these values specifying
-        the symmetry of each of the layers. This argument is passed directly to 
+        the symmetry of each of the blocks. This argument is passed directly to 
         the :func:`.data.effective_data` function.
     ret_bulk : bool, optional
         Whether to return bulk field instead of the transfered field (default).
@@ -459,12 +466,12 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = None
                 
     if verbose_level > 0:
         print("Transferring input field.")    
-        
+
     eff_data_name = eff_data if eff_data in (0,1,2,"isotropic","uniaxial","biaxial") else "custom"
- 
+    
     field_in,wavelengths,pixelsize = field_data   
     shape = field_in.shape[-2:]
- 
+     
     if verbose_level > 1:
         print("------------------------------------")
         print(" $ calculation method: {}".format(method))  
@@ -473,14 +480,11 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = None
         print(" $ number of substeps: {}".format(nstep))     
         print(" $ input refractive index: {}".format(nin))   
         print(" $ output refractive index: {}".format(nout)) 
-        print(" $ effective data: {}".format(eff_data_name)) 
+        print(" $ effective data mode: {}".format(eff_data_name))
         print(" $ max beta: {}".format(betamax)) 
         print(" $ shape: {}".format(shape)) 
         print("------------------------------------")
         
-    
-    
-
 
 #    if out is None:
 #        if ret_bulk == True:
@@ -512,6 +516,10 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = None
                 print("Wavelength {}/{}".format(i+1,nwavelengths))
             field_data = f,w,pixelsize
             _optical_data = validate_optical_data(optical_data, wavelength = w, shape = shape)
+            if split_layers == True:
+                _optical_data = layered_data(_optical_data) #make it list of layers
+                _optical_data = validate_optical_data(_optical_data, shape = shape) #make it list of blocks
+            
             o = _transfer_field(field_data, _optical_data, beta, phi, nin, nout,  
                 npass , nstep, diffraction, reflection , method, 
                 multiray, norm, betamax, smooth, split_rays,
@@ -519,8 +527,11 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = None
             out[i] = o
         out = tuple(out)
     else:
-    
         _optical_data = validate_optical_data(optical_data, shape = shape)
+        if split_layers == True:
+            _optical_data = layered_data(_optical_data) #make it list of layers
+            _optical_data = validate_optical_data(_optical_data, shape = shape) #make it list of blocks
+            
         if is_optical_data_dispersive(_optical_data):
             raise ValueError("You are using dispersive data, so you must use `split_wavelengths=True`")
         out = _transfer_field(field_data, _optical_data, beta, phi, nin, nout,  

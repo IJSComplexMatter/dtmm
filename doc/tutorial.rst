@@ -317,6 +317,10 @@ which performs averaging of the dielectric tensor only across the individual lay
 
 >>> out = dtmm.transfer_field(field, data, eff_data = [("uniaxial",)*n_layers])
 
+You can also use the split_layers argument, which does essentially the same thing::
+
+>>> out = dtmm.transfer_field(field, data, eff_data = "uniaxial", split_layers = True)
+
 You can also mix the symmetry e.g.
 
 >>> eff_data = [("uniaxial","isotropic","biaxial",...)] #length must match the number of layers
@@ -326,7 +330,6 @@ Please note that having different effective layers in the system significantly s
 >>> eff_data = "uniaxial"
 
 the calculation of the diffraction matrix is done only once for each block. 
-
 .. note:: 
 
    You can set the default medium in the configuration file. See :ref:`optimization` for details.
