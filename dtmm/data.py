@@ -18,12 +18,8 @@ Conversion functions
 * :func:`.matrix2tensor` convert matrix to tensor.
 * :func:`.refind2eps` convert refractive index eigenvalues to epsilon eigenvalues.
 * :func:`.uniaxial_order` creates uniaxial tensor from a biaxial eigenvalues.
-* :func:`.eig_symmetry` creates effective tensor of given symmetry.
-* :func:`.effective_block` computes effective (mean layers) 1D data from 3D data.
-* :func:`.effective_data` computes effective (mean layers) 1D data from 3D data.
 * :func:`.sellmeier2eps` computes epsilon from Sellmeier coefficients.
 * :func:`.cauchy2eps` computes epsilon from Cauchy coefficients.
-
 
 IO functions
 ------------
@@ -37,6 +33,19 @@ IO functions
 Data creation
 -------------
 
+* :func:`.validate_optical_block` validates data.
+* :func:`.validate_optical_data` validates data.
+* :func:`.evaluate_optical_block` evaluates data.
+* :func:`.evaluate_optical_data` evaluates data.
+* :func:`.eig_symmetry` creates effective tensor of given symmetry.
+* :func:`.effective_block` computes effective (mean layers) 1D data from 3D data.
+* :func:`.effective_data` computes effective (mean layers) 1D data from 3D data.
+* :func:`.split_block` Splits block data into layersed data
+* :func:`.layerd_data` Splits optical data into layered data.
+
+Utilities and sample data
+-------------------------
+
 * :func:`.nematic_droplet_data` builds sample data.
 * :func:`.nematic_droplet_director` builds sample director.
 * :func:`.cholesteric_droplet_data` builds sample data.
@@ -45,10 +54,6 @@ Data creation
 * :func:`.sphere_mask` builds a masking array.
 * :func:`.rot90_director` rotates director by 90 degrees
 * :func:`.rotate_director` rotates data by any angle
-* :func:`.validate_optical_block` validates data.
-* :func:`.validate_optical_data` validates data.
-* :func:`.evaluate_optical_block` evaluates data.
-* :func:`.evaluate_optical_data` evaluates data.
 """
 
 import numpy as np
