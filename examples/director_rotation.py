@@ -18,7 +18,7 @@ director = dtmm.nematic_droplet_director((NLAYERS, HEIGHT, WIDTH),
 rotm = dtmm.rotation_matrix((0.2,0.4,0.6))
 director = dtmm.rotate_director(rotm, director)
 
-optical_data = dtmm.data.director2data(director,no = 1.5, ne = 1.6)
+optical_data = [dtmm.data.director2data(director,no = 1.5, ne = 1.6)]
 #: create non-polarized input light
 field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
                                             pixelsize = PIXELSIZE) 

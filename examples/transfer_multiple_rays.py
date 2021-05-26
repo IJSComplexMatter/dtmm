@@ -13,8 +13,8 @@ NLAYERS, HEIGHT, WIDTH = 60,96,96
 #: illumination wavelengths in nm
 WAVELENGTHS = np.linspace(380,780,9)
 #: lets make some experimental data
-optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
-           profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
+optical_data = [dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
+           profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)]
 
 #NA 0.25, diaphragm with diameter 4 pixels, around 2*2*pi rays
 beta, phi, intensity = dtmm.illumination_rays(0.25,4)

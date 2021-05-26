@@ -18,8 +18,8 @@ NLAYERS, HEIGHT, WIDTH = 60,96,96
 #: illumination wavelengths in nm
 WAVELENGTHS = np.linspace(380,780,9)
 #: lets make some experimental data
-optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
-           profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
+optical_data = [dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), radius = 30,
+           profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)]
 
 #using annular aperture, approximate ratio of aperture dimaters is inner/outer = 6/7
 #: max NA is set to 0.7., this means input rays from NA of 0.6 to 0.7 

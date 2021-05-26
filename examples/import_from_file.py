@@ -36,7 +36,7 @@ director = dtmm.read_director("director.txt", (n_layers, height, width, 3), sep=
 # Create the mask for a spherical
 mask = dtmm.sphere_mask(shape, radius)
 # Covert director, mask, and physical parameters into optical data
-optical_data = dtmm.director2data(director, mask, no, ne, nhost)
+optical_data = [dtmm.director2data(director, mask, no, ne, nhost)]
 
 # ----
 # Generate wavelengths
