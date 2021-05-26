@@ -11,7 +11,7 @@ NLAYERS, HEIGHT, WIDTH = 60, 96, 96
 #: illumination wavelengths in nm
 WAVELENGTHS = np.linspace(380,780,9)
 #: create some experimental data (stack)
-optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
+block_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
           radius = 30, profile = "r", no = 3.5, ne = 3.6, nhost = 3.5)
 
 betamax = np.inf #no need to cutoff in 2x2 mode, in the 4x4 mode, filtering is done automatically
@@ -25,10 +25,10 @@ window = None
 (fin4,w,p) = (fin2.copy(),w,p)
 
 
-(f2,w,p)  = dtmm.transfer_field((fin2,w,p), optical_data,  beta = 0., phi = 0., betamax = betamax,
+(f2,w,p)  = dtmm.transfer_field((fin2,w,p), [block_data],  beta = 0., phi = 0., betamax = betamax,
              method = "2x2", ret_bulk = False, npass = 9, reflection = 2) 
 
-(f4,w,p)  = dtmm.transfer_field((fin4,w,p), optical_data,  beta = 0., phi = 0., betamax = betamax,
+(f4,w,p)  = dtmm.transfer_field((fin4,w,p), [block_data],  beta = 0., phi = 0., betamax = betamax,
              method = "4x4", ret_bulk = False, npass = 9, reflection = 2) 
 
 

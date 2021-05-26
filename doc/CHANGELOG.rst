@@ -1,15 +1,16 @@
 Release Notes
 -------------
 
-V0.7.0 (In development)
-+++++++++++++++++++++++
+V0.7.0 (May 25 2021)
+++++++++++++++++++++
 
-This release improves multi-threading computation speed and adds new features.
+This release improves multi-threading computation speed and adds several new features.
 It add support for pyfftw and matplotlib>=3.4.
 
 New features
 ////////////
 
+* We introduce new optical data model. Legacy data model, which is in this version refered to as an optical block, is still a valid optical data. New optical data model is now a list of optical blocks. It is now possible to mix homogeneous layers with inhomogeneous layers and it simplifies creation of the optical stack.
 * Several new options for computation optimization in dtmm.ini. See the documentation for details.
 * Implements a new thread poll for parallel fft computation, which is faster than native threading in mkl_fft or scipy. This feature is still in beta, so it is disabled by defauly and you must activate it using a configuration file or using :func:`dtmm.conf.set_thread_pool`.
 * Support for pyfftw. You can enable it by calling :func:`dtmm.conf.set_fftlib` with 'pyfftw' as an argument.
@@ -19,7 +20,8 @@ New features
 Fixes
 /////
 
-* Fixes broken CustomSlider, which stopped working in matplotlib 3.4.
+* Fixes BulkViewer (that got broken in 0.6 release).
+* Fixes CustomRadioButtons, which stopped working in matplotlib 3.4.
 * In mode grouping (When working with diffraction > 1) the effective beam parameter is now more accurately determined. The results using low diffraction e.g 2,3,4 are now more accurate.
 * When working with single precision, atol and rtol values are now less strict when checking for real eigenvector output in eps2epsva function.
 * Cached functions now support list argument.

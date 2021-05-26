@@ -39,9 +39,9 @@ This reads director data and transposes it from (WIDTH, HEIGHT, NLAYERS,3) to sh
 
 .. doctest::
 
-   >>> optical_data = dtmm.director2data(director, no = 1.5, ne = 1.6)
+   >>> block_data = dtmm.director2data(director, no = 1.5, ne = 1.6)
 
-This converts director to a valid :ref:`optical-data`. Director array should be an array of director vectors. Length of the vector should generally be 1. Director length is used to determine the dielectric tensor of the material. See :ref:`optical-data` for details. You can also set the director mask. For instance, a sphere mask of radius 30 pixels can be defined by
+This converts director to a valid optical block data. Director array should be an array of director vectors. Length of the vector should generally be 1. Director length is used to determine the dielectric tensor of the material. See :ref:`optical-data` for details. You can also set the director mask. For instance, a sphere mask of radius 30 pixels can be defined by
 
 .. doctest::
 
@@ -51,7 +51,7 @@ With this mask you can construct optical data of a nematic droplet in a host mat
 
 .. doctest::
 
-   >>> optical_data = dtmm.director2data(director, no = 1.5, ne = 1.6, mask = mask, nhost = 1.5)
+   >>> block_data = dtmm.director2data(director, no = 1.5, ne = 1.6, mask = mask, nhost = 1.5)
 
 Of course you can provide any mask, just that the shape of the mask must mach the shape of the bounding box of the director - (60,96,96) in our case. This way you can crop the director field to any volume shape and put it in a host material with the above helper function. 
 
@@ -104,11 +104,11 @@ Next, we need to convert the epsilon tensor to eigenvalue and Euler angles matri
 
    >>> epsv, epsa = dtmm.data.eps2epsva(eps)
 
-Alternatively, you can use the convenience function to convert Q tensor to optical_data directly
+Alternatively, you can use the convenience function to convert Q tensor to block_data directly
 
 .. doctest::
 
-   >>> optical_data = dtmm.data.Q2data(Q,no = 1.5, ne = 1.6, scale_factor = 1.)
+   >>> block_data = dtmm.data.Q2data(Q,no = 1.5, ne = 1.6, scale_factor = 1.)
 
 .. note:: 
 
@@ -149,10 +149,11 @@ Most times you need the input light to be non-polarized. A non-polarized light i
 
    >>> field_data_in = dtmm.illumination_data((HEIGHT,WIDTH), WAVELENGTHS, pixelsize = 200, n = 1.5) 
 
-In the field data above we have also used *n = 1.5* argument, which defines a forward propagating wave in a medium with refractive index of 1.5. This way we can match the effective refractive index of the optical stack to eliminate reflection from the first surface. With the input light specified, you can now transfer this field through the stack
+In the field data above we have also used *n = 1.5* argument, which defines a forward propagating wave in a medium with refractive index of 1.5. This way we can match the effective refractive index of the optical stack to eliminate reflection from the first surface. With the input light specified, you can now transfer this field through the stack. Optical data is a list of optical blocks.
 
 .. doctest::
 
+   >>> optical_data = [optical_block]
    >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, nin = 1.5, nout = 1.5)
 
 Here we have set the index matching medium by specifying *nin* and *nout* arguments to the effective refractive index of the medium. By default input and output fields are assumed to be propagating in `n_cover` medium, 1.5 by default. 
@@ -339,7 +340,7 @@ It is up to the user to apply a mask or to specify the optical data parameters o
 .. doctest::
 
    >>> mask = dtmm.sphere_mask((NLAYERS,HEIGHT,WIDTH),30) 
-   >>> optical_data = dtmm.director2data(director, no = 1.5, ne = 1.6, mask = mask, nhost = 1.5)
+   >>> block_data = dtmm.director2data(director, no = 1.5, ne = 1.6, mask = mask, nhost = 1.5)
 
 
 Data IO

@@ -33,18 +33,24 @@ Parameter :math:`\beta` is a fundamental parameter in transfer matrix method. Th
 Optical Data
 ++++++++++++
 
+Starting with version 0.7.0, the optical data format has changed. In the previous version, optical data, which is now termed an optical block, was a tuple. Instead, optical data is now a list of optical blocks. Optical block can be single or multiple-layer data. The optical data structure is defined below.
+
+Nondispersive model
+-------------------
+
+First we will explain the noondispersive model, where material parameters are treated as fixed (independent on wavelength). Let us build an example optical block data:
 
 .. doctest::
 
    >>> import dtmm
-   >>> optical_data = dtmm.nematic_droplet_data((60, 128, 128), 
+   >>> optical_block = dtmm.nematic_droplet_data((60, 128, 128), 
    ...    radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
-Here we have generated some test optical data, a nematic droplet with a radius of 30 pixels placed in a bounding box of shape (60,128,128), that is, 60 layers of (height - *y*, width - *x*) of (128,128). Director profile is radial, with ordinary refractive index of 1.5 and extraordinary refractive index of 1.6 placed in an isotropic host with refractive index of 1.5. The optical data is a tuple of three arrays
+Here we have generated some test optical data, a nematic droplet with a radius of 30 pixels placed in a bounding box of shape (60,128,128), that is, 60 layers of (height - *y*, width - *x*) of (128,128). Director profile is radial, with ordinary refractive index of 1.5 and extraordinary refractive index of 1.6 placed in an isotropic host with refractive index of 1.5. The optical data is a list of one element - a single **optical block**, which is tuple of three arrays
 
 .. doctest::
 
-   >>> thickness, material_eps, eps_angles = optical_data
+   >>> thickness, material_eps, eps_angles = block_data
 
 `thickness` describes the thickness of layers in the optical data. It is an array of floats. It is measured in pixel units. In our case it is an array of ones of length 60:
 
@@ -127,6 +133,81 @@ We can plot the director around the center (around the point defect) of the drop
 
    where :math:`\epsilon_{m}` is the mean value of dielectric tensor elements and :math:`\epsilon_{a} = \epsilon_{3}-\epsilon_{1}` is the anisotropy. 
 
+
+Dispersive model
+----------------
+
+If you want to simulate wavelength dispersion, epsv must no longer be a constant array, but you must define it to be a callable. For each wavelength, the algorithm computes the epsv  array from the provided callable. For instance, to use Cauchy approximation with two coefficients, there is a helper object to create such callable:
+
+   >>> epsc = EpsilonCauchy((NLAYERS,HEIGHT,WIDTH), n = 2)
+   >>> epsc.coefficients[...,0] = (material_eps)**0.5  # a term, just set to refractive index
+   >>> epsc.coefficients[...,0:2,1] = 0.005*(material_eps[...,0:2])**0.5   # b term ordinary
+   >>> epsc.coefficients[...,2,1] = 0.005*(material_eps[...,2])**0.5  # b term extraordinary
+
+Now you can compute the epsilon tensor eigenvalues by calling the callable with the wavelength in 
+nanometers as an argument, e.g.::
+
+   >>> material_eps = epsc(550)
+
+To use the dispersive material in computations, you must pass the following optical data to the tranfer_field function::
+
+   >>> optical_data = [(thickness, epsc, material_angles)]
+
+Note that you may create your own callable for material_eps, but the callable must return a valid numpy array describing the epsilon tensor eigenvalues that is compatible with material_angles matrix and the thickness array.
+ 
+Multi-block data
+----------------
+
+Above, we demonstrated the usage of single-block data. A multi-block data consists of several data blocks. These may be multi-layer blocks, as in the examples above, or single-layer data.  For instance, a uniaxial retarder of a thickness of 1. and with optical axes in the deposition plane and rotated by 45 degrees with respect to the horizontal axis is::
+
+   >>> retarder_data = [(1.,(1.5**2, 1.5**2, 1.6.**2),(0., np.pi/2, np.pi/4))]
+   
+Above retarder data is a valid optical data. It describes a single block, which itself is a single-layer data. Note that we could have set the block as a multi-layered block with the length of layers equal to 1, e.g.::
+
+   >>> retarder_data = [((1.,),((1.5**2, 1.5**2, 1.6.**2),),((0., np.pi/2, np.pi/4)),)]
+   
+For 2D blocks (1D grating structure) you can do::
+
+   >>> grating_data = [(1.,((1.5**2, 1.5**2, 1.6.**2),)*128,((0., np.pi/2, np.pi/4),))*128)]  
+    
+All examples above are actually shorthand for creating 1D or 2D data. Internally, true data format is 3D. You can validate data format (to make it 3D) by calling::
+
+   >>> validated_grating_data = dtmm.data.validate_optical_data(grating_data)
+   
+This function converts the data to a valid 3D optical data format. For 1D and 2D input data, it adds dimensions to optical blocks. You do not need to validate optical data yourself, as this is done internally when calling the computation functions. Now we have::
+
+   >>> d,epsv,epsa = validated_grating_data[0] #take first (and only) block
+   >>> epsv.shape
+   (1,1,128,3)
+   >>> epsa.shape
+   (1,1,128,3)
+   
+You can add blocks together to form a new stack of data::
+
+    >>> new_optical_data = retarder_data + optical_data + grating_data
+    >>> validated_optical_data = dtmm.data.validate_optical_data(new_optical_data, shape = (128,128), wavelength = 500)
+    
+There are two things to notice here. First, we used the wavelength argument for the validation. This ensures that we evaluate the refractive indices (epsilon values) at a given wavelength because we used dispersive data for one of the blocks. Second, we used the shape argument, which describes the requested cross-section shape of the optical blocks. Because we mix different dimensions of the blocks (1D, 2D, and 3D in our case), we have to provide a common shape for all blocks to which each block is broadcasted. 
+   
+Function :func:`dtmm.data.validate_optical_data` raises an exception if it cannot produce a valid optical data, if shapes of the blocks do not match. It is up to the user to prepare each data block with a cross-section shapes which can all broadcast together.
+
+Layered data
+------------
+
+Finally, there is yet another valid optical data format, labeled layered data. You can build layers data from list of blocks. E.g.::
+
+   >>> layered_data = dtmm.data.layered_data(validated_optical_data)
+   >>> isinstance(layered_data, list)
+   True
+   >>> len(layered_data)
+   62
+
+which constructs a list of 62 elements, 2 for the extra two blocks, and 60 for the LC block. Each  element of the layered_data now describes a single layer.
+
+   >>> d, epsv, epsa = layered_data[0]
+   >>> d
+   1.
+ 
 .. _field-waves:
 
 Field Data
@@ -203,3 +284,18 @@ For 1D and 2D simulations with a non-iterative algorithm we use field vector ins
    >>> field.shape
    (3, 2, 4, 128, 128)
 
+Jones field
++++++++++++
+
+For 2x2 methods, the computation is done using jones fields, which is Electric field-only representation of the electro-magnetic field. To complete the transform you need to add
+additional info about the material and field. One can convert the field data to jones field by::
+
+   >>> jones = dtmm.field.field2jones(field, beta = 0, phi = 0, epsv = (1,1,1))  
+   >>> jones.shape
+   (3, 2, 2, 128, 128)
+   
+Above transform assumes that field has a well-defined wave vector and is propagating in vacuum along z direction. For wide beams of light, the assumption of a well-defined wave vector is valid, but for narrow beams, or for beams with high frequency components, you should instead call the function without the beta and phi terms and provide the wave numbers, e.g.::
+
+   >>> jones = dtmm.field.field2jones(field, dtmm.wave.k0(wavelengths, pixelsize), epsv = (1,1,1))  
+
+The above transform takes the modes of the field and takes the forward propagating part (you can also compute back-propagating part using `mode = -1` argument) of the field, then it takes the Ex and Ey components of the field and stores them into the output array. Note that the resulting jones field is not a true Jones vector (except for beta = 0), because the Electric field components of the jones field are represented in the laboratory coordinate frame. The light intensity is not simply :math:`|jones|^2`. You should convert back to EM field, if you plan to compute anything with jones field.

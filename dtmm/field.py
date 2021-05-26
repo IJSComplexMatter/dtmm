@@ -34,7 +34,7 @@ def fvec2field(vec):
     """transposes vector from shape (..., n,m,k) to (...,k,n,m)"""
     return np.moveaxis(vec,-1,-3)
 
-def field2jones(field, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0.,0.,0.), mode = +1, input_fft = False, output_fft = False, betamax = BETAMAX):
+def field2jones(field, ks = None, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0.,0.,0.), mode = +1, input_fft = False, output_fft = False, betamax = BETAMAX):
     """Converts (..., 4,n,m) field array to (..., 2,n,m) jones array
     
     The conversion is done either in reciprocal space (default) or in real space,
@@ -45,7 +45,7 @@ def field2jones(field, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0
     field : ndarray
         Input field array data of shape (..., 4,n,m).
     ks : array
-        A list of k-values (wave numbers).
+        A list of k-values (wave numbers). Required if beta and phi are not provided.
     beta : float, optional
         If set, it defines the field beta parameter, conversion is then done
         in real space.
@@ -71,7 +71,12 @@ def field2jones(field, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0
         Output jones array of shape (..., 2,n,m).
     """
     modal = beta is None and phi is None
-    
+    if modal and ks is None:
+        raise ValueError("For modal fields, you need to define the wave number(s).")
+    elif not modal and ks is not None:
+        import warnings
+        warnings.warn("`ks`, was set, although it is not required - field is not modal", UserWarning)
+        
     field = np.asarray(field)
     out = np.empty(field.shape[:-3] + (2,) + field.shape[-2:], field.dtype)
     if input_fft == False and modal:
@@ -102,8 +107,8 @@ def jones2field(jones, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0
     ----------
     jones : ndarray
         Input jones array data of shape (..., 2,n,m).
-    ks : array
-        A list of k-values (wave numbers).
+    ks : array, optional
+        A list of k-values (wave numbers). Required if beta and phi are not provided.
     beta : float, optional
         If set, it defines the field beta parameter, conversion is then done
         in real space.
@@ -128,10 +133,13 @@ def jones2field(jones, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0
     field : ndarray
         Output field array of shape (..., 4,n,m).
     """
-
-    jones= np.asarray(jones)
     modal = beta is None and phi is None
-    
+    if modal and ks is None:
+        raise ValueError("For modal fields, you need to define the wave number(s).")
+    elif not modal and ks is not None:
+        import warnings
+        warnings.warn("`ks`, was set, although it is not required - field is not modal", UserWarning)
+    jones= np.asarray(jones)    
     out = np.empty(jones.shape[:-3] + (4,) + jones.shape[-2:], jones.dtype)
     if input_fft == False and modal:
         jones = fft2(jones)   

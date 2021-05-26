@@ -124,7 +124,7 @@ def stack_mat3d(k,d,epsv,epsa, method = "4x4" ,mask = None):
     if verbose_level > 1:
         print ("Building stack matrix.")
     for i in range(n):
-        print_progress(i,n,level = verbose_level) 
+        print_progress(i,n) 
         mat = layer_mat3d(k,d[i],epsv[i],epsa[i], mask = mask, method = method)
         if i == 0:
             if isinstance(mat, tuple):
@@ -143,7 +143,7 @@ def stack_mat3d(k,d,epsv,epsa, method = "4x4" ,mask = None):
                 else:
                     out = dotmm(out,mat)
       
-    print_progress(n,n,level = verbose_level) 
+    print_progress(n,n) 
 
     return out 
 
@@ -212,9 +212,9 @@ def reflection_mat3d(smat):
         out = []
         n = len(smat)
         for i,s in enumerate(smat):
-            print_progress(i,n,level = verbose_level) 
+            print_progress(i,n) 
             out.append(_reflection_mat3d(s))
-        print_progress(n,n,level = verbose_level)     
+        print_progress(n,n)     
         return tuple(out)
     else:
         return _reflection_mat3d(smat)
@@ -276,6 +276,8 @@ def transfer3d(field_data_in, optical_data, nin = 1., nout = 1., method = "4x4",
     
     f,w,p = field_data_in
     shape = f.shape[-2:]
+    if isinstance(optical_data, list):
+        raise ValueError("Heterogeneous optical data not supported. You must provide an optical data tuple.")
     d,epsv,epsa = optical_data
     k0 = wavenumber(w, p)
     

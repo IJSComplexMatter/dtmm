@@ -4,8 +4,8 @@ Director and optical data creation and IO functions.
 Conversion functions
 --------------------
 
-* :func:`.director2data` generates optical data from director.
-* :func:`.Q2data` generates optical data from the Q tensor.
+* :func:`.director2data` generates optical block data from director.
+* :func:`.Q2data` generates optical block data from the Q tensor.
 * :func:`.director2order` computes order parameter from directo length.
 * :func:`.director2Q` computes uniaxial Q tensor.
 * :func:`.Q2director` computes an effective uniaxial director from a biaxial Q tensor.
@@ -18,8 +18,8 @@ Conversion functions
 * :func:`.matrix2tensor` convert matrix to tensor.
 * :func:`.refind2eps` convert refractive index eigenvalues to epsilon eigenvalues.
 * :func:`.uniaxial_order` creates uniaxial tensor from a biaxial eigenvalues.
-* :func:`.eig_symmetry` creates effective tensor of given symmetry.
-* :func:`.effective_data` computes effective (mean layers) 1D data from 3D data.
+* :func:`.sellmeier2eps` computes epsilon from Sellmeier coefficients.
+* :func:`.cauchy2eps` computes epsilon from Cauchy coefficients.
 
 IO functions
 ------------
@@ -33,6 +33,19 @@ IO functions
 Data creation
 -------------
 
+* :func:`.validate_optical_block` validates data.
+* :func:`.validate_optical_data` validates data.
+* :func:`.evaluate_optical_block` evaluates data.
+* :func:`.evaluate_optical_data` evaluates data.
+* :func:`.eig_symmetry` creates effective tensor of given symmetry.
+* :func:`.effective_block` computes effective (mean layers) 1D data from 3D data.
+* :func:`.effective_data` computes effective (mean layers) 1D data from 3D data.
+* :func:`.split_block` Splits block data into layersed data
+* :func:`.layerd_data` Splits optical data into layered data.
+
+Utilities and sample data
+-------------------------
+
 * :func:`.nematic_droplet_data` builds sample data.
 * :func:`.nematic_droplet_director` builds sample director.
 * :func:`.cholesteric_droplet_data` builds sample data.
@@ -43,14 +56,12 @@ Data creation
 * :func:`.rotate_director` rotates data by any angle
 """
 
-from __future__ import absolute_import, print_function, division
-
 import numpy as np
 import numba
 import sys
 
 from dtmm.conf import FDTYPE, CDTYPE, NFDTYPE, NCDTYPE, NUMBA_CACHE,\
-NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE, DTMMConfig
+NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE, DTMMConfig, deprecation
 from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector, rotation_angles, rotation_matrix, rotate_diagonal_tensor
 from dtmm.wave import betaphi, k0
 from dtmm.fft import fft2, ifft2
@@ -265,7 +276,7 @@ def rot90_director(data,axis = "+x", out = None):
     
 def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 1.,
                   thickness = None):
-    """Builds optical data from director data. Director length is treated as
+    """Builds optical block data from director data. Director length is treated as
     an order parameter. Order parameter of S=1 means that refractive indices
     `no` and `ne` are set as the material parameters. With S!=1, a 
     :func:`uniaxial_order` is used to calculate actual material parameters.
@@ -306,11 +317,11 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_
         
     if thickness is None:
         thickness = np.ones(shape = (material.shape[0],))
-    return  thickness, material, director2angles(director)
+    return (thickness, material, director2angles(director))
 
 def Q2data(tensor, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 1., 
            biaxial = False, thickness = None):
-    """Builds optical data from Q tensor data. 
+    """Builds optical block data from Q tensor data. 
     
     Parameters
     ----------
@@ -339,8 +350,8 @@ def Q2data(tensor, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 
     
     Returns
     -------
-    optical_data : tuple
-        A valid optical data tuple.
+    optical_data : list
+        A valid optical data list.
     """
     tensor = np.asarray(tensor)
     eps = Q2eps(tensor, no = no, ne = ne,scale_factor = scale_factor)
@@ -359,7 +370,7 @@ def Q2data(tensor, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 
         
     if thickness is None:
         thickness = np.ones(shape = (material.shape[0],))
-    return  thickness, material, epsa
+    return  (thickness, material, epsa)
 
 
 def director2Q(director, order = 1.):
@@ -427,9 +438,9 @@ def Q2eps(tensor, no = 1.5, ne = 1.6,scale_factor = 1., out = None):
         A 4D array describing the Q tensor. If provided as a matrix, rhe elemnents are
         Q[0,0], Q[1,1], Q[2,2], Q[0,1], Q[0,2], Q[1,2]
     no : float
-        Ordinary refractive index
+        Ordinary refractive index when S = 1/scale_factor.
     ne : float
-        Extraordinary refractive index 
+        Extraordinary refractive index when S = 1/scale_factor.
     scale_factor : float
         The order parameter S obtained from the Q tensor is scaled by this factor. 
         Optical anisotropy is then `epsa = S/scale_factor * (epse - epso)`.
@@ -519,60 +530,169 @@ def epsva2eps(epsv,epsa):
     """
     r = rotation_matrix(epsa)
     return rotate_diagonal_tensor(r,epsv)
-
         
-def validate_optical_data(data, homogeneous = False):
-    """Validates optical data.
+def validate_optical_block(data, shape = None, wavelength = None, broadcast = False, copy = False, homogeneous = None):
+    """Validates optical block.
     
-    This function inspects validity of the optical data, and makes proper data
-    conversions to match the optical data format. In case data is not valid and 
-    it cannot be converted to a valid data it raises an exception (ValueError). 
+    This function inspects validity of the optical block data, and makes proper data
+    conversions to match the optical block format. In case data is not valid and 
+    it cannot be converted to a valid block data it raises an exception (ValueError). 
     
     Parameters
     ----------
-    data : tuple of optical data
-        A valid optical data tuple.
-    homogeneous : bool, optional
-        Whether data is for a homogenous layer. (Inhomogeneous by defult)
-    
+    data : tuple or list of tuples
+        An optical data: either a single optical block tuple, or a list of block tuples.
+    shape : (int,int)
+        If defined input epsilon tensor shape (eps.shape[:-1]) is checked to 
+        be broadcastable with the given shape.
+    wavelength : float
+        Wavelength in nanometers at which to compute epsilon, in case epsv is 
+        a callable function.
+    broadcast : bool, optional
+        Ehether to actually perform broadcasting of arrays. If set to False, only
+        tests whether arrays can broadcast to a common shape, but no broadcasting
+        is made. 
+    copy: bool, optional
+        Whether to copy data. If not set, (broadcasted) view of the input arrays
+        is returned.
+        
     Returns
     -------
     data : tuple
-        Validated optical data tuple. 
+        Validated optical block tuple. 
     """
+    if homogeneous is not None:
+        import warnings
+        warnings.warn("homogeneous argument is not used any more and it will be removed in future versions", DeprecationWarning)
+    
+    if isinstance(data, list):
+        if shape is None:
+            raise ValueError("For heterogeneous data, you must provide the `shape` argument.")
+        return [validate_optical_data(d, shape, wavelength, broadcast, copy) for d in data]
+    
     thickness, material, angles = data
+    
+    #for dispersive data, copy the coefficients, or evaluate if wavelength is provided.
+    dispersive_material = None
+    if is_callable(material):
+        if isinstance(material, EpsilonDispersive) and wavelength is None:
+            dispersive_material = material
+            material = dispersive_material.coefficients
+        else:
+            
+        #if material is callable, obtain eps values by calling the function
+            if wavelength is None:
+                raise ValueError("Epsilon is a callable. You must provide wavelength! Use split_wavelength = True.")
+            material = material(wavelength)   
+    
     thickness = np.asarray(thickness, dtype = FDTYPE)
-    if thickness.ndim == 0:
-        thickness = thickness[None] #make it 1D
-    elif thickness.ndim != 1:
-        raise ValueError("Thickess dimension should be 1.")
-    n = len(thickness)
     material = np.asarray(material)
     if np.issubdtype(material.dtype, np.complexfloating):
         material = np.asarray(material, dtype = CDTYPE)
     else:
         material = np.asarray(material, dtype = FDTYPE)
-    if (material.ndim == 1 and homogeneous) or (material.ndim==3 and not homogeneous):
-        material = np.broadcast_to(material, (n,)+material.shape)# np.asarray([material for i in range(n)], dtype = material.dtype)
-    if len(material) != n:
-        raise ValueError("Material length should match thickness length")
-    if (material.ndim != 2 and homogeneous) or (material.ndim != 4 and not homogeneous):
-        raise ValueError("Invalid dimensions of the material.")
-
     angles = np.asarray(angles, dtype = FDTYPE)
-    if (angles.ndim == 1 and homogeneous) or (angles.ndim==3 and not homogeneous):
-        angles = np.broadcast_to(angles, (n,)+angles.shape)
-        #angles = np.asarray([angles for i in range(n)], dtype = angles.dtype)
-    if len(angles) != n:
-        raise ValueError("Angles length should match thickness length")
-    if (angles.ndim != 2 and homogeneous) or (angles.ndim!=4 and not homogeneous):
-        raise ValueError("Invalid dimensions of the angles.")
-
-    if material.shape != angles.shape:
-        raise ValueError("Incompatible shapes for angles and material")
- 
-    return thickness.copy(), material.copy(), angles.copy()
     
+    if thickness.ndim == 0:
+        thickness = thickness[None] #make it 1D
+        material = material[None,...]
+        angles = angles[None,...]
+    elif thickness.ndim != 1:
+        raise ValueError("Thickess dimension should be 1.")
+        
+    n = len(thickness)
+    
+    if shape is None:
+        angles_broadcast_shape = (n,1,1,3)
+    else:
+        height,width = shape
+        angles_broadcast_shape = (n,height,width,3) 
+    if dispersive_material is None:
+        #regular data, angles and epsilon data have same shape
+        material_broadcast_shape = angles_broadcast_shape
+        if material.ndim == 2:
+            material = material[:,None,None,:]
+        elif material.ndim == 3:
+            material = material[:,None,:,:]
+        elif material.ndim != 4:
+            raise ValueError("Invalid material dimensions.")
+    else:
+        #coefficients-based data has one extra dimension
+        material_broadcast_shape = angles_broadcast_shape + (1,)
+        if material.ndim == 3:
+            material = material[:,None,None,:,:]
+        elif material.ndim == 4:
+            material = material[:,None,:,:,:]
+        elif material.ndim != 5:
+            raise ValueError("Invalid material coefficients dimensions.")        
+    
+    material_shape = np.broadcast_shapes(material.shape, material_broadcast_shape)
+    
+    if broadcast:
+        material = np.broadcast_to(material, material_shape)
+    
+    angles_shape = np.broadcast_shapes(angles.shape, angles_broadcast_shape)
+    if broadcast:
+        angles = np.broadcast_to(angles, angles_shape)
+    if copy:
+        thickness, material, angles = thickness.copy(), material.copy(), angles.copy()
+    #convert coefficients back to dispersive epsilon
+    if dispersive_material is not None:
+        material = dispersive_material.__class__(material)
+    
+    return thickness, material, angles
+
+def validate_optical_data(data, shape = None, wavelength = None, broadcast = False, copy = False, homogeneous = None):
+    """Validates optical data.
+    
+    This function inspects validity of the optical data, and makes proper data
+    conversions to match the optical data format. In case data is not valid and 
+    it cannot be converted to a valid optical data it raises an exception (ValueError). 
+    
+    Parameters
+    ----------
+    data : tuple or list of tuples
+        An optical data: either a single optical block tuple, or a list of block tuples.
+    shape : (int,int)
+        Each block's epsilon tensor shape (eps.shape[:-1]) is checked to 
+        be broadcastable with the given shape.
+    wavelength : float
+        Wavelength in nanometers at which to compute epsilon, in case epsv is 
+        a callable function.
+    broadcast : bool, optional
+        Ehether to actually perform broadcasting of arrays. If set to False, only
+        tests whether arrays can broadcast to a common shape, but no broadcasting
+        is made. 
+    copy: bool, optional
+        Whether to copy data. If not set, (broadcasted) view of the input arrays
+        is returned.
+        
+    Returns
+    -------
+    data : list of tuples
+        Validated optical data list. 
+    """
+    if isinstance(data, list):
+        if shape is None:
+            raise ValueError("For heterogeneous data, you must provide the `shape` argument.")
+        return [validate_optical_block(d, shape, wavelength, broadcast, copy) for d in data]
+    else:
+        import warnings
+        warnings.warn("A single-block optical data must be a list of length 1. Converting optical data to list. In the future, exception will be raised.", DeprecationWarning)
+        return validate_optical_data([data], shape, wavelength, broadcast, copy)
+
+def evaluate_optical_block(optical_block, wavelength = 550):
+    """In case of dispersive material. This function evaluates and returns optical block at a given wavelength"""
+    d, epsv, epsa = optical_block
+    if is_callable(epsv):
+        epsv = epsv(wavelength)
+    return d, epsv, epsa
+    
+def evaluate_optical_data(optical_data, wavelength = 550):
+    """In case of dispersive material. This function evaluates and return optical data at a given wavelength"""
+    return [evaluate_optical_block(block,wavelength) for block in optical_data]
+    
+
 def raw2director(data, order = "zyxn", nvec = "xyz"):
     """Converts raw data to director array.
     
@@ -775,7 +895,7 @@ def cholesteric_director(shape, pitch, hand = "left"):
     return out    
 
 def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5):
-    """Returns nematic droplet optical_data.
+    """Returns nematic droplet optical block data.
     
     This function returns a thickness,  material_eps, angles, info tuple 
     of a nematic droplet, suitable for light propagation calculation tests.
@@ -806,9 +926,8 @@ def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost
     mask, director = nematic_droplet_director(shape, radius, profile = profile, retmask = True)
     return director2data(director, mask = mask, no = no, ne = ne, nhost = nhost)
 
-
 def cholesteric_droplet_data(shape, radius, pitch, hand = "left", no = 1.5, ne = 1.6, nhost = 1.5):
-    """Returns cholesteric droplet optical_data.
+    """Returns cholesteric droplet optical block.
     
     This function returns a thickness,  material_eps, angles, info tuple 
     of a cholesteric droplet, suitable for light propagation calculation tests.
@@ -947,6 +1066,147 @@ def refind2eps(refind):
     """Converts refractive index to epsilon"""
     return refind**2
 
+_SELLMEIER_DECL = [(NF32DTYPE[:],NF32DTYPE[:],NF32DTYPE[:]), (NF64DTYPE[:],NF64DTYPE[:],NFDTYPE[:]),(NC64DTYPE[:],NF32DTYPE[:],NC64DTYPE[:]), (NC128DTYPE[:],NF64DTYPE[:],NCDTYPE[:])]
+
+@numba.guvectorize(_SELLMEIER_DECL, "(n),()->()", cache = NUMBA_CACHE)
+def sellmeier2eps(coeff, wavelength, out):
+    r"""Converts Sellmeier coefficents to epsilon
+    
+    Sellmeier formula is:
+    
+    eps = A + \sum_i B_i * w**2 / (w**2 - C_i)
+    
+    where A = coeff[0], B_1 = coeff[1], C_1 = coeff[2], ...
+    and w is wavelength in microns. 
+    
+    Input coefficients array must be of odd length. How many elements (n) are there
+    in the teries expansion of the Sellmeier formula depends on the length of
+    the input coefficients n = (len(coeff)-1)//2
+    """
+    #number of sums in sellmeier formula
+    n = (len(coeff)-1)//2
+    out[0] = coeff[0] # A term
+    for i in range(n):
+        out[0] += (coeff[1 + i*2] * wavelength[0]**2)/(wavelength[0]**2 - coeff[2 + i*2])    
+
+@numba.guvectorize(_SELLMEIER_DECL, "(n),()->()", cache = NUMBA_CACHE)
+def cauchy2eps(coeff, wavelength, out):
+    r"""Converts Cauchy coefficents to epsilon
+    
+    Cauchy formula is
+    
+    n = A + \sum_i B_i / (w**(2*i)
+    
+    where sumation is from i = 1 to imax = len(coeff)-1
+    A = coeff[0], B_1 = coeff[1], B_2 = coeff[2], ...
+    and w is wavelength in microns. 
+    """
+    #number of sums in sellmeier formula
+    n = (len(coeff))
+    out[0] = coeff[0] # A term
+    for i in range(1,n):
+        out[0] += (coeff[i] / wavelength[0]**(2*i))  
+    out[0] = out[0]**2
+
+def is_optical_block_dispersive(optical_block):
+    """inspectes whether optical  block is dispersive or not"""
+    d,epsv,epsa = optical_block
+    return is_callable(epsv)   
+    
+def is_optical_data_dispersive(optical_data):
+    """inspectes whether optical data is dispersive or not"""
+    for block in optical_data:
+        if is_optical_block_dispersive(block):
+            return True
+    #none of the blocks is dispersive, so data is not dispersive
+    return False
+    
+class EpsilonDispersive(object):
+    """Base class for all dispersive material classes.
+    """
+    def __init__(self, values = None, shape = None, n = None, broadcast = False, copy = False):
+        """
+        Parameters
+        ----------
+        values : array
+            Coefficents array
+        shape : tuple of ints
+            Requested shape of the material.
+        n : int
+            Total number of coefficents.
+        broadcast : bool, optional
+            Whether to broadcast to the desired output shape. If not sethe coefficients may 
+            still broadcast, so that coefficients get a minimum shape of (3,n)
+        copy : bool, optional
+            Whether to copy coefficients or not.
+        """
+        if values is not None:
+            self.coefficients = np.asarray(values,FDTYPE)
+        else:
+            if shape is None or n is None:
+                raise ValueError("Coefficients were not set, so you need to provide n and shape parameters.")
+
+        if n is not None:
+            n = int(n)
+            if n < 0:
+                raise ValueError("n must be >= 0")
+        else:
+            n = 1
+            
+        if shape is None:
+            shape = ()
+            
+        cshape = shape + (3,n)
+        
+        if values is None:
+            self.coefficients = np.empty(cshape,FDTYPE)
+            self.coefficients[...,0] = 1.
+            self.coefficients[...,1:] = 0.
+        else:
+            max_shape = np.broadcast_shapes(self.coefficients.shape, cshape)
+            min_shape = np.broadcast_shapes(self.coefficients.shape, (3,n))
+            
+            #force broadcasting so that we have a shape of at least (3,n)
+            self.coefficients = np.broadcast_to(self.coefficients, min_shape)            
+            if broadcast:
+                self.coefficients = np.broadcast_to(self.coefficients, max_shape)
+            if copy:
+                self.coefficients = self.coefficients.copy()
+                
+    def __getitem__(self,index):
+        return self.__class__(self.coefficients[index])
+                
+    def __call__(self):
+        import warnings
+        warnings.warn("Subclass must implement __call__ method", UserWarning)
+            
+class EpsilonCauchy(EpsilonDispersive):
+    """A callable epsilon tensor described with Cauchy coefficients
+    
+n = c[0] + c[1]/w**2 + c[2]/w**2 + ...
+eps = n**2
+    
+where are c is the coefficient vector and w is wavelength in microns.
+"""
+      
+    def __call__(self, wavelength):
+        return cauchy2eps(self.coefficients,wavelength/1000)    
+    
+class EpsilonSellmeier(object):
+    """A callable epsilon tensor described with Sellmeier coefficients.
+    
+eps = c[0] + w**2 * c[1] / (w**2 - c[2]) + w**2 * c[3] / (w**2 - c[4]) + ...
+    
+where are c is the coefficient vector and w is wavelength in microns.
+"""
+            
+    def __call__(self, wavelength):
+        return sellmeier2eps(self.coefficients,wavelength/1000)       
+
+def is_callable(func):
+    """Determines if func is a callable function or not"""
+    return True if hasattr(func, "__call__") else False
+
 _EPS_DECL = [(NF32DTYPE,NF32DTYPE[:],NF32DTYPE[:]), (NF64DTYPE, NF64DTYPE[:],NFDTYPE[:]),
              (NF32DTYPE,NC64DTYPE[:],NC64DTYPE[:]), (NF64DTYPE, NC128DTYPE[:],NCDTYPE[:])
              ]
@@ -1045,81 +1305,9 @@ def eig_symmetry(order, eig, out = None):
     order[mask] = -1
     return uniaxial_order(order ,eig, out)  
     
-MAGIC = b"dtms" #legth 4 magic number for file ID
-VERSION = b"\x01"
 
-
-#IOs fucntions
-#-------------
-
-def save_stack(file, optical_data):
-    """Saves optical data to a binary file in ``.dtms`` format.
-    
-    Parameters
-    ----------
-    file : file, str
-        File or filename to which the data is saved.  If file is a file-object,
-        then the filename is unchanged.  If file is a string, a ``.dtms``
-        extension will be appended to the file name if it does not already
-        have one.
-    optical_data: optical data tuple
-        A valid optical data
-    """    
-    own_fid = False
-    d,epsv,epsa = validate_optical_data(optical_data)
-    try:
-        if isinstance(file, str):
-            if not file.endswith('.dtms'):
-                file = file + '.dtms'
-            f = open(file, "wb")
-            own_fid = True
-        else:
-            f = file
-        f.write(MAGIC)
-        f.write(VERSION)
-        np.save(f,d)
-        np.save(f,epsv)
-        if epsa is not None:
-            np.save(f,epsa)
-    finally:
-        if own_fid == True:
-            f.close()
-
-def load_stack(file):
-    """Load optical data from a file.
-    
-    Parameters
-    ----------
-    file : file, str
-        The file to read.
-    """
-    own_fid = False
-    try:
-        if isinstance(file, str):
-            f = open(file, "rb")
-            own_fid = True
-        else:
-            f = file
-        magic = f.read(len(MAGIC))
-        if magic == MAGIC:
-            if ord(f.read(1)) > ord(VERSION):
-                raise OSError("This file was created with a more recent version of dtmm. Please upgrade your dtmm package!")
-            d = np.load(f)
-            epsv = np.load(f)
-            if f.peek(1) == b"":
-                #no more data to read.. epsa is not present
-                epsa =  None
-            else:
-                epsa = np.load(f)
-            return d, epsv, epsa
-        else:
-            raise OSError("Failed to interpret file {}".format(file))
-    finally:
-        if own_fid == True:
-            f.close()
-
-def filter_data(optical_data, wavelength, pixelsize, betamax = 1, symmetry = "isotropic"):
-    d, epsv, epsa = optical_data
+def filter_block(optical_block, wavelength, pixelsize, betamax = 1, symmetry = "isotropic"):
+    d, epsv, epsa = optical_block
     k = k0(wavelength, pixelsize) 
     epsv, epsa = filter_epsva(epsv, epsa, k, betamax )
     if symmetry == "uniaxial":
@@ -1129,7 +1317,13 @@ def filter_data(optical_data, wavelength, pixelsize, betamax = 1, symmetry = "is
     elif symmetry != "biaxial":
         raise ValueError("Unknown symmetry.")    
     return d, epsv, epsa
-       
+
+def filter_data(optical_data, wavelength, pixelsize, betamax = 1, symmetry = "isotropic"):
+    #for legacy optical data format
+    if isinstance(optical_data, tuple):
+        optical_data = [optical_data]
+    return [filter_block(optical_block, wavelength, pixelsize, betamax, symmetry) for optical_block in optical_data]
+         
 def filter_eps(eps, k, betamax = 1):
     eps = np.moveaxis(eps,-1,-3)
     feps = fft2(eps)
@@ -1167,18 +1361,17 @@ def _parse_symmetry_argument(arg):
         except TypeError:
             return _symmetry_arg_to_int(arg)
         
-
-def effective_data(optical_data, symmetry = 0):
-    """Builds effective data from the optical_data.
+def effective_block(optical_block, symmetry = 0):
+    """Builds effective block from the optical_block.
     
     The material epsilon is averaged over the layers.
     
     Parameters
     ----------
-    optical_data : tuple
-        A valid optical_data tuple.
+    optical_block : tuple
+        A valid optical block tuple.
 
-    symmetry : str, int or array 
+    symmetry : str, int or array
         Either 'isotropic' or 0,  'uniaxial' or 1 or 'biaxial' or 2 .
         Defines the symmetry of the effective layer. When set to 'isotropic', 
         the averaging is done so that the effective layer tensor is isotropic. 
@@ -1189,9 +1382,9 @@ def effective_data(optical_data, symmetry = 0):
     Returns
     -------
     out : tuple
-        A valid optical data tuple of the effective layers.
+        A valid optical block tuple of the effective layers.
     """
-    d, epsv,epsa = optical_data
+    d, epsv,epsa = optical_block
     #Whic axes are used for averaging averaging
     axis = list(range(len(epsv.shape)-1))
     
@@ -1204,7 +1397,7 @@ def effective_data(optical_data, symmetry = 0):
         
         if order.ndim != 0:
             if len(order) != len(d):
-                raise ValueError("Shape of the symmetry argument is incompatible.")
+                raise ValueError("Shape of the symmetry argument is incompatible with block size.")
             #do not average over thickness axis, so pop it out.
             axis.pop(0) 
             
@@ -1224,6 +1417,44 @@ def effective_data(optical_data, symmetry = 0):
         epsa = np.asarray((epsa,)*len(d)).copy()
     
     return d, epsv, epsa
+
+def effective_data(optical_data, symmetry = 0):
+    """Builds effective data from the optical_data.
+    
+    The material epsilon is averaged over the layers.
+    
+    Parameters
+    ----------
+    optical_data : list
+        A valid optical data list .
+
+    symmetry : str, int, or list
+        Either 'isotropic' or 0,  'uniaxial' or 1 or 'biaxial' or 2 .
+        Defines the symmetry of the effective layer. When set to 'isotropic', 
+        the averaging is done so that the effective layer tensor is isotropic. 
+        When set to 'uniaxial' the  effective layer tensor is an uniaxial medium. 
+        If it is a list, it defines the symmetry of each individual block of data.
+        
+    Returns
+    -------
+    out : list
+        A valid optical data of the effective layer blocks.
+    """
+    #for legacy format, convert to new-style format
+    if isinstance(optical_data, tuple):
+        optical_data = [optical_data]
+        deprecation("effective_data: optical_data is not a list. This will raise exception in the future.")
+    if isinstance(symmetry, tuple):
+        optical_data = [optical_data]
+        deprecation("effective_data: optical_data is not a list. This will raise exception in the future.")
+        
+    if isinstance(symmetry,int) or isinstance(symmetry,str):
+        symmetry = [symmetry] * len(optical_data)
+        
+    if len(symmetry) != len(optical_data):
+        raise Exception("symmetry and optical data length mismatch.")
+
+    return [effective_block(optical_block, sym) for optical_block, sym in zip(optical_data,symmetry)]
     
 def tensor2matrix(tensor, out = None):
     """Converts  matrix to tensor
@@ -1281,7 +1512,121 @@ def matrix2tensor(matrix, out = None):
     out[...,4] = matrix[...,0,2]
     out[...,5] = matrix[...,1,2]
     return out
+
+def split_block(block_data):
+    """Splits optical block data into a list of layers"""
+    block_data = validate_optical_block(block_data)
+    return [(d,epsv,epsa) for d,epsv,epsa in zip(*block_data)]
+
+def layered_data(optical_data):
+    """Converts a list of blocks to a list of layers."""
+    if not isinstance(optical_data, list):
+        raise ValueError("Optical data must be a list")
+    out = []
+    for block in optical_data:
+        out = out + split_block(block)
+    return out
+
+MAGIC = b"dtms" #legth 4 magic number for file ID
+
+_VERSION_X01 = b"\x01"
+VERSION = b"\x02"
+
+
+#IOs fucntions
+#-------------
+
+def save_stack(file, optical_data):
+    """Saves optical data to a binary file in ``.dtms`` format.
     
+    Parameters
+    ----------
+    file : file, str
+        File or filename to which the data is saved.  If file is a file-object,
+        then the filename is unchanged.  If file is a string, a ``.dtms``
+        extension will be appended to the file name if it does not already
+        have one.
+    optical_data: optical data tuple
+        A valid optical data
+    """    
+    own_fid = False
+    #validatedata format. Blocks are not tested for broadcasting (shape = (1,1))
+    optical_data = validate_optical_data(optical_data, shape = (1,1))
+
+    try:
+        if isinstance(file, str):
+            if not file.endswith('.dtms'):
+                file = file + '.dtms'
+            f = open(file, "wb")
+            own_fid = True
+        else:
+            f = file
+        f.write(MAGIC)
+        f.write(VERSION)
+        
+        for data in optical_data:
+            d,epsv,epsa = data
+            np.save(f,d, allow_pickle = False)
+            if isinstance(epsv, EpsilonCauchy):
+                epsv = np.asarray(("cauchy",epsv.coefficients),dtype = object)
+            elif isinstance(epsv, EpsilonSellmeier):
+                epsv = np.asarray(("sellmeier",epsv.coefficients),dtype = object)
+            np.save(f,epsv, allow_pickle = True)
+            np.save(f,epsa, allow_pickle = False)
+    finally:
+        if own_fid == True:
+            f.close()
+
+def load_stack(file):
+    """Load optical data from a file.
+    
+    Parameters
+    ----------
+    file : file, str
+        The file to read.
+    """
+    own_fid = False
+    try:
+        if isinstance(file, str):
+            f = open(file, "rb")
+            own_fid = True
+        else:
+            f = file
+        magic = f.read(len(MAGIC))
+        if magic == MAGIC:
+            version = f.read(1)
+            if ord(version) > ord(VERSION):
+                raise OSError("This file was created with a more recent version of dtmm. Please upgrade your dtmm package!")
+            elif ord(version) == ord(_VERSION_X01):
+                d = np.load(f)
+                epsv = np.load(f)
+                if f.peek(1) == b"":
+                    #no more data to read.. epsa is not present
+                    epsa =  None
+                else:
+                    epsa = np.load(f)
+                return [d, epsv, epsa]
+            else:
+                out = []
+                while f.peek(1) != b"":
+                    d = np.load(f)
+                    epsv = np.load(f, allow_pickle = True)
+                    if epsv.dtype == object:
+                        name, coefficients = epsv
+                        if name == "cauchy":
+                            epsv = EpsilonCauchy(coefficients)
+                        elif name == "sellmeier":
+                            epsv = EpsilonSellmeier(coefficients)
+                    epsa = np.load(f) 
+                    out.append((d,epsv,epsa))
+                return out                
+        else:
+            raise OSError("Failed to interpret file {}".format(file))
+    finally:
+        if own_fid == True:
+            f.close()
+
+
 if __name__ == "__main__":
     import doctest
     doctest.testmod()

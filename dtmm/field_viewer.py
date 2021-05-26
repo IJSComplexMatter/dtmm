@@ -60,12 +60,11 @@ SAMPLE_LABELS = ("-90 ","-45 "," 0  ","+45 ", "+90 ")
 SAMPLE_NAMES = tuple((s.strip() for s in SAMPLE_LABELS))
 POLARIZER_LABELS = (" H  "," V  ","LCP ","RCP ","none")
 POLARIZER_NAMES = tuple((s.strip().lower() for s in POLARIZER_LABELS))
-RETARDER_LABELS = ("$\lambda/4$", "$\lambda/2$","$\lambda$","none")
+RETARDER_LABELS = (r"$\lambda/4$", r"$\lambda/2$",r"$\lambda$","none")
 RETARDER_NAMES = ("lambda/4", "lambda/2", "lambda", "none")
 
 def _is_full_lambda_plate(name):
-    print("looking for...", name)
-    return True if name.strip().lower() in ("$\lambda$", "lambda") else False
+    return True if name.strip().lower() in (r"$\lambda$", "lambda") else False
     
 
 def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = None, input_fft = False, output_fft = False, out = None):
@@ -104,7 +103,7 @@ def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = N
     Returns
     -------
     pom_field : ndarray
-        Computed field od
+        Computed field.
         
     Examples
     --------
@@ -525,9 +524,9 @@ def _lambda_jmat(wavelengths, central = 530):
     return jones.full_waveplate(np.pi/4, central, wavelengths)
 
 def _jmat_from_name(name):
-    if name in ("qplate","$\lambda/4$","lambda/4"):
+    if name in ("qplate",r"$\lambda/4$","lambda/4"):
         return jones.quarter_waveplate(np.pi/4)
-    if name in ("hplate","$\lambda/2$","lambda/2"):
+    if name in ("hplate",r"$\lambda/2$","lambda/2"):
         return jones.half_waveplate(np.pi/4)
     if name == "none":
         return None
@@ -1427,28 +1426,47 @@ class BulkViewer(FieldViewer):
     
     @focus.setter     
     def focus(self, z):
-        #focos must be integer here, index of the layer
+        #focus must be integer here, index of the layer
         i = int(z)
         #check is ok, raise IndexError else
         self.field[i]
         self._focus = i
-        
+        # to trigger rspecter ecalcuation
+        self._specter = None
+        # we have to remove diffraction to trigger new layer selection and data recalculation
+        self._dmat = None
+
+
     @property
     def masked_field(self):
-        if self.aperture is not None:
-            mask = self.viewer_options.beta <= self.aperture
-            return self.field[self.focus,mask]
+        if self.aperture_mask is not None:
+            return self.field[self.focus,self.aperture_mask]
         else:
             return self.field[self.focus]
-    
+
     @property
     def masked_ffield(self):
-        """Fourier transform of the field"""
-        if self.aperture is not None:
-            mask = self.viewer_options.beta <= self.aperture
-            return self.ffield[self.focus,mask]
+        if self.aperture_mask is not None:
+            return self.ffield[self.focus,self.aperture_mask]
         else:
             return self.ffield[self.focus]
+        
+    @property
+    def diffraction_matrix(self):
+        """Diffraction matrix for diffraction calculation"""
+        if self._dmat is None:
+            vp = self.viewer_options
+            if vp.diffraction or vp.propagation_mode is not None:
+                #if mode is selected, we need to project the filed using diffraction
+                d = 0 
+                epsv = vp.epsv
+                self._dmat = field_diffraction_matrix(vp.shape, vp.wavenumbers, d = d, 
+                                          epsv = epsv, mode = vp.propagation_mode, betamax = vp.betamax) 
+            else:
+                self._dmat = None
+        return self._dmat
+    
+
         
 class POMViewer(FieldViewer):
     """Similar to FieldViewer, with the following differences:

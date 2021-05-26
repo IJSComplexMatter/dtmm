@@ -12,7 +12,7 @@ from dtmm.print_tools import print_progress
 import dtmm.tmm as tmm
 from dtmm.tmm import alphaffi, phase_mat
 
-from dtmm.wave import eigenbeta1, eigenindices1, eigenmask1, eigenwave1, betaxy2beta, mask2beta1, mask2indices1,betaxy2phi
+from dtmm.wave import eigenbetax1, eigenindices1, eigenmask1, eigenwave1, betaxy2beta, mask2betax1, mask2indices1,betaxy2phi
 from dtmm.wave import k0 as wavenumber
 from dtmm.field import field2modes1, modes2field1
 from dtmm.fft import mfft
@@ -46,11 +46,11 @@ def layer_mat2d(k0, d, epsv,epsa, betay = 0., method = "4x4", mask = None):
     shape = epsv.shape[-2]
     if mask is None:
         mask = eigenmask1(shape, k0)
-        betas = eigenbeta1(shape, k0)
+        betas = eigenbetax1(shape, k0)
         indices = eigenindices1(shape, k0)
     else:
-        betas = mask2beta1(mask,k0)
-        indices = mask2indices1(mask,k0)
+        betas = mask2betax1(mask,k0)
+        indices = mask2indices1(mask)
     if k0.ndim == 0:
         return _layer_mat2d(k0,d,epsv,epsa, mask, betas,betay, indices, method)
     else:
@@ -100,7 +100,7 @@ def stack_mat2d(k,d,epsv,epsa, betay = 0., method = "4x4" ,mask = None):
     if verbose_level > 1:
         print ("Building stack matrix.")
     for i in range(n):
-        print_progress(i,n,level = verbose_level) 
+        print_progress(i,n) 
         mat = layer_mat2d(k,d[i],epsv[i],epsa[i], betay = betay, mask = mask, method = method)
 
         if i == 0:
@@ -114,13 +114,13 @@ def stack_mat2d(k,d,epsv,epsa, betay = 0., method = "4x4" ,mask = None):
             else:
                 out = bdotmm(out,mat)
 
-    print_progress(n,n,level = verbose_level) 
+    print_progress(n,n) 
 
     return out 
 
 def f_iso2d(shape, k0, n = 1., betay = 0, betamax = BETAMAX):
     k0 = np.asarray(k0)
-    betax = eigenbeta1(shape,k0, betamax)
+    betax = eigenbetax1(shape,k0, betamax)
     
     if k0.ndim == 0:
         beta = betaxy2beta(betax,betay)
@@ -174,9 +174,9 @@ def reflection_mat2d(smat):
         out = []
         n = len(smat)
         for i,s in enumerate(smat):
-            print_progress(i,n,level = verbose_level) 
+            print_progress(i,n) 
             out.append(_reflection_mat2d(s))
-        print_progress(n,n,level = verbose_level)     
+        print_progress(n,n)     
         return tuple(out)
     else:
         return _reflection_mat2d(smat)

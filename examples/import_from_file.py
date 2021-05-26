@@ -4,8 +4,7 @@ Example showing how to import data from a file.
 It generates the director file as a text file, rather than binary, to allow
 the user to open it up and get a good understanding of what's going on.
 
-This file was create to have and example that could be run straight. Based
-heavily on the example in the quickstart.rst.
+Based heavily on the example in the quickstart.rst.
 """
 
 
@@ -37,7 +36,7 @@ director = dtmm.read_director("director.txt", (n_layers, height, width, 3), sep=
 # Create the mask for a spherical
 mask = dtmm.sphere_mask(shape, radius)
 # Covert director, mask, and physical parameters into optical data
-optical_data = dtmm.director2data(director, mask, no, ne, nhost)
+optical_data = [dtmm.director2data(director, mask, no, ne, nhost)]
 
 # ----
 # Generate wavelengths

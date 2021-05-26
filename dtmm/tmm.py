@@ -1257,7 +1257,7 @@ def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, cfact = 0.01, method = "4x4", out
     if verbose_level > 1:
         print ("Building stack matrix.")
     for pi,i in enumerate(range(n)):
-        print_progress(pi,n,level = verbose_level) 
+        print_progress(pi,n) 
         if method == "2x2_1":
             fmat, mat = layer_mat(kd[i],epsv[i],epsa[i],beta = beta, phi = phi, cfact = cfact, method = method, fmatin = fmat, out = mat, retfmat = True)
         else:
@@ -1275,7 +1275,7 @@ def stack_mat(kd,epsv,epsa, beta = 0, phi = 0, cfact = 0.01, method = "4x4", out
                 dotmm(mat,out,out)
             else:
                 dotmm(out,mat,out)
-    print_progress(n,n,level = verbose_level) 
+    print_progress(n,n) 
     t = time.time()-t0
     if verbose_level >1:
         print("     Done in {:.2f} seconds!".format(t))  
