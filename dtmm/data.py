@@ -625,6 +625,14 @@ def validate_optical_block(data, shape = None, wavelength = None, broadcast = Fa
             material = material[:,None,:,:,:]
         elif material.ndim != 5:
             raise ValueError("Invalid material coefficients dimensions.")        
+
+
+    if angles.ndim == 2:
+        angles = angles[:,None,None,:]
+    elif angles.ndim == 3:
+        angles = angles[:,None,:,:]
+    elif angles.ndim != 4:
+        raise ValueError("Invalid angles dimensions.")
     
     material_shape = np.broadcast_shapes(material.shape, material_broadcast_shape)
     
@@ -1526,6 +1534,15 @@ def layered_data(optical_data):
     for block in optical_data:
         out = out + split_block(block)
     return out
+
+def merge_blocks(optical_data, shape = None, wavelength = None):
+    """Merges blocks of optical data into a single block.""" 
+    optical_data = validate_optical_data(optical_data,shape = shape, wavelength = wavelength)
+    thickness = np.vstack(tuple((d[0] for d in optical_data)))
+    epsv = np.vstack(tuple((d[1] for d in optical_data)))
+    epsa = np.vstack(tuple((d[2] for d in optical_data)))
+    return thickness, epsv, epsa
+    
 
 MAGIC = b"dtms" #legth 4 magic number for file ID
 

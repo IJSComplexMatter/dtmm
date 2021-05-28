@@ -2,7 +2,7 @@
 
 import dtmm
 import numpy as np
-dtmm.conf.set_verbose(1)
+dtmm.conf.set_verbose(2)
 
 THICKNESS =  100
 #: pixel size in nm
@@ -26,27 +26,25 @@ window = dtmm.aperture((HEIGHT, WIDTH),0.2,1)
 field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, window = window,
                       beta = BETA,  pixelsize = PIXELSIZE,focus = 25.,n=1) 
 
-#illumination filed is defined in vacuum, so we make input and output medium with n = 1.
-field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = BETA,  phi = 0.,
-            reflection = 2, diffraction =1, npass = 3, method = "2x2",nin = 1, nout = 1)
+# illumination field is defined in vacuum, so we make input and output medium with n = 1.
+field_data_out = dtmm.transfer_field(field_data_in, optical_data, npass = -1, nin = 1, nout = 1)
 
 #we are viewing computed data in vacuum, so set n = 1.
-
-viewer4 = dtmm.field_viewer(field_data_in, mode = "t", intensity = 1,n = 1.)
+viewer4 = dtmm.field_viewer(field_data_in, mode = +1, intensity = 1,n = 1.)
 fig4,ax4 = viewer4.plot()
 ax4.set_title("Input field")
 
 #: visualize output field
-viewer1 = dtmm.field_viewer(field_data_out, mode = "t",intensity = 1,n = 1.) 
+viewer1 = dtmm.field_viewer(field_data_out, mode = +1,intensity = 1,n = 1.) 
 fig1,ax1 = viewer1.plot()
 ax1.set_title("Transmitted field")
 
 #: residual back propagating field is close to zero
-viewer2 = dtmm.field_viewer(field_data_out, mode = "r",intensity = 1,n = 1.)
+viewer2 = dtmm.field_viewer(field_data_out, mode = -1,intensity = 1,n = 1.)
 fig2,ax2 = viewer2.plot()
 ax2.set_title("Residual field")
 
-viewer3 = dtmm.field_viewer(field_data_in, mode = "r", intensity = 1,n = 1.)
+viewer3 = dtmm.field_viewer(field_data_in, mode = -1, intensity = 1,n = 1.)
 fig3,ax3 = viewer3.plot()
 ax3.set_title("Reflected field")
 

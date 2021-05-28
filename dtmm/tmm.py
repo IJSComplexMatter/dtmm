@@ -634,7 +634,7 @@ def phase_mat(alpha, kd, mode = None,  out = None):
         else:
             b = np.broadcast(alpha[...,::2],kd[...,None])
         out = np.empty(b.shape, dtype = CDTYPE)
-        
+
     if mode == +1:
         phasem(alpha[...,::2],kd, out = out)
     elif mode == -1:

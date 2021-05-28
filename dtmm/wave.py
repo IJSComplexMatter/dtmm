@@ -527,7 +527,7 @@ def betax1(n, k0, out = None):
     return beta
 
 @cached_function
-def eigenmask1(n, k0, betamax = None):
+def eigenmask1(n, k0, betay = 0, betamax = None):
     """Returns a boolean array of valid modal coefficents of 1D waves. 
     
     Valid coefficients are those that have beta <= betamax.
@@ -538,6 +538,9 @@ def eigenmask1(n, k0, betamax = None):
         Shape of the 1D eigenwave.
     k0 : float or array of floats
         Wavenumber (or wavenumbers) in pixel units.
+    betay : float or array
+        The betay parameter of the eigenwave. If set as an array, it should broadcast
+        with k0.
     betamax : float, optional
         The cutoff beta value. If not specified, it is set to default.
         
@@ -547,8 +550,11 @@ def eigenmask1(n, k0, betamax = None):
         A boolean array of shape (n,) or (len(k0), n).
     """
     betamax = get_default_config_option("betamax", betamax)
-    b = betax1(n, k0)
-    mask = np.abs(b) <= betamax
+    betay = np.asarray(betay,FDTYPE)
+    if betay.ndim > 0:
+        betay = betay[:,None]
+    b = (betax1(n, k0)**2 + betay**2)**0.5 
+    mask = b <= betamax
     return mask
     
 def mask2betax1(mask,k0):
@@ -606,7 +612,7 @@ def mask2indices1(mask, k0 = None):
         raise ValueError("Invalid mask shape.")
 
 @cached_function
-def eigenbetax1(n, k0, betamax = None):
+def eigenbetax1(n, k0, betay = 0, betamax = None):
     """Returns masked betax1 array(s) of all valid eigenwaves.
     
     Parameters
@@ -624,8 +630,13 @@ def eigenbetax1(n, k0, betamax = None):
         Masked beta array(s).  
     """  
     betamax = get_default_config_option("betamax", betamax)
-    b = betax1(n, k0)
-    mask = np.abs(b) <= betamax
+
+    betay = np.asarray(betay,FDTYPE)
+    if betay.ndim > 0:
+        betay = betay[:,None]
+    b = (betax1(n, k0)**2 + betay**2)**0.5 
+    mask = b <= betamax
+    
     if mask.ndim == 2:
         return tuple([b[i][mask[i]] for i in range(mask.shape[0])])
     else:
@@ -644,7 +655,7 @@ def _get_indices_array(ii,jj, mask):
     return out
 
 @cached_function
-def eigenindices1(n, k0, betamax = None):
+def eigenindices1(n, k0, betay = 0, betamax = None):
     """Returns masked indices array(s) of all valid 1D eigenwaves.
     
     Parameters
@@ -663,7 +674,7 @@ def eigenindices1(n, k0, betamax = None):
     """ 
     betamax = get_default_config_option("betamax", betamax)
     ii = np.arange(n) 
-    mask = eigenmask1(n, k0, betamax)
+    mask = eigenmask1(n, k0, betay, betamax)
     if mask.ndim == 2: #multiwavelength
         out = (ii[mask[i]] for i in range(mask.shape[0]))
         return tuple(out)

@@ -166,7 +166,7 @@ def _field2modes(field, k0, betamax = BETAMAX):
     f = f[mask]
     return np.moveaxis(f,-2,-1)
 
-def field2modes(field, k0, betamax = BETAMAX):
+def field2modes(field, k0, betamax = BETAMAX, copy = True):
     """Converts 2D field array to modes array.
     
     Parameters
@@ -199,9 +199,17 @@ def field2modes(field, k0, betamax = BETAMAX):
     k0 = np.asarray(k0)
     mask = eigenmask(f.shape[-2:], k0, betamax)
     if k0.ndim == 0:
-        return mask, np.moveaxis(f[...,mask],-2,-1)
+        out = np.moveaxis(f[...,mask],-2,-1)
+        if copy:
+            out = out.copy()
+        return mask, out
     else:
-        return mask, tuple((np.moveaxis(f[...,i,:,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
+        out = (np.moveaxis(f[...,i,:,:,:][...,mask[i]],-2,-1) for i in range(len(k0)))
+        if copy:
+            return mask, tuple(o.copy() for o in out)
+        else:
+            return mask, tuple(out)
+
 
 def ffield2modes(ffield, k0, betamax = BETAMAX):
 
@@ -213,7 +221,7 @@ def ffield2modes(ffield, k0, betamax = BETAMAX):
         return mask, tuple((np.moveaxis(ffield[...,i,:,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
     
 
-def field2modes1(field, k0, betamax = BETAMAX):
+def field2modes1(field, k0, betay = 0, betamax = BETAMAX):
     """Converts field array to modes array.
     
     Parameters
@@ -243,7 +251,7 @@ def field2modes1(field, k0, betamax = BETAMAX):
     
     f = fft(field)
     k0 = np.asarray(k0)
-    mask = eigenmask1(f.shape[-1], k0, betamax)
+    mask = eigenmask1(f.shape[-1], k0, betay, betamax = betamax)
     if k0.ndim == 0:
         return mask, np.moveaxis(f[...,mask],-2,-1)
     else:

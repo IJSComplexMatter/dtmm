@@ -40,21 +40,26 @@ def layer_mat2d(k0, d, epsv,epsa, betay = 0., method = "4x4", mask = None):
     cmat : ndarray
         Characteristic matrix of the layer.
     """
+
     if method not in ("4x4","4x4_1"):
         raise ValueError("Unsupported method: '{}'".format(method))
     k0 = np.asarray(k0)
+    betay = np.asarray(betay)
+    betay = np.broadcast_to(betay, k0.shape)
+    
     shape = epsv.shape[-2]
     if mask is None:
-        mask = eigenmask1(shape, k0)
-        betas = eigenbetax1(shape, k0)
-        indices = eigenindices1(shape, k0)
+        mask = eigenmask1(shape, k0, betay)
+        betas = eigenbetax1(shape, k0, betay)
+        indices = eigenindices1(shape, k0, betay)
     else:
         betas = mask2betax1(mask,k0)
         indices = mask2indices1(mask)
     if k0.ndim == 0:
         return _layer_mat2d(k0,d,epsv,epsa, mask, betas,betay, indices, method)
     else:
-        out = (_layer_mat2d(k0[i],d,epsv,epsa, mask[i],betas[i], betay, indices[i],method) for i in range(len(k0)))
+        out = (_layer_mat2d(k0[i],d,epsv,epsa, mask[i],betas[i], betay[i], indices[i],method) for i in range(len(k0)))
+
         return tuple(out)
 
 
@@ -65,6 +70,7 @@ def _layer_mat2d(k0,d,epsv,epsa, mask, betaxs, betay,indices, method):
     out = np.empty(shape = (n, n, 4, 4), dtype = CDTYPE)
     beta = betaxy2beta(betaxs,betay)
     phi = betaxy2phi(betaxs,betay)
+    
     for j,(beta,phi) in enumerate(zip(beta, phi)):   
         alpha,f,fi = alphaffi(beta,phi,epsv,epsa)
         pmat = phase_mat(alpha,-kd)
@@ -120,7 +126,12 @@ def stack_mat2d(k,d,epsv,epsa, betay = 0., method = "4x4" ,mask = None):
 
 def f_iso2d(shape, k0, n = 1., betay = 0, betamax = BETAMAX):
     k0 = np.asarray(k0)
-    betax = eigenbetax1(shape,k0, betamax)
+    betax = eigenbetax1(shape,k0, betay, betamax)
+    betay = np.asarray(betay)
+    if betay.ndim != 0:
+        # describes different wavelength, se we need to broadcast
+        betay = betay[:,None]
+        
     
     if k0.ndim == 0:
         beta = betaxy2beta(betax,betay)
@@ -234,17 +245,30 @@ def reflect2d(fvecin, fmatin, rmat, fmatout, fvecout = None):
 def transfer2d(field_data_in, optical_data, betay = 0., nin = 1., nout = 1., method = "4x4", betamax = BETAMAX, field_out = None):
     
     f,w,p = field_data_in
-    shape = f.shape[-1]
+
     d,epsv,epsa = optical_data
     k0 = wavenumber(w, p)
+    betay = np.asarray(betay)
+    bshape = np.broadcast_shapes(betay.shape, k0.shape)
+    betay = np.broadcast_to(betay, bshape)
     
+
     if field_out is not None:
-        mask, fmode_out = field2modes1(field_out,k0, betamax = betamax)
+        mask, fmode_out = field2modes1(field_out,k0, betay, betamax = betamax)
     else:
         fmode_out = None
     
-    mask, fmode_in = field2modes1(f,k0, betamax = betamax)
+    mask, fmode_in = field2modes1(f,k0, betay, betamax = betamax)
     
+    fmode_out = mode_transfer2d(mask, fmode_in, k0, d, epsv,epsa, betay = betay, nin = nin, nout = nout, method = method, betamax = betamax, out = fmode_out)
+    
+    field_out = modes2field1(mask, fmode_out)
+    f[...] = modes2field1(mask, fmode_in)
+    
+    return field_out,w,p
+
+def mode_transfer2d(mask, fmode_in, k0, d, epsv, epsa, betay = 0., nin = 1, nout = 1, method = "4x4", betamax = BETAMAX, out = None):
+    shape = mask.shape[-1]
     fmatin = f_iso2d(shape = shape, betay = betay, k0 = k0, n=nin, betamax = betamax)
     fmatout = f_iso2d(shape = shape, betay = betay, k0 = k0, n=nout, betamax = betamax)
     
@@ -252,12 +276,6 @@ def transfer2d(field_data_in, optical_data, betay = 0., nin = 1., nout = 1., met
     smat = system_mat2d(fmatin = fmatin, cmat = cmat, fmatout = fmatout)
     rmat = reflection_mat2d(smat)
     
-    fmode_out = reflect2d(fmode_in, rmat = rmat, fmatin = fmatin, fmatout = fmatout, fvecout = fmode_out)
-    
-    field_out = modes2field1(mask, fmode_out)
-    f[...] = modes2field1(mask, fmode_in)
-    
-    return field_out,w,p
-
-        
+    fmode_out = reflect2d(fmode_in, rmat = rmat, fmatin = fmatin, fmatout = fmatout, fvecout = out)
+    return fmode_out      
     
