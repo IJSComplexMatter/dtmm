@@ -17,14 +17,14 @@ import dtmm
 import numpy as np
 
 dtmm.conf.set_verbose(2)
-dtmm.conf.set_betamax(0.6)
+dtmm.conf.set_betamax(0.9)
 
 #: pixel size in nm
 PIXELSIZE = 50
 #: compute box dimensions
 NLAYERS, HEIGHT, WIDTH = 40,96,96
 #: illumination wavelengths in nm
-WAVELENGTHS = np.linspace(380,780,5)
+WAVELENGTHS = np.linspace(380,780,9)
 #: create some experimental data (stack) left-handed cholesteric
 optical_data = [dtmm.cholesteric_droplet_data((NLAYERS, HEIGHT, WIDTH), 
           radius = 20, pitch = 7, no = 1.5, ne = 1.65, nhost = 1.5)] #approx 50*7*1.5 nm bragg reflection
@@ -44,7 +44,7 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, jones = jon
 #: transfer input light through stackt
 field_data_out = dtmm.transfer_field(field_data_in, optical_data, beta = beta, phi = 0,
                                      diffraction = 1, method = "4x4",  smooth = 0.1,
-                                     reflection = 2,nin = 1.5, nout = 1.5,npass = np.inf,norm = 2)
+                                     reflection = 2,nin = 1.5, nout = 1.5,npass = 5,norm = 2)
 
 #: visualize output field
 viewer1 = dtmm.field_viewer(field_data_out, mode = "t",n = 1.5, intensity = 0.5, focus = -20) 
