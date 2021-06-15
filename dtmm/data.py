@@ -530,8 +530,16 @@ def epsva2eps(epsv,epsa):
     """
     r = rotation_matrix(epsa)
     return rotate_diagonal_tensor(r,epsv)
+
+def validate_optical_layer(data, shape = None, wavelength = None, broadcast = False, copy = False):
+    """Convenience function. See validate_optical_block for details.
+    
+    Calls validate_optical_block with single_layer = True"""
+    return validate_optical_block(data, shape = shape, wavelength = wavelength, \
+                    broadcast = broadcast, copy = copy, single_layer = True)
+
         
-def validate_optical_block(data, shape = None, wavelength = None, broadcast = False, copy = False, homogeneous = None):
+def validate_optical_block(data, shape = None, wavelength = None, broadcast = False, copy = False, homogeneous = None, single_layer = False):
     """Validates optical block.
     
     This function inspects validity of the optical block data, and makes proper data
@@ -555,6 +563,9 @@ def validate_optical_block(data, shape = None, wavelength = None, broadcast = Fa
     copy: bool, optional
         Whether to copy data. If not set, (broadcasted) view of the input arrays
         is returned.
+    single_layer : bool
+        If set to True, input data has to be a single layer data. Validated data
+        is not converted to optical block of length 1.
         
     Returns
     -------
@@ -579,10 +590,9 @@ def validate_optical_block(data, shape = None, wavelength = None, broadcast = Fa
             dispersive_material = material
             material = dispersive_material.coefficients
         else:
-            
         #if material is callable, obtain eps values by calling the function
             if wavelength is None:
-                raise ValueError("Epsilon is a callable. You must provide wavelength! Use split_wavelength = True.")
+                raise ValueError("Epsilon is a callable. You must provide wavelength!")
             material = material(wavelength)   
     
     thickness = np.asarray(thickness, dtype = FDTYPE)
@@ -593,45 +603,45 @@ def validate_optical_block(data, shape = None, wavelength = None, broadcast = Fa
         material = np.asarray(material, dtype = FDTYPE)
     angles = np.asarray(angles, dtype = FDTYPE)
     
-    if thickness.ndim == 0:
+    if thickness.ndim == 0 and not single_layer:
         thickness = thickness[None] #make it 1D
         material = material[None,...]
         angles = angles[None,...]
-    elif thickness.ndim != 1:
+    elif thickness.ndim != 1 and not single_layer:
         raise ValueError("Thickess dimension should be 1.")
-        
-    n = len(thickness)
+
+    n = None if single_layer else len(thickness)
+    layer_dim = 0 if n is None else 1
     
     if shape is None:
-        angles_broadcast_shape = (n,1,1,3)
+        angles_broadcast_shape = (1,1,3) if n is None else (n,1,1,3)
     else:
         height,width = shape
-        angles_broadcast_shape = (n,height,width,3) 
+        angles_broadcast_shape = (height,width,3) if n is None else (n, height, width,3)
     if dispersive_material is None:
         #regular data, angles and epsilon data have same shape
         material_broadcast_shape = angles_broadcast_shape
-        if material.ndim == 2:
-            material = material[:,None,None,:]
-        elif material.ndim == 3:
-            material = material[:,None,:,:]
-        elif material.ndim != 4:
+        if material.ndim == 1 + layer_dim:
+            material = material[None,None,:]
+        elif material.ndim == 2 + layer_dim:
+            material = material[None,:,:]
+        elif material.ndim != 3 + layer_dim:
             raise ValueError("Invalid material dimensions.")
     else:
         #coefficients-based data has one extra dimension
         material_broadcast_shape = angles_broadcast_shape + (1,)
-        if material.ndim == 3:
-            material = material[:,None,None,:,:]
-        elif material.ndim == 4:
-            material = material[:,None,:,:,:]
-        elif material.ndim != 5:
+        if material.ndim == 2 + layer_dim:
+            material = material[None,None,:,:]
+        elif material.ndim == 3 + layer_dim:
+            material = material[None,:,:,:]
+        elif material.ndim != 4 + layer_dim:
             raise ValueError("Invalid material coefficients dimensions.")        
 
-
-    if angles.ndim == 2:
-        angles = angles[:,None,None,:]
-    elif angles.ndim == 3:
-        angles = angles[:,None,:,:]
-    elif angles.ndim != 4:
+    if angles.ndim == 1 + layer_dim:
+        angles = angles[None,None,:]
+    elif angles.ndim == 2 + layer_dim:
+        angles = angles[None,:,:]
+    elif angles.ndim != 3 +layer_dim:
         raise ValueError("Invalid angles dimensions.")
     
     material_shape = np.broadcast_shapes(material.shape, material_broadcast_shape)
@@ -1180,7 +1190,13 @@ class EpsilonDispersive(object):
                 self.coefficients = np.broadcast_to(self.coefficients, max_shape)
             if copy:
                 self.coefficients = self.coefficients.copy()
-                
+        
+        self.dtype = FDTYPE
+        
+    @property    
+    def shape(self):
+        return self.coefficients.shape[:-1]
+        
     def __getitem__(self,index):
         return self.__class__(self.coefficients[index])
                 
@@ -1368,8 +1384,9 @@ def _parse_symmetry_argument(arg):
             return tuple((_parse_symmetry_argument(a) for a in arg))
         except TypeError:
             return _symmetry_arg_to_int(arg)
+
         
-def effective_block(optical_block, symmetry = 0):
+def effective_block(optical_block, symmetry = 0, broadcast = True):
     """Builds effective block from the optical_block.
     
     The material epsilon is averaged over the layers.
@@ -1386,6 +1403,9 @@ def effective_block(optical_block, symmetry = 0):
         When set to 'uniaxial' the  effective layer tensor is an uniaxial medium. 
         If it is an array, it defines the symmetry of each individual layers
         independetly.
+    broadcast : bool, optional
+        If set to True, output is assured to be broadcastable with optical_block
+        elements.
         
     Returns
     -------
@@ -1419,11 +1439,11 @@ def effective_block(optical_block, symmetry = 0):
         epsv, epsa = eps2epsva(eps)
         eig_symmetry(order, epsv, out = epsv)
      
-    if epsv.ndim == 1:
+    if epsv.ndim == 1 and broadcast == True:
         #must be same lengths as d, so repeat the matereial for each layer
         epsv = np.asarray((epsv,)*len(d)).copy()#make a copy, to have a contiguous layer
         epsa = np.asarray((epsa,)*len(d)).copy()
-    
+
     return d, epsv, epsa
 
 def effective_data(optical_data, symmetry = 0):
@@ -1542,7 +1562,13 @@ def merge_blocks(optical_data, shape = None, wavelength = None):
     epsv = np.vstack(tuple((d[1] for d in optical_data)))
     epsa = np.vstack(tuple((d[2] for d in optical_data)))
     return thickness, epsv, epsa
-    
+
+def material_shape(epsv, epsa):
+    """Determines material 2D - crossection shape from the epsv -eigenvalues 
+    and epsa - eigenangles arrays"""
+    x,y = epsv.shape[-3:-1]
+    xa,ya = epsa.shape[-3:-1]
+    return (max(x,xa), max(y,ya))
 
 MAGIC = b"dtms" #legth 4 magic number for file ID
 

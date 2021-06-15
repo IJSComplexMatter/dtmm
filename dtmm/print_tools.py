@@ -40,6 +40,8 @@ def print_progress (iteration, total, prefix = '', suffix = '', decimals = 1, le
     if level is not None:
         import warnings
         warnings.warn("Deprecated use of level argument", DeprecationWarning)
+        
+    length = max(20, length - len(prefix) - len(suffix))
     if dtmm.conf.DTMMConfig.verbose >= 1:
         percent = ("{0:." + str(decimals) + "f}").format(100 * (iteration / float(total)))
         filledLength = int(length * iteration // total)

@@ -97,7 +97,7 @@ def field2jones(field, ks = None, beta = None, phi = None, epsv = (1.,1.,1.), ep
         fft2(out, out = out)
     return out
 
-def jones2field(jones, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0.,0.,0.),  mode = +1, input_fft = False, output_fft = False, betamax = BETAMAX):
+def jones2field(jones, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0.,0.,0.),  mode = +1, input_fft = False, output_fft = False, betamax = BETAMAX, out = None):
     """Converts (..., 2,n,m) jones array to (..., 4,n,m) field array
     
     The conversion is done either in reciprocal space (default) or in real space,
@@ -140,7 +140,8 @@ def jones2field(jones, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0
         import warnings
         warnings.warn("`ks`, was set, although it is not required - field is not modal", UserWarning)
     jones= np.asarray(jones)    
-    out = np.empty(jones.shape[:-3] + (4,) + jones.shape[-2:], jones.dtype)
+    if out is None:
+        out = np.empty(jones.shape[:-3] + (4,) + jones.shape[-2:], jones.dtype)
     if input_fft == False and modal:
         jones = fft2(jones)   
     elif input_fft == True and not modal:
@@ -160,13 +161,14 @@ def jones2field(jones, ks, beta = None, phi = None, epsv = (1.,1.,1.), epsa = (0
         fft2(out, out = out)
     return out
 
-def _field2modes(field, k0, betamax = BETAMAX):
-    f = fft2(field)
-    mask = eigenmask(f.shape[-2:], k0, betamax)
-    f = f[mask]
-    return np.moveaxis(f,-2,-1)
+# def _field2modes(field, k0, betamax = BETAMAX):
+#     f = fft2(field)
+#     mask = eigenmask(f.shape[-2:], k0, betamax)
+#     f = f[mask]
+#     return np.moveaxis(f,-2,-1)
 
-def field2modes(field, k0, betamax = BETAMAX, copy = True):
+
+def field2modes(field, k0, betamax = BETAMAX, copy = True, mask = None):
     """Converts 2D field array to modes array.
     
     Parameters
@@ -190,14 +192,15 @@ def field2modes(field, k0, betamax = BETAMAX, copy = True):
             
     """
     if isinstance(field, tuple):
-        out = tuple((field2modes(field[i], k0[i], betamax ) for i in range(len(field))))
+        out = tuple((field2modes(field[i], k0[i], betamax, mask) for i in range(len(field))))
         mask = tuple(o[0] for o in out)
         modes = tuple(o[1] for o in out)
         return mask, modes
     
     f = fft2(field)
     k0 = np.asarray(k0)
-    mask = eigenmask(f.shape[-2:], k0, betamax)
+    if mask is None:
+        mask = eigenmask(f.shape[-2:], k0, betamax)
     if k0.ndim == 0:
         out = np.moveaxis(f[...,mask],-2,-1)
         if copy:
@@ -209,6 +212,39 @@ def field2modes(field, k0, betamax = BETAMAX, copy = True):
             return mask, tuple(o.copy() for o in out)
         else:
             return mask, tuple(out)
+
+def select_modes(field, mask, copy = True):
+    if isinstance(field, tuple):
+        return tuple((select_modes(field[i],mask[i],copy) for i in range(len(field))))
+
+    if isinstance(mask, tuple) or mask.ndim == 3:
+        out = (np.moveaxis(field[...,i,:,:,:][...,mask[i]],-2,-1) for i in range(len(mask)))
+        if copy:
+            return tuple(o.copy() for o in out)
+        else:
+            return tuple(out)
+    else:
+        out = np.moveaxis(field[...,mask],-2,-1)
+        if copy:
+            out = out.copy()
+        return out
+
+def set_modes(out, mask, modes):
+    if isinstance(out, tuple):
+        return tuple((set_modes(o,m,mo) for (o,m,mo) in zip(out,mask, modes)))
+
+    if mask.ndim == 2:
+        modes = np.swapaxes(modes,-1,-2)
+        out[...,mask] = modes
+    else:
+        for i,(mode, m) in enumerate(zip(modes,mask)):
+            mode = np.swapaxes(mode,-1,-2)
+            o = out[...,i,:,:,:]
+            o[...,m] = mode
+            
+           
+       
+    return out
 
 
 def ffield2modes(ffield, k0, betamax = BETAMAX):
@@ -256,6 +292,23 @@ def field2modes1(field, k0, betay = 0, betamax = BETAMAX):
         return mask, np.moveaxis(f[...,mask],-2,-1)
     else:
         return mask, tuple((np.moveaxis(f[...,i,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
+
+def select_modes1(mask, field, copy = True):
+    if isinstance(field, tuple):
+        return tuple((field2modes(mask[i],field[i]) for i in range(len(field))))
+
+
+    if isinstance(mask, tuple) or mask.ndim == 2:
+        out = (np.moveaxis(field[...,i,:,:][...,mask[i]],-2,-1) for i in range(len(mask)))
+        if copy:
+            return tuple(o.copy() for o in out)
+        else:
+            return tuple(out)
+    else:
+        out = np.moveaxis(field[...,mask],-2,-1)
+        if copy:
+            out = out.copy()
+        return out
     
     
 def modes2ffield(mask, modes, out = None):

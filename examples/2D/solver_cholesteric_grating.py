@@ -54,57 +54,45 @@ NLAYERS, WIDTH = twist.shape[0], twist.shape[1]
 
 d = np.ones(shape = (NLAYERS,))
 
-epsv = np.empty( shape = (NLAYERS, WIDTH, 3), dtype = dtmm.conf.CDTYPE)
+epsv = np.empty( shape = (NLAYERS, 1, WIDTH, 3), dtype = dtmm.conf.FDTYPE)
 
 epsv[...,0] = no**2
 epsv[...,1] = no**2
 epsv[...,2] = ne**2
+
+from dtmm.data import EpsilonCauchy
+epsc = EpsilonCauchy(shape = (NLAYERS,1,WIDTH), n = 2)
+epsc.coefficients[...,0] = (epsv)**0.5  # a term, just set to refractive index
+# very strong dispersion.
+b = 0.01
+epsc.coefficients[...,0:2,1] = b*(epsv[...,0:2])**0.5   # b term ordinary
+epsc.coefficients[...,2,1] = b*(epsv[...,2])**0.5  # b term extraordinary
+
+#normalize so that we have same refractive index at 550 nm
+epsc.coefficients[...,0] += ((epsv)**0.5 - epsc(550)**0.5)
+
 
 beta, phi, intensity = 0,0,1
 
 #we use 3D non-polarized data and convert it to 2D
 field_data_in = dtmm.illumination_data((1,WIDTH), WAVELENGTHS, jones = None, 
                       beta= beta, phi = phi, intensity = intensity, pixelsize = PIXELSIZE, n = nin) 
-field_data_in2d = field_data_in[0][...,0,:],field_data_in[1],field_data_in[2]
 
+optical_data = [(d,epsc,epsa[...,None,:,:])] 
 
+sim = solver.MatrixDataSolver3D((1,WIDTH), wavelengths = WAVELENGTHS, pixelsize = PIXELSIZE)
+sim.set_optical_data(optical_data)
+sim.calculate_stack_matrix(keep_layer_matrices = False, keep_stack_matrices = False)
+sim.calculate_field_matrix(nin, nout)
+sim.calculate_reflectance_matrix()
+sim.transfer_field(field_data_in[0])
 
-optical_data2d = [(d,epsv,epsa)]
+field_data_out = sim.get_field_data_out()
 
-f,w,p = field_data_in2d 
-shape = f.shape[-1]
-
-k0 = wave.k0(w, p)
-
-mask, fmode_in = field.field2modes1(f,k0)
-
-fmatin = tmm2d.f_iso2d(mask = mask,  k0 = k0, n=nin, betay = 0)
-fmatout = tmm2d.f_iso2d(mask = mask,  k0 = k0, n=nout, betay = 0)
-
-cmat = tmm2d.stack_mat2d(k0,d, epsv, epsa, betay = 0, mask = mask)
-smat = tmm2d.system_mat2d(fmatin = fmatin, cmat = cmat, fmatout = fmatout)
-rmat = tmm2d.reflection_mat2d(smat)
-
-fmode_in_listed = tmm2d.list_modes(fmode_in)
-
-fmode_out_listed = tmm2d.reflect2d(fmode_in_listed , rmat = rmat, fmatin = fmatin, fmatout = fmatout)
-fmode_out = tmm2d.unlist_modes(fmode_out_listed)
-
-field_out = field.modes2field1(mask, fmode_out)
-f[...] = field.modes2field1(mask, fmode_in)
-
-
-#field_out = dtmm.tmm2d.transfer2d(field_data_in2d, (d,epsv,epsa), betay = 0., nin = nin, nout = nout, method = "4x4")[0]
-
-
-field_data_out2d = field_out ,w, p
-
-#we could have used this function to transfer the field directly.
-#field_data_out2d = tmm2d.transfer2d(field_data_in2d, optical_data2d,  nin = 1.5, nout = 1.5)
-
-#convert 2D data to 3D, so that we can use pom_viewer to view the microscope image
-field_data_out = field_data_out2d[0][...,None,:],field_data_out2d[1],field_data_out2d[2]
-field_data_in = field_data_in2d[0][...,None,:],field_data_in2d[1],field_data_in2d[2]
+fmode_in  = sim.modes_in
+fmode_out  = sim.modes_out
+fmatin = sim.field_matrix_in
+fmatout = sim.field_matrix_out
 
 cols = 1
 rows = WIDTH
@@ -154,11 +142,6 @@ ax2.set_xlabel("wavelength")
 
 ax1.legend()
 ax2.legend()
-
-    
-optical_data = [(d,epsv[...,None,:,:],epsa[...,None,:,:])] 
-#we could have computed like so:
-#field_data_out = solver.transfer3d(field_data_in, optical_data, nin = 1.5, nout = 1.5,)
 
 viewer1 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows, analyzer = "h")
 viewer2 = dtmm.field_viewer(field_data_out, mode = "t", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows, analyzer = "h")

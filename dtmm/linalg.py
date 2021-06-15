@@ -1125,7 +1125,7 @@ def bdotmm(m1,m2, out = None):
     tmp = np.empty(shape = m1.shape, dtype = CDTYPE)
     for j in range(m1.shape[0]):
         # for some reason it is much more efficient to copy. This may be resolved in future numba versions.
-        # TODO: inspect this issue and file a bug repor
+        # TODO: inspect this issue and file a bug report
         b = np.broadcast_to(m1[j][:,None,:,:],m2.shape).copy()
         dotmm(b,m2, out = tmp)
         #dotmm(m1[j][:,None,:,:],m2, out = tmp)
@@ -1193,29 +1193,21 @@ def _bdotdm_ref(d,m):
     return out
 
 
-def bdotmv(m,v, out = None):
-    """Performs a dot product of two nxn block matrices of blocks 4x4.
-    The second matrix is block diagonal matrix of shape nx4x4,
-    The first matrix must be of shape nxnx4x4 that describe two mxm matrices
-    (m = 4*n) of blocks of size 4x4.
-    """
-    tmp = dotmv(m,v)
-    return tmp.sum(-2, out = out)
+# def bdotmv(m,v, out = None):
+#     """
+#     """
+#     tmp = dotmv(m,v)
+#     return tmp.sum(-2, out = out)
 
 
-def _bdotmv_ref(m,v):
-    """Performs a dot product of two nxn block matrices of blocks 4x4.
-    Matrices must be of shape nxnx4x4 that describe two mxm matrices
-    (m = 4*n) of blocks of size 4x4
-    """
-    
-    m = np.moveaxis(m,-2,-3).copy()
-    shape = v.shape
-    m = m.reshape(m.shape[0]*4,m.shape[0]*4).copy()
-    v = v.reshape(v.shape[0]*4).copy()
-    out = dotmv(m,v).copy()
-    out = out.reshape(shape).copy()
-    return out
+# def _bdotmv_ref(m,v):    
+#     m = np.moveaxis(m,-2,-3).copy()
+#     shape = v.shape
+#     m = m.reshape(m.shape[0]*4,m.shape[0]*4).copy()
+#     v = v.reshape(v.shape[0]*4).copy()
+#     out = dotmv(m,v).copy()
+#     out = out.reshape(shape).copy()
+#     return out
 
 
 
@@ -1272,8 +1264,8 @@ def multi_dot(arrays,  axis = 0, reverse = False):
     if axis != 0:
         arrays = np.asarray(arrays)
         indices = range(arrays.shape[axis])
-        arrays = np.rollaxis(arrays, axis)
-        #arrays = np.moveaxis(arrays, axis)
+        #arrays = np.rollaxis(arrays, axis)
+        arrays = np.moveaxis(arrays, axis, 0)
     else:
         indices = range(len(arrays))
     if reverse == True:

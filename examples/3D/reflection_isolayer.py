@@ -27,7 +27,10 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, window = wi
                       beta = BETA,  pixelsize = PIXELSIZE,focus = 25.,n=1) 
 
 # illumination field is defined in vacuum, so we make input and output medium with n = 1.
-field_data_out = dtmm.transfer_field(field_data_in, optical_data, npass = -1, nin = 1, nout = 1)
+field_data_out = dtmm.transfer_field(field_data_in, optical_data, reflection = 1, npass = 3, nin = 1, nout = 1)
+
+# or like so, using transfer matrices
+#field_data_out = dtmm.transfer_field(field_data_in, optical_data, reflection = 1, npass = 2, nin = 1, nout = 1,create_matrix = 1)
 
 #we are viewing computed data in vacuum, so set n = 1.
 viewer4 = dtmm.field_viewer(field_data_in, mode = +1, intensity = 1,n = 1.)
