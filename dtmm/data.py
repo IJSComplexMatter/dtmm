@@ -1570,6 +1570,35 @@ def material_shape(epsv, epsa):
     xa,ya = epsa.shape[-3:-1]
     return (max(x,xa), max(y,ya))
 
+def optical_block_shape(optical_block):
+    """Determines optical block 2D - crossection shape from the epsv -eigenvalues 
+    and epsa - eigenangles arrays"""
+    d, epsv, epsa = validate_optical_block(optical_block)
+    return material_shape(epsv, epsa)
+    
+def optical_data_shape(optical_data):
+    """Determines optical data 2D - crossection shape from the epsv -eigenvalues 
+    and epsa - eigenangles arrays"""
+    common_shape = (1,1)
+    for optical_block in optical_data:
+        data_shape = optical_block_shape(optical_block)
+        common_shape = tuple((max(x,y) for (x,y) in zip(common_shape, data_shape)))        
+    return common_shape
+
+def shape2dim(shape):
+    """Converts material 2D shape to material dimension""" 
+    if shape == (1,1):
+        return 1
+    elif shape[0] == 1 or shape[1] == 1:
+        return 2
+    else:
+        return 3
+
+def material_dim(epsv, epsa):
+    """Returns material dimension"""
+    shape = material_shape(epsv, epsa)
+    return shape2dim(shape)
+
 MAGIC = b"dtms" #legth 4 magic number for file ID
 
 _VERSION_X01 = b"\x01"

@@ -7,14 +7,13 @@ from __future__ import absolute_import, print_function, division
 import time
 from dtmm.conf import DTMMConfig, SMOOTH, FDTYPE, get_default_config_option
 from dtmm.wave import k0, eigenmask
-from dtmm.data import uniaxial_order, refind2eps, validate_optical_data, is_callable, validate_optical_block
+from dtmm.data import uniaxial_order, refind2eps, validate_optical_data, is_callable, validate_optical_block, material_dim
 from dtmm.tmm import E2H_mat, projection_mat, alphaf,  fvec2avec, f_iso
-from dtmm.tmm3d import _get_dimensions, transfer_matrices3d, transfer_jones3d
 from dtmm.solver import transfer3d
 from dtmm.linalg import  dotmf, dotmv
 from dtmm.print_tools import print_progress
 from dtmm.diffract import diffract, projection_matrix, diffraction_alphaffi
-from dtmm.field import field2intensity, field2betaphi, field2fvec, jones2field,field2jones
+from dtmm.field import field2intensity, field2betaphi, field2fvec, jones2field,field2jones, select_modes, set_modes
 from dtmm.fft import fft2, ifft2
 from dtmm.jones import jonesvec, polarizer
 from dtmm.jones4 import ray_jonesmat4x4
@@ -1191,7 +1190,7 @@ def build_transfer_matrices(block_data, shape, k0, nin = None, nout =None, betam
     nout = get_default_config_option("nin", nout)
     
     d,epsv,epsa = block_data
-    if _get_dimensions(epsv, epsa) > dim:
+    if material_dim(epsv, epsa) > dim:
         return None
     else:
         mask = eigenmask(shape,k0, betamax = betamax)
@@ -1453,6 +1452,130 @@ def transfer_2x2(field_data, optical_data, beta = None,
         return tuple(((bulk, wavelengths, pixelsize) for bulk in bulk_out))
     else:
         return field_out[-1], wavelengths, pixelsize  
+
+
+
+
+from dtmm import tmm3d
+from dtmm.data import material_shape, optical_data_shape
+         
+def data_stack_mat3d(mask, k0, optical_data, method = "4x4"):
+    verbose_level = DTMMConfig.verbose
+    if verbose_level > 0:
+        print("Computing optical data stack matrices.")
+    
+    def iterate_stack_matrices(mask, k0, optical_data, method):
+        for i,block_data in enumerate(optical_data):
+            if verbose_level > 0:
+                print("Block {}/{}".format(i+1,len(optical_data)))
+            d,epsv,epsa = block_data
+            mat = tmm3d.stack_mat3d(k0, d, epsv, epsa, method = method, mask = mask) 
+            yield mat
+            
+    data_shapes = tuple((material_shape(epsv,epsa) for (d,epsv,epsa) in optical_data))
+    reverse = False if method.startswith("4x4") else True
+    out = tmm3d.multiply_mat3d(iterate_stack_matrices(mask, k0, optical_data, method), mask = mask, data_shapes = data_shapes, reverse = reverse)
+    
+    return out
+
+def _create_list(arg):
+    if isinstance(arg,list):
+        raise ValueError("Argument already a list")
+    return [arg]
+
+def transfer_matrices3d(mask, k0, optical_data, nin = 1., nout = 1., method = "4x4"):
+   
+    common_shape = optical_data_shape(optical_data)
+    mat = data_stack_mat3d(mask, k0, optical_data,  method = method)
+    
+    #now build up matrices field matrices       
+    fmatin = tmm3d.f_iso3d(mask, k0, n = nin, shape = common_shape)
+    fmatout = tmm3d.f_iso3d(mask, k0, n = nout, shape = common_shape)
+    
+    #compute reflection/transmission matrices
+    if method.startswith("4x4"):
+        mat = tmm3d.system_mat3d(mat,fmatin,fmatout)
+        mat = tmm3d.reflection_mat3d(mat)
+    else:
+        #2x2 method, transmit field without reflections
+        mat = tmm3d.transmission_mat3d(mat)
+        
+    mask = tmm3d.split_mask3d(mask, common_shape)
+    
+    return mask, fmatin, fmatout, mat
+   
+def transfer_jones3d(jones_in, ks, matrices, nin = 1, nout = 1, mode = +1, method = "4x4", input_fft = False, output_fft = False, betamax = None, refl = None, bulk = None):
+    betamax = get_default_config_option("betamax", betamax)
+    
+    masks, fmat_ins, fmat_outs, mats = matrices
+    
+    if method.startswith("4x4"):
+        field_in = jones2field(jones_in, ks, epsv = refind2eps([nin]*3), mode = mode, input_fft = input_fft, output_fft = True,betamax = betamax)
+    else:
+        field_in = jones_in if input_fft else fft2(jones_in)
+    field_out = np.zeros_like(field_in)
+        
+    if mode != +1:
+        #input/output field roles for reflect3d are reversed, so swap them.
+        field_in, field_out = field_out, field_in
+        
+    #swap so that we can iterate over wavelengths
+    field_in_swapped = np.swapaxes(field_in, -4,0)
+    field_out_swapped = np.swapaxes(field_out, -4,0) 
+    
+    #iterate over wavelengths    
+    for wff_in, wff_out, mask_list,fin_list,fout_list,mat_list in zip(field_in_swapped, field_out_swapped, masks, fmat_ins, fmat_outs, mats):  
+        if not isinstance(mask_list, list):
+            #1d case, all are arrays, make them as lists so that we can iterate
+            mask_list = _create_list(mask_list)
+            fin_list = _create_list(fin_list)
+            fout_list = _create_list(fout_list)
+            mat_list = _create_list(mat_list)
+            
+        for mask, fmatin, fmatout, mat in zip(mask_list,fin_list, fout_list, mat_list):
+            
+            modes_in = select_modes(wff_in, mask)
+            
+            
+            if method.startswith("4x4"):
+                modes_out = select_modes(wff_out, mask)
+                modes_out = tmm3d.reflect3d(modes_in, rmat = mat, fmatin = fmatin, fmatout = fmatout, fvecout = modes_out)
+                set_modes(wff_in, mask, modes_in)
+                set_modes(wff_out, mask, modes_out)
+            else:
+                modes_out = tmm3d.transmit3d(modes_in, tmat = mat, fmatin = fmatin, fmatout = fmatout)
+                set_modes(wff_out, mask, modes_out)
+            
+    field_in = np.swapaxes(field_in_swapped, -4,0)
+    field_out = np.swapaxes(field_out_swapped, -4,0)  
+    
+    if mode != +1:
+        # we have done backward transform swap back
+        field_in, field_out = field_out, field_in
+    
+    #if out is not None:
+    #    out[...] = field_out[...,0::2,:,:]
+    #    jones_out = out
+    #else:
+    if method.startswith("4x4"):
+        jones_out = field_out[...,0::2,:,:]
+    else:
+        jones_out = field_out
+        
+    if refl is not None:
+        jones_out += refl
+        refl[...] = field_in[...,0::2,:,:] - jones_in
+
+    if bulk is not None:
+        bulk += jones2field(jones_out, ks, epsv = refind2eps([nout]*3), mode = mode, input_fft = True, 
+                    output_fft = False, betamax = betamax)
+    if output_fft == False:
+        return ifft2(jones_out)
+    else:
+        return jones_out
+    
+
+
     
 
 __all__ = ["transfer_field", "transmitted_field", "reflected_field", "transfer_2x2", "transfer_4x4", "total_intensity"]

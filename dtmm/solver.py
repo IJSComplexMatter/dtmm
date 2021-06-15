@@ -6,9 +6,8 @@ for 3d field data on 1d, 2d (and 3d) optical data.
 
 """
 from dtmm.conf import get_default_config_option, DTMMConfig
-from dtmm.data import validate_optical_data, material_shape, validate_optical_block, validate_optical_layer, is_callable
+from dtmm.data import validate_optical_data, material_shape, validate_optical_block, validate_optical_layer, is_callable, shape2dim, optical_data_shape
 from dtmm import tmm3d
-from dtmm.tmm3d import get_common_shape, shape2dim
 from dtmm.field import field2modes, modes2field
 from dtmm.wave import k0, eigenmask
 from dtmm.print_tools import print_progress
@@ -525,7 +524,7 @@ class MatrixDataSolver3D(BaseMatrixSolver3D):
     def set_optical_data(self, data):
         self.optical_data = validate_optical_data(data, shape = self.shape)
         self.clear_matrices()
-        self.material_shape = get_common_shape(self.optical_data)
+        self.material_shape = optical_data_shape(self.optical_data)
         self.material_dim = shape2dim(self.material_shape)    
         
         self.block_solvers = [MatrixBlockSolver3D(self.shape, wavelengths = self.wavelengths, pixelsize = self.pixelsize, mask = self.mask) for i in range(len(self.optical_data))]

@@ -6,34 +6,17 @@ from __future__ import absolute_import, print_function, division
 
 import numpy as np
 
-from dtmm.conf import CDTYPE,DTMMConfig, BETAMAX
+from dtmm.conf import CDTYPE,DTMMConfig
 
 from dtmm.linalg import dotmm, inv, dotmv,  bdotmm, bdotmd, bdotdm, dotmdm
 from dtmm.print_tools import print_progress
-from dtmm.data import validate_optical_data, material_shape
+from dtmm.data import material_shape, shape2dim, material_dim
 import dtmm.tmm as tmm
 import dtmm.tmm2d as tmm2d
 from dtmm.tmm import alphaf, alphaffi, phase_mat
-from dtmm.wave import eigenbeta, eigenphi,eigenindices, eigenmask, eigenwave,mask2beta, mask2phi, mask2indices, mask2betax1, betax1
-from dtmm.wave import k0 as wavenumber
-from dtmm.field import field2modes, modes2field, modes2ffield, select_modes, set_modes, jones2field
-from dtmm.data import refind2eps
-from dtmm.fft import mfft2, fft2, ifft2
+from dtmm.wave import eigenbeta, eigenphi,eigenindices, eigenmask, eigenwave,mask2beta, mask2phi, mask2indices, betax1
+from dtmm.fft import mfft2
 
-def _get_dimensions(epsv, epsa):
-    try:
-        if epsv.shape[-3:-1] == (1,1) and epsa.shape[-3:-1] == (1,1):
-            dim = 1
-        #check index -3 first so that index error is raised of wrong shape.
-        elif epsv.shape[-3] == 1 and epsa.shape[-3] == 1:
-            dim = 2
-        elif epsv.shape[-2] == 1 and epsa.shape[-2] == 1:
-            dim = 2
-        else:
-            dim = 3
-    except:
-        raise ValueError("Could not determine material dimensions.")
-    return dim
 
 def _iterate_masks_2d(mask, shape, k0):
     x,y = shape
@@ -213,7 +196,7 @@ def layer_mat3d(k0, d, epsv,epsa, mask = None, method = "4x4"):
     cmat : ndarray
         Characteristic matrix of the layer.
     """
-    dim = _get_dimensions(epsv, epsa)
+    dim = material_dim(epsv, epsa)
 
     if method not in ("4x4","4x4_1","2x2"):
         raise ValueError("Unsupported method: '{}'".format(method))
@@ -310,7 +293,7 @@ def _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis,indices, method):
 
 def stack_mat3d(k,d,epsv,epsa, mask = None, method = "4x4"):
     k = np.asarray(k)
-    dim = _get_dimensions(epsv, epsa)
+    dim = material_dim(epsv, epsa)
     verbose_level = DTMMConfig.verbose
     
     def _iterate_wavelengths():
@@ -633,24 +616,6 @@ def transmit3d(fvecin, fmatin, tmat, fmatout, fvecout = None):
             return tuple((_transmit3d(fvecin[i], fmatin[i], tmat[i], fmatout[i], fvecout[i]) for i in range(n)))
     else:
         return _transmit3d(fvecin, fmatin, tmat, fmatout, fvecout)
-
-def get_common_shape(optical_data):
-    common_shape = (1,1)
-    for block_data in optical_data:
-        d,epsv,epsa = block_data 
-        x,y = epsv.shape[-3:-1]
-        xa,ya = epsa.shape[-3:-1]        
-        data_shape = (max(x,xa), max(y,ya))
-        common_shape = tuple((max(x,y) for (x,y) in zip(common_shape, data_shape)))        
-    return common_shape
-
-def shape2dim(shape):
-    if shape == (1,1):
-        return 1
-    elif shape[0] == 1 or shape[1] == 1:
-        return 2
-    else:
-        return 3
     
 def multiply_mat3d(matrices, mask = None, data_shapes = None, reverse = False):
     if data_shapes is not None:
@@ -699,119 +664,4 @@ def multiply_mat3d(matrices, mask = None, data_shapes = None, reverse = False):
                     mat = dotmm3d(mat, mat0)   
             mat0 = mat
         return mat               
-         
-def data_stack_mat3d(mask, k0, optical_data, method = "4x4"):
-    verbose_level = DTMMConfig.verbose
-    if verbose_level > 0:
-        print("Computing optical data stack matrices.")
-    
-    def iterate_stack_matrices(mask, k0, optical_data, method):
-        for i,block_data in enumerate(optical_data):
-            if verbose_level > 0:
-                print("Block {}/{}".format(i+1,len(optical_data)))
-            d,epsv,epsa = block_data
-            mat = stack_mat3d(k0, d, epsv, epsa, method = method, mask = mask) 
-            yield mat
-            
-    data_shapes = tuple((material_shape(epsv,epsa) for (d,epsv,epsa) in optical_data))
-    reverse = False if method.startswith("4x4") else True
-    out = multiply_mat3d(iterate_stack_matrices(mask, k0, optical_data, method), mask = mask, data_shapes = data_shapes, reverse = reverse)
-    
-    return out
-    
-def transfer_matrices3d(mask, k0, optical_data, nin = 1., nout = 1., method = "4x4"):
-   
-    common_shape = get_common_shape(optical_data)
-    mat = data_stack_mat3d(mask, k0, optical_data,  method = method)
-    
-    #now build up matrices field matrices       
-    fmatin = f_iso3d(mask, k0, n = nin, shape = common_shape)
-    fmatout = f_iso3d(mask, k0, n = nout, shape = common_shape)
-    
-    #compute reflection/transmission matrices
-    if method.startswith("4x4"):
-        mat = system_mat3d(mat,fmatin,fmatout)
-        mat = reflection_mat3d(mat)
-    else:
-        #2x2 method, transmit field without reflections
-        mat = transmission_mat3d(mat)
-        
-    mask = split_mask3d(mask, common_shape)
-    
-    return mask, fmatin, fmatout, mat
 
-
-def _create_list(arg):
-    if isinstance(arg,list):
-        raise ValueError("Argument already a list")
-    return [arg]
-   
-def transfer_jones3d(jones_in, ks, matrices, nin = 1, nout = 1, mode = +1, method = "4x4", input_fft = False, output_fft = False, betamax = BETAMAX, refl = None, bulk = None):
-    
-    masks, fmat_ins, fmat_outs, mats = matrices
-    
-    if method.startswith("4x4"):
-        field_in = jones2field(jones_in, ks, epsv = refind2eps([nin]*3), mode = mode, input_fft = input_fft, output_fft = True,betamax = betamax)
-    else:
-        field_in = jones_in if input_fft else fft2(jones_in)
-    field_out = np.zeros_like(field_in)
-        
-    if mode != +1:
-        #input/output field roles for reflect3d are reversed, so swap them.
-        field_in, field_out = field_out, field_in
-        
-    #swap so that we can iterate over wavelengths
-    field_in_swapped = np.swapaxes(field_in, -4,0)
-    field_out_swapped = np.swapaxes(field_out, -4,0) 
-    
-    #iterate over wavelengths    
-    for wff_in, wff_out, mask_list,fin_list,fout_list,mat_list in zip(field_in_swapped, field_out_swapped, masks, fmat_ins, fmat_outs, mats):  
-        if not isinstance(mask_list, list):
-            #1d case, all are arrays, make them as lists so that we can iterate
-            mask_list = _create_list(mask_list)
-            fin_list = _create_list(fin_list)
-            fout_list = _create_list(fout_list)
-            mat_list = _create_list(mat_list)
-            
-        for mask, fmatin, fmatout, mat in zip(mask_list,fin_list, fout_list, mat_list):
-            
-            modes_in = select_modes(wff_in, mask)
-            
-            
-            if method.startswith("4x4"):
-                modes_out = select_modes(wff_out, mask)
-                modes_out = reflect3d(modes_in, rmat = mat, fmatin = fmatin, fmatout = fmatout, fvecout = modes_out)
-                set_modes(wff_in, mask, modes_in)
-                set_modes(wff_out, mask, modes_out)
-            else:
-                modes_out = transmit3d(modes_in, tmat = mat, fmatin = fmatin, fmatout = fmatout)
-                set_modes(wff_out, mask, modes_out)
-            
-    field_in = np.swapaxes(field_in_swapped, -4,0)
-    field_out = np.swapaxes(field_out_swapped, -4,0)  
-    
-    if mode != +1:
-        # we have done backward transform swap back
-        field_in, field_out = field_out, field_in
-    
-    #if out is not None:
-    #    out[...] = field_out[...,0::2,:,:]
-    #    jones_out = out
-    #else:
-    if method.startswith("4x4"):
-        jones_out = field_out[...,0::2,:,:]
-    else:
-        jones_out = field_out
-        
-    if refl is not None:
-        jones_out += refl
-        refl[...] = field_in[...,0::2,:,:] - jones_in
-
-    if bulk is not None:
-        bulk += jones2field(jones_out, ks, epsv = refind2eps([nout]*3), mode = mode, input_fft = True, 
-                    output_fft = False, betamax = betamax)
-    if output_fft == False:
-        return ifft2(jones_out)
-    else:
-        return jones_out
-    
