@@ -25,7 +25,7 @@ PIXELSIZE = 50
 NLAYERS, HEIGHT, WIDTH = 40,96,96
 #: illumination wavelengths in nm
 WAVELENGTHS = np.linspace(380,780,9)
-WAVELENGTHS = [400]
+WAVELENGTHS = [400,500]
 #: create some experimental data (stack) left-handed cholesteric
 optical_data = [dtmm.cholesteric_droplet_data((NLAYERS, HEIGHT, WIDTH), 
           radius = 20, pitch = 7, no = 1.5, ne = 1.65, nhost = 1.5)] #approx 50*7*1.5 nm bragg reflection
