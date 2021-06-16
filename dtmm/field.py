@@ -192,7 +192,9 @@ def field2modes(field, k0, betamax = BETAMAX, copy = True, mask = None):
             
     """
     if isinstance(field, tuple):
-        out = tuple((field2modes(field[i], k0[i], betamax, mask) for i in range(len(field))))
+        if mask is None:
+            mask = [None]*len(field)
+        out = tuple((field2modes(field[i], k0[i], betamax, mask[i]) for i in range(len(field))))
         mask = tuple(o[0] for o in out)
         modes = tuple(o[1] for o in out)
         return mask, modes
@@ -241,9 +243,7 @@ def set_modes(out, mask, modes):
             mode = np.swapaxes(mode,-1,-2)
             o = out[...,i,:,:,:]
             o[...,m] = mode
-            
-           
-       
+             
     return out
 
 
@@ -257,7 +257,7 @@ def ffield2modes(ffield, k0, betamax = BETAMAX):
         return mask, tuple((np.moveaxis(ffield[...,i,:,:,:][...,mask[i]],-2,-1) for i in range(len(k0))))
     
 
-def field2modes1(field, k0, betay = 0, betamax = BETAMAX):
+def field2modes1(field, k0, betay = 0, betamax = BETAMAX, mask = None):
     """Converts field array to modes array.
     
     Parameters
@@ -280,14 +280,17 @@ def field2modes1(field, k0, betay = 0, betamax = BETAMAX):
             
     """
     if isinstance(field, tuple):
-        out = tuple((field2modes1(field[i], k0[i], betamax ) for i in range(len(field))))
+        if mask is None:
+            mask = [None]*len(field)
+        out = tuple((field2modes1(field[i], k0[i], betamax, mask[i] ) for i in range(len(field))))
         mask = tuple(o[0] for o in out)
         modes = tuple(o[1] for o in out)
         return mask, modes
     
     f = fft(field)
     k0 = np.asarray(k0)
-    mask = eigenmask1(f.shape[-1], k0, betay, betamax = betamax)
+    if mask is None:
+        mask = eigenmask1(f.shape[-1], k0, betay, betamax = betamax)
     if k0.ndim == 0:
         return mask, np.moveaxis(f[...,mask],-2,-1)
     else:
@@ -309,11 +312,10 @@ def select_modes1(mask, field, copy = True):
         if copy:
             out = out.copy()
         return out
-    
-    
+       
 def modes2ffield(mask, modes, out = None):
-    """Inverse of ffield2modes. Takes the output of ffield2modes and recunstructs
-    the field array.
+    """Takes the output of field2modes and recunstructs
+    the fft field array.
     
     Parameters
     ----------
@@ -346,9 +348,7 @@ def modes2ffield(mask, modes, out = None):
             mode = np.moveaxis(mode,-1,-2)
             o = out[...,i,:,:,:]
             o[...,m] = mode
-            #print(o[...,m].shape)
-            #print(mode.shape)
-       
+            
     return out
 
 def modes2field(mask, modes, out = None):
@@ -365,6 +365,37 @@ def modes2field(mask, modes, out = None):
     out = modes2ffield(mask, modes, out = out)
     return ifft2(out, out)
 
+def modes2ffield1(mask, modes):
+    """Takes the output of field2modes and recunstructs
+    the fft of the field array. 
+    
+    Parameters
+    ----------
+    mask : ndarray
+        Mask array, as returned by field2modes
+    modes : ndarray or tuple of ndarrays
+        Modes array or a tuple of modes array (in case of multi-wavelength data).
+    """
+    if isinstance(mask, tuple):
+        return tuple((modes2ffield1(mask[i], modes[i]) for i in range(len(mask))))
+
+    shape = mask.shape[-1:]
+    if mask.ndim == 1:
+        shape = modes.shape[:-2] + (4,) + shape
+        out = np.zeros(shape =shape, dtype = CDTYPE )
+
+        modes = np.moveaxis(modes,-1,-2)
+        out[...,mask] = modes
+    else:
+        shape = modes[0].shape[:-2] + (len(mask),4,) + shape
+        out = np.zeros(shape =shape, dtype = CDTYPE )
+
+        for i,(mode, m) in enumerate(zip(modes,mask)):
+            mode = np.moveaxis(mode,-1,-2)
+            o = out[...,i,:,:]
+            o[...,m] = mode
+    return out
+
 def modes2field1(mask, modes):
     """Inverse of field2modes. Takes the output of field2modes and recunstructs
     the field array.
@@ -375,30 +406,10 @@ def modes2field1(mask, modes):
         Mask array, as returned by field2modes
     modes : ndarray or tuple of ndarrays
         Modes array or a tuple of modes array (in case of multi-wavelength data).
-    """
-    if isinstance(mask, tuple):
-        return tuple((modes2field1(mask[i], modes[i]) for i in range(len(mask))))
+    """   
+    out = modes2ffield1(mask, modes)   
+    return ifft(out, overwrite_x = True)
 
-    shape = mask.shape[-1:]
-    if mask.ndim == 1:
-        shape = modes.shape[:-2] + (4,) + shape
-        out = np.zeros(shape =shape, dtype = CDTYPE )
-
-        modes = np.moveaxis(modes,-1,-2)
-        out[...,mask] = modes
-        return ifft(out, overwrite_x = True)
-    else:
-        shape = modes[0].shape[:-2] + (len(mask),4,) + shape
-        out = np.zeros(shape =shape, dtype = CDTYPE )
-
-        for i,(mode, m) in enumerate(zip(modes,mask)):
-            mode = np.moveaxis(mode,-1,-2)
-            o = out[...,i,:,:]
-            o[...,m] = mode
-            #print(o[...,m].shape)
-            #print(mode.shape)
-       
-        return ifft(out, overwrite_x = True)
 
 def aperture2rays(diaphragm, betastep = 0.1, norm = True):
     """Takes a 2D image of a diaphragm and converts it to beta, phi, intensity"""

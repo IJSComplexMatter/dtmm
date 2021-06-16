@@ -38,7 +38,7 @@ def _iterate_dispersive_layers3d(optical_block, wavelengths, wavenumbers, mask, 
 class BaseMatrixSolver3D(object): 
     """Base class for all Matrix-based solvers."""
 
-    # field data
+    # field array
     _field_out = None
     _field_in = None
     modes_in = None
@@ -239,7 +239,7 @@ class BaseMatrixSolver3D(object):
             transfering the field.            
         """
         if self.refl_matrix is None and self.trans_matrix is None:
-            raise ValueError("You must firs create reflectance/transmittance matrix")
+            raise ValueError("You must first create reflectance/transmittance matrix")
         if field_in is not None:
             self.field_in = field_in
         if field_out is not None:
@@ -266,9 +266,6 @@ class BaseMatrixSolver3D(object):
             #we need to update input field because of relfections.
             self.modes_in = tmm3d.ungroup_modes(grouped_modes_in, m)
             modes2field(self.mask, self.modes_in, out = self._field_in) 
-
-class BaseMatrixSolver2D(BaseMatrixSolver3D):
-    pass
 
 
 class MatrixBlockSolver3D(BaseMatrixSolver3D):

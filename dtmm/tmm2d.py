@@ -217,6 +217,7 @@ def f_iso2d(mask, k0, n = 1., shape = None, betay = 0, swap_axes = False):
         phi = betaxy2phi(betax,betay)
 
         fmat = tmm.f_iso(n = n, beta = beta, phi = phi)
+        #return fmat
         if dim != 1:
             return [fmat]
         else:
@@ -356,40 +357,98 @@ def reflect2d(fvecin,  rmat, fmatin, fmatout, fvecout = None):
     else:
         return _reflect2d(fvecin, fmatin, rmat, fmatout, fvecout)
 
-def transfer_matrices2d(shape, k0, d, epsv, epsa, betay = 0, nin = 1, nout = 1, method = "4x4", betamax = BETAMAX, swap_axes = False):
-    mask = eigenmask1(shape, k0, betay, betamax)
+def projection_mat2d(fmat, mode = +1):
+    mode = int(mode)
+    if isinstance(fmat, tuple):
+        return tuple((projection_mat2d(m,mode = mode) for m in fmat))
     
-    fmatin = f_iso2d(mask = mask, betay = betay, k0 = k0, n=nin, swap_axes = swap_axes)
-    fmatout = f_iso2d(mask = mask, betay = betay, k0 = k0, n=nout,swap_axes = swap_axes)
-    
-    mat = stack_mat2d(k0,d, epsv, epsa, betay = betay, mask = mask, method = method,swap_axes = swap_axes)
-    mat = system_mat2d(fmatin = fmatin, cmat = mat, fmatout = fmatout)
-    mat = reflection_mat2d(smat = mat)
-    
-    return mask, fmatin, fmatout, mat   
-
-def transfer2d(field_data_in, optical_data, betay = 0., nin = 1., nout = 1., method = "4x4", betamax = BETAMAX, swap_axes = False, field_out = None):
-    
-    f,w,p = field_data_in
-
-    d,epsv,epsa = optical_data
-    k0 = wavenumber(w, p)
-
-    if field_out is not None:
-        mask, fmode_out = field2modes1(field_out,k0, betay, betamax = betamax)
+    if isinstance(fmat, list):
+        return [tmm.projection_mat(mat, mode = mode) for mat in fmat]
     else:
-        fmode_out = None
+        return tmm.projection_mat(fmat, mode =mode) 
     
-    mask, fmode_in = field2modes1(f,k0, betay, betamax = betamax)
+def project2d(fvec, fmat, mode = +1):
+    pmat = projection_mat2d(fmat, mode = mode)
+    return dotdv2d(pmat, fvec)
+
+def dotmm2d(m1, m2):
+    if isinstance(m1, tuple):
+        return tuple((dotmm2d(_m1,_m2) for _m1, _m2 in zip(m1,m2)))
+    if isinstance(m1, list):
+        if isinstance(m2, list):
+            return [bdotmm(a,b) for a,b in zip(m1,m2)]
+        else:
+            return [bdotmd(a,b) for a,b in zip(m1,[m2])]   
+    else:
+        if isinstance(m2, list):
+            return [bdotdm(a,b) for a,b in zip([m1],m2)]
+        else:
+            return dotmm(m1,m2)
+        
+def bdotmv(a,b):
+    shape = a.shape[0:-4] + (a.shape[-4] * b.shape[-1],a.shape[-4] * b.shape[-1])  
+    a = np.moveaxis(a, -2,-3)
+    a = a.reshape(shape)
+    bv = b.reshape(b.shape[:-2] + (b.shape[-2]*b.shape[-1],))
+    return dotmv(a,bv).reshape(b.shape)
+
+def dotmv2d(m, v):
+    if isinstance(m, tuple):
+        return tuple((dotmv2d(_m,_v) for _m, _v in zip(m,v)))
+    if isinstance(m, list):
+        if isinstance(v, list):
+            return [bdotmv(a,b) for a,b in zip(m,v)]
+        else:
+            raise ValueError("Matrix is a list of matrices, so vector should be a ist of vectors.")
+    else:
+        return dotmv(m,v)
+    
+def dotdv2d(m, v):
+    if isinstance(m, tuple):
+        return tuple((dotdv2d(_m,_v) for _m, _v in zip(m,v)))
+    if isinstance(m, list):
+        if isinstance(v, list):
+            return [dotmv(a,b) for a,b in zip(m,v)]
+        else:
+            raise ValueError("Matrix is a list of matrices, so vector should be a ist of vectors.")
+    else:
+        return dotmv(m,v)    
+
+    
+# def transfer_matrices2d(shape, k0, d, epsv, epsa, betay = 0, nin = 1, nout = 1, method = "4x4", betamax = BETAMAX, swap_axes = False):
+#     mask = eigenmask1(shape, k0, betay, betamax)
+    
+#     fmatin = f_iso2d(mask = mask, betay = betay, k0 = k0, n=nin, swap_axes = swap_axes)
+#     fmatout = f_iso2d(mask = mask, betay = betay, k0 = k0, n=nout,swap_axes = swap_axes)
+    
+#     mat = stack_mat2d(k0,d, epsv, epsa, betay = betay, mask = mask, method = method,swap_axes = swap_axes)
+#     mat = system_mat2d(fmatin = fmatin, cmat = mat, fmatout = fmatout)
+#     mat = reflection_mat2d(smat = mat)
+    
+#     return mask, fmatin, fmatout, mat   
+
+# def transfer2d(field_data_in, optical_data, betay = 0., nin = 1., nout = 1., method = "4x4", betamax = BETAMAX, swap_axes = False, field_out = None):
+    
+#     f,w,p = field_data_in
+
+#     d,epsv,epsa = optical_data
+#     k0 = wavenumber(w, p)
+
+#     if field_out is not None:
+#         mask, fmode_out = field2modes1(field_out,k0, betay, betamax = betamax)
+#     else:
+#         fmode_out = None
+    
+#     mask, fmode_in = field2modes1(f,k0, betay, betamax = betamax)
     
 
-    mask, fmatin, fmatout, rmat = transfer_matrices2d(f.shape[-1], k0, d, epsv,epsa, betay = betay, nin = nin, nout = nout, method = method, betamax = betamax, swap_axes = swap_axes)
+#     mask, fmatin, fmatout, rmat = transfer_matrices2d(f.shape[-1], k0, d, epsv,epsa, betay = betay, nin = nin, nout = nout, method = method, betamax = betamax, swap_axes = swap_axes)
     
-    fmode_out = reflect2d(fmode_in, rmat = rmat, fmatin = fmatin, fmatout = fmatout, fvecout = fmode_out)
+#     fmode_out = reflect2d(fmode_in, rmat = rmat, fmatin = fmatin, fmatout = fmatout, fvecout = fmode_out)
     
-    field_out = modes2field1(mask, fmode_out)
-    f[...] = modes2field1(mask, fmode_in)
+#     field_out = modes2field1(mask, fmode_out)
+#     f[...] = modes2field1(mask, fmode_in)
     
-    return field_out,w,p
+#     return field_out,w,p
 
 

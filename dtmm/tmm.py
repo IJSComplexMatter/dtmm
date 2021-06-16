@@ -705,6 +705,7 @@ def normalize_f(fmat, out):
         out[3,i] = fmat[3,i] * n
 
 
+
 def intensity(fvec,out = None):
     """Calculates absolute value of the z-component of the poynting vector
     
@@ -718,7 +719,6 @@ def intensity(fvec,out = None):
     fvec = _as_field_vec(fvec)
     p = poynting(fvec)
     return np.abs(p)
-
 
 def projection_mat(fmat, fmati = None, mode = +1, out = None):
     """Calculates projection matrix from the given field matrix. By multiplying
@@ -747,6 +747,27 @@ def projection_mat(fmat, fmati = None, mode = +1, out = None):
     else:
         diag[...,1::2] = 1.   
     return dotmdm(fmat,diag,fmati, out)    
+
+def project(fvec, fmat, fmati, mode = +1, out = None):
+    """Projects field vector using the given field matrix. By multiplying
+    the field with the projection matrix you obtain only the forward (mode = +1) or
+    backward (mode = -1) propagating field
+    
+    Parameters
+    ----------
+    fvec : (...,4) array
+        INput field vector
+    fmat : (...,4,4) array
+        Field matrix array.
+    fmati : (...,4,4)
+        The inverse of the field matrix. If not provided it is computed from `fmat`.
+    mode : int
+        Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    out : ndarray, optional
+        Output array where results are written.   
+    """
+    pmat = projection_mat(fmat, fmati = fmati, mode = mode)
+    return dotmv(pmat,fvec, out = out)
 
 def EHz(fvec, beta = None, phi = None, epsv = None, epsa = None, out = None):
     """Constructs the z component of the electric and magnetic fields.

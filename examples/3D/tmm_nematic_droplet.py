@@ -72,11 +72,13 @@ cmat = dtmm.tmm.stack_mat(kd, epsv, epsa, method = "4x4_1")
 smat = dtmm.tmm.system_mat(cmat)
 rmat = dtmm.tmm.reflection_mat(smat)
 fout_4x2 = dtmm.tmm.reflect(ft,rmat)
-# fout_4x2 = dtmm.tmm.transmit(ft,cmat)
+
 # above is identical to:
 fout_4x2_ref = dtmm.tmm.transfer(ft, kd, epsv, epsa, method = "4x4_1")
 assert np.allclose(fout_4x2, fout_4x2_ref)
-
+#also to
+fout_4x2_ref = dtmm.tmm.transmit(ft,cmat)
+assert np.allclose(fout_4x2, fout_4x2_ref)
 
 cmat = dtmm.tmm.stack_mat(kd, epsv, epsa, method = "4x4")
 smat = dtmm.tmm.system_mat(cmat)
