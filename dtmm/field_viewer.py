@@ -111,11 +111,11 @@ def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = N
     >>> analyzer_jvec = dtmm.jones4.jonesvec((0,1))
     >>> fmat = dtmm.tmm.f_iso()
     >>> pmat = dtmm.jones4.polarizer4x4(analyzer_jvec,fmat)
-    >>> field_out = calculate_pom_field(field_in, polarizer_jvec, pmat)
+    >>> field_out = calculate_pom_field(nonpolarized_field_in, polarizer_jvec, pmat)
     
     """
     if jvec is not None:
-        if field.shape[-5] != 2:
+        if field.ndim < 5 or field.shape[-5] != 2:
             raise ValueError("Invalid field shape.")
         c,s = jvec
         x = field[...,0,:,:,:,:]*c

@@ -50,7 +50,7 @@ Here we have generated some test optical data, a nematic droplet with a radius o
 
 .. doctest::
 
-   >>> thickness, material_eps, eps_angles = block_data
+   >>> thickness, material_eps, eps_angles = optical_block
 
 `thickness` describes the thickness of layers in the optical data. It is an array of floats. It is measured in pixel units. In our case it is an array of ones of length 60:
 
@@ -139,7 +139,7 @@ Dispersive model
 
 If you want to simulate wavelength dispersion, epsv must no longer be a constant array, but you must define it to be a callable. For each wavelength, the algorithm computes the epsv  array from the provided callable. For instance, to use Cauchy approximation with two coefficients, there is a helper object to create such callable:
 
-   >>> epsc = EpsilonCauchy((NLAYERS,HEIGHT,WIDTH), n = 2)
+   >>> epsc = EpsilonCauchy(shape = (60,128,128), n = 2)
    >>> epsc.coefficients[...,0] = (material_eps)**0.5  # a term, just set to refractive index
    >>> epsc.coefficients[...,0:2,1] = 0.005*(material_eps[...,0:2])**0.5   # b term ordinary
    >>> epsc.coefficients[...,2,1] = 0.005*(material_eps[...,2])**0.5  # b term extraordinary
@@ -196,15 +196,15 @@ Layered data
 
 Finally, there is yet another valid optical data format, labeled layered data. You can build layers data from list of blocks. E.g.::
 
-   >>> layered_data = dtmm.data.layered_data(validated_optical_data)
-   >>> isinstance(layered_data, list)
+   >>> layers = dtmm.data.layered_data(validated_optical_data)
+   >>> isinstance(layers, list)
    True
-   >>> len(layered_data)
+   >>> len(layers)
    62
 
-which constructs a list of 62 elements, 2 for the extra two blocks, and 60 for the LC block. Each  element of the layered_data now describes a single layer.
+which constructs a list of 62 elements, 2 for the extra two blocks, and 60 for the LC block. Each  element of the layered_data now describes a single layer::
 
-   >>> d, epsv, epsa = layered_data[0]
+   >>> d, epsv, epsa = layers[0]
    >>> d
    1.
  

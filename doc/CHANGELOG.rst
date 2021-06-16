@@ -11,6 +11,8 @@ New features
 ////////////
 
 * We introduce new optical data model. Legacy data model, which is in this version refered to as an optical block, is still a valid optical data. New optical data model is now a list of optical blocks. It is now possible to mix homogeneous layers with inhomogeneous layers and it simplifies creation of the optical stack.
+* New solver.py module with two objects for easier usage of non-iterative matrix-based simulations
+* New hybrid solver for heterogeneous data, which is triggered when `create_matrix` argument is set. See :func:`dtmm.transfer.tranfer_field` for details.
 * Several new options for computation optimization in dtmm.ini. See the documentation for details.
 * Implements a new thread poll for parallel fft computation, which is faster than native threading in mkl_fft or scipy. This feature is still in beta, so it is disabled by defauly and you must activate it using a configuration file or using :func:`dtmm.conf.set_thread_pool`.
 * Support for pyfftw. You can enable it by calling :func:`dtmm.conf.set_fftlib` with 'pyfftw' as an argument.
@@ -30,8 +32,10 @@ Fixes
 Changes
 ///////
 
+* New optical data format. In previous versions, optical data was a tuple of three elements. Now,  optical data is a list of tuples. Each element in the list represents an optical block, which was called optical data in previous releases. Users should adopt the new optical data format in their code.
 * In previous versions, the :func:set_nthreads changed the number of fft threads and activated the thread pool. Now it changes number of threads used both for fft and numba computation, but it does not activate the thread pool. You must explicitly call dtmm.conf.set_thread_pool(True).
-* Drops support for older versions of numba. Minimum version of numba is now 0.45.
+* Drops support for older versions of numba. Minimum version of numba is now 0.45.0
+* Drops support for older versions of numpy. Minimum version of numpy is now 1.20
 
 V0.6.1 (Nov 10 2020)
 ++++++++++++++++++++

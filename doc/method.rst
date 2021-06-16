@@ -3,16 +3,16 @@
 The Method
 ==========
 
-``dtmm`` implements a few different algorithms/implementations. The choice of the method used depends on the dimensionality of the system. For 3D, there is an iterative algorithm, and for 2D and 1D data you can use the non-iterative algorithm based on 4x4 or 2x2 matrix formulation.
+``dtmm`` implements a few different algorithms/implementations. The choice of the method used depends on the dimensionality of the system. For 3D, there is an iterative algorithm beam propagation implementation, and for 2D and 1D data you can use the non-iterative algorithm, a 4x4 or 2x2 transfer-matrix-based formulation.
 
 Non-iterative 1D & 2D
 ---------------------
 
 For 1D simulations, the package provides the standard 4x4 transfer matrix method and the 2x2 extended Jones method. For the 4x4 approach, please refer to the literature on the 4x4 transfer matrix approach, or Berreman calculus. The 2x2 approach was implemented as a backend for the 3D simulations and is a scattering matrix formulation done with E-field only (no H field). Therefore, it handles transmission only. For reflection calculations you must use the 4x4 approach.
 
-For 2D simulations the package also provides the 2D transfer matrix formalism, so you can  build the NxNx4x4 transfer matrices for the N propagating modes. This is computationally expensive, but it is manageable in 2D. With this approach you can compute the reflections from reflection gratings, for instance. 
+For 2D simulations the package also provides the 2D transfer matrix formalism, so you can  build the NxNx4x4 (or NxNx2x2) transfer matrices for the N propagating modes. This is computationally expensive, but it is manageable in 2D. With this approach you can compute the reflections from reflection gratings, for instance. 
 
-The same concept is available for 3D, but here it is impractical to use the transfer matrix approach and you are adviced to use the iterative algorithm developed for 3D data, as explained below.
+The same concept is available for 3D, but here it is impractical to use the transfer matrix approach, except when dimensions are small or for very high-reflecting data and you are advised to use the iterative algorithm developed for 3D data, as explained below.
 
 Iterative 3D
 ------------

@@ -83,7 +83,7 @@ Build a sample optical data; a nematic droplet with a hedgehog defect in the cen
 
 .. doctest::
 
-   >>> optical_data = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
+   >>> optical_block = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
    ...     radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
 Build illumination data (input EM field); a multi-wavelength plane wave source:
@@ -97,7 +97,7 @@ Transfer the field through the sample:
 
 .. doctest::
 
-   >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data)
+   >>> field_data_out = dtmm.transfer_field(field_data_in, [optical_block])
 
 Visualize the transmitted field with matplotlib plot:
 

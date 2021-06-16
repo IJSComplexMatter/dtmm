@@ -336,7 +336,7 @@ def _reflect2d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None):
 
     return out
 
-def reflect2d(fvecin, fmatin, rmat, fmatout, fvecout = None):
+def reflect2d(fvecin,  rmat, fmatin, fmatout, fvecout = None):
     """Transmits/reflects field vector using 4x4 method.
     
     This functions takes a field vector that describes the input field and
@@ -385,7 +385,7 @@ def transfer2d(field_data_in, optical_data, betay = 0., nin = 1., nout = 1., met
 
     mask, fmatin, fmatout, rmat = transfer_matrices2d(f.shape[-1], k0, d, epsv,epsa, betay = betay, nin = nin, nout = nout, method = method, betamax = betamax, swap_axes = swap_axes)
     
-    fmode_out = reflect2d(fmode_in, fmatin = fmatin, rmat = rmat, fmatout = fmatout, fvecout = fmode_out)
+    fmode_out = reflect2d(fmode_in, rmat = rmat, fmatin = fmatin, fmatout = fmatout, fvecout = fmode_out)
     
     field_out = modes2field1(mask, fmode_out)
     f[...] = modes2field1(mask, fmode_in)

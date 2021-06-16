@@ -545,7 +545,7 @@ def _reflect3d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None):
 
     return out
 
-def reflect3d(fvecin, fmatin, rmat, fmatout, fvecout = None):
+def reflect3d(fvecin, rmat, fmatin, fmatout, fvecout = None):
     """Transmits/reflects field vector using 4x4 method.
     
     This functions takes a field vector that describes the input field and
@@ -597,7 +597,7 @@ def _transmit3d(fvec_in, fmat_in, mat, fmat_out, fvec_out = None):
     
     return out
 
-def transmit3d(fvecin, fmatin, tmat, fmatout, fvecout = None):
+def transmit3d(fvecin, tmat, fmatin,  fmatout, fvecout = None):
     """Transmits/reflects field vector using 4x4 method.
     
     This functions takes a field vector that describes the input field and

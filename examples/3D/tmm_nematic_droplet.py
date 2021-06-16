@@ -39,6 +39,10 @@ fout_2x2 = dtmm.tmm.E2fvec(Eout_2x2)
 #above is identical to:
 fout_2x2_ref = dtmm.tmm.transfer(ft, kd, epsv, epsa, method = "2x2")
 assert np.allclose(fout_2x2, fout_2x2_ref)
+#also to:
+fout_2x2_ref = dtmm.tmm.transmit(ft, cmat)  
+assert np.allclose(fout_2x2, fout_2x2_ref)
+
 
 cmat = dtmm.tmm.stack_mat(kd, epsv, epsa, method = "2x2_1")
 #convert field vector to E vector (assuming vacuum)
@@ -56,21 +60,29 @@ Eout_2x4 = dtmm.linalg.dotmv(cmat,Ein_2x4)
 #transmit through sample-air interface
 Eout_2x4 = dtmm.linalg.dotmv(tmat2,Eout_2x4)
 fout_2x4 = dtmm.tmm.E2fvec(Eout_2x4)
-#above is identical to:
+
+# above is identical to:
 fout_2x4_ref = dtmm.tmm.transfer(ft, kd, epsv, epsa, method = "2x2_1", reflect_in = True, reflect_out = True)
 assert np.allclose(fout_2x4, fout_2x4_ref)
-
+# also to:
+fout_2x4_ref = dtmm.tmm.transmit(ft, cmat, tmatin = tmat1, tmatout = tmat2)   
+assert np.allclose(fout_2x4, fout_2x4_ref)
 
 cmat = dtmm.tmm.stack_mat(kd, epsv, epsa, method = "4x4_1")
-fout_4x2 = dtmm.tmm.transmit(ft,cmat)
-#above is identical to:
+smat = dtmm.tmm.system_mat(cmat)
+rmat = dtmm.tmm.reflection_mat(smat)
+fout_4x2 = dtmm.tmm.reflect(ft,rmat)
+# fout_4x2 = dtmm.tmm.transmit(ft,cmat)
+# above is identical to:
 fout_4x2_ref = dtmm.tmm.transfer(ft, kd, epsv, epsa, method = "4x4_1")
 assert np.allclose(fout_4x2, fout_4x2_ref)
 
 
 cmat = dtmm.tmm.stack_mat(kd, epsv, epsa, method = "4x4")
-fout_4x4 = dtmm.tmm.transmit(ft,cmat)
-fout_4x4_ref = dtmm.tmm.transfer(ft, kd, epsv, epsa, method = "4x4", reflect_out = True)
+smat = dtmm.tmm.system_mat(cmat)
+rmat = dtmm.tmm.reflection_mat(smat)
+fout_4x4 = dtmm.tmm.reflect(ft,rmat)
+fout_4x4_ref = dtmm.tmm.transfer(ft, kd, epsv, epsa, method = "4x4")
 assert np.allclose(fout_4x4, fout_4x4_ref)
 
 # inverse transpose to build field data for visualization

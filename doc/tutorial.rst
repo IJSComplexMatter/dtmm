@@ -74,16 +74,16 @@ Interference and reflections
 
 By default, interference and reflections are neglected in the computation. You can enable interference by specifying how many passes to perform and using the 4x4 method
 
->>> field_out = dtmm.transfer_field(field_in, optical_data, npass = 5, method = "4x4")
+>>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, npass = 5, method = "4x4")
 
 or using the 2x2 method, assuming most reflections come from interlayer reflections and not from the inhomogeneities, in example, reflactions from the first air-sample interface and the last sample-air interface
 jou can do
 
->>> field_out = dtmm.transfer_field(field_in, optical_data, reflection = 1, npass = 3, method = "2x2")
+>>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, reflection = 1, npass = 3, method = "2x2")
 
 If reflections come from the inhomogeneities you should call
 
->>> field_out = dtmm.transfer_field(field_in, optical_data, reflection = 2, npass = 3, method = "2x2")
+>>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, reflection = 2, npass = 3, method = "2x2")
 
 Read further for details...
 
@@ -97,7 +97,7 @@ The procedure to calculate reflections is as follows. First the method computes 
 
 * Initially input light is defined with zero reflections and transferred through the stack to obtain the output field.
 * After the first pass (first field transfer calculation), output light is modified so that the back propagating part of the field is completely removed. Then this modified light is transferred again through the stack in backward direction to obtain the modified input light which includes reflections.
-* After the second pass. Input light is modified to so that forward propagating part of the field matches the initial field, and the field is transferred through the stack again..
+* After the second pass. Input light is modified to so that forward propagating part of the field matches the initial field_data, and the field is transferred through the stack again..
 
 For low reflective material, three passes are usually enough to obtain a reasonable accurate reflection and transmission values. However, in highly reflective media (cholesterics) more passes are needed.
 
@@ -105,7 +105,7 @@ The calculation is done by setting the `npass` and `norm` arguments::
 
 >>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, npass = 3, norm = 2)
 
-The `npass` argument defines number of passes (field transfers). You are advised to use odd number of passes when dealing with reflections. With odd passes you can inspect any residual back propagating field left in the output field, to make sure that the method has converged.
+The `npass` argument defines number of passes (field transfers). You are advised to use odd number of passes when dealing with reflections. With odd passes you can inspect any residual back propagating field left in the output field_data, to make sure that the method has converged.
 
 In highly reflective media, the solution may not converge. You must play with the `norm` argument, which defines how the output field is modified after each even pass. 
 
@@ -120,13 +120,13 @@ The 2x2 method is a scattering method, it is stable (contrary to the 4x4 method)
 
 There are two reflection calculation modes. In the `reflection = 1` mode, the field is Fourier transformed and mode coefficients are reflected from the interface between the effective layers (specified by the eff_data argument). If you want to calculate reflections from a stack of homogeneous layers, this gives an exact reflection calculation. For instance, to take into account reflections from the input and output interfaces, simply do
 
->>> field_out = dtmm.transfer_field(field_in, optical_data, reflection = 1, npass = 3, method = "2x2")
+>>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, reflection = 1, npass = 3, method = "2x2")
 
 In the example above there will be no interlayer reflections in the sample, because the optical data is seen as an isotropic effective data with a mean refractive index when treating diffraction and reflection in light propagation. But, input and output layers have different refractive indices (n=1 by default), so you will see reflections from these interfaces.
 
 In the `reflection = 2` mode, the field is reflected from the inhomogeneous layers in real space. Consequently, this is not exact if the layers are homogeneous and the input light beam has a large number of off-axis waves, but it can be used when you want to see reflections from local structures. To take into account the dependence of off-axis wave reflection coefficient with the mode coefficient you must increase the diffraction quality, e.g.:
 
->>> field_out = dtmm.transfer_field(field_in, optical_data, diffraction = 5, reflection = 2, npass = 3, method = "2x2")
+>>> field_data_out = dtmm.transfer_field(field_data_in, optical_data, diffraction = 5, reflection = 2, npass = 3, method = "2x2")
 
 In the example above, reflections are cumulatively acquired from each of the interfaces in the optical data, including reflections from the input and output interfaces. If main reflections come from the input and output interfaces this will not be as accurate as `reflection = 1` mode, but it will be more accurate if reflections are mainly due to the inhomogeneities in the optical data.
 
@@ -173,7 +173,7 @@ Basics
 Computation is performed in two steps. First we build a characteristic matrix of the stack, then we calculate transmitted (and reflected) field from a given field vector. Field vector now is a single 4-component vector. We will demonstrate the use on a 3D data that we were working on till now.
 
 >>> d, epsv, epsa = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
-...          radius = 30, profile = "x", no = 1.5, ne = 1.6, nhost = 1.5)[0]
+...          radius = 30, profile = "x", no = 1.5, ne = 1.6, nhost = 1.5)
 
 >>> f,w,p = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS, diffraction = False,
 ...               pixelsize = PIXELSIZE, beta = 0., phi = 0.) 
@@ -192,9 +192,11 @@ Here we also added two axes for broadcasting. The epsv[i] and epsa[i] arrays are
 
 >>> cmat = dtmm.tmm.stack_mat(kd, epsv, epsa)
 
-which computes layer matrices Mi and multiplies them together so that the output matrix is M = Mn...M2.M1. Then you call :func:`dtmm.tmm.transmit` to compute the tranmiiited and reflected fields (the reflected field is added to input field). 
+which computes layer matrices Mi and multiplies them together so that the output matrix is M = Mn...M2.M1. Then you call :func:`dtmm.tmm.reflect` to compute the tranmited and reflected fields (the reflected field is added to input field). 
 
->>> fout = dtmm.tmm.transmit(fin,cmat)
+>>> smat = dtmm.tmm.system_mat(cmat = cmat) #compute system matrix
+>>> rmat = dtmm.tmm.reflection_mat(smat) #compute reflectance matrix
+>>> fout = dtmm.tmm.reflect(fin,rmat)
 
 That is it. You can now view this field with the field_viewer, but first you need to transpose it back to the original field data shape.
 
@@ -221,7 +223,7 @@ Field viewer
 
 In addition to the Polarizing Optical Microscope viewer which was covered in the quick start guide, there is also a FieldViewer. The difference between the FieldViewer and POMViewer is that the latter works with 2x2 matrices, whereas FieldViewer works with 4x4 matrices. 
 
-Here we will cover some additional configuration options for the FieldViewer. The field viewer can be used to inspect the output field, or to inspect the bulk field data. 
+Here we will cover some additional configuration options for the FieldViewer. The field viewer can be used to inspect the output field_data, or to inspect the bulk field data. 
 
 Projection mode
 +++++++++++++++
@@ -286,15 +288,15 @@ Effective medium
 
 The algorithm uses a split-step approach where the diffraction calculation step is performed assuming a homogeneous effective medium. What this means is that if the input optical data consists of homogeneous layers, the algorithm is capable of computing the exact solution. However, the accuracy of the calculated results will depend on how well you are able to describe the effective medium of the optical stack. By default, isotropic medium is assumed, that is, for each layer in the stack an isotropic layer is defined and calculated from the input optical data parameters. You can also explicitly define the medium as:
 
->>> out = dtmm.transfer_field(field, data, eff_data = "isotropic") 
+>>> out = dtmm.transfer_field(field_data, data, eff_data = "isotropic") 
 
 If the layer cannot be treated as an isotropic layer on average, you should tell ``dtmm`` to use anisotropic layers instead, e.g.:
 
->>> out = dtmm.transfer_field(field, data, eff_data = "uniaxial") 
+>>> out = dtmm.transfer_field(field_data, data, eff_data = "uniaxial") 
 
 or
 
->>> out = dtmm.transfer_field(field, data, eff_data = "biaxial") 
+>>> out = dtmm.transfer_field(field_data, data, eff_data = "biaxial") 
 
 .. note::
 
@@ -302,24 +304,24 @@ or
 
 Internally, when specifying `eff_data` argument, the algorithm performs calculation of the effective medium with
 
->>> eff_data = dtmm.data.eff_data(data, "uniaxial")
+>>> eff_data = dtmm.data.effective_data(data, "uniaxial")
 
 which computes the spatially-varying dielectric tensor for each of the layers, performs averaging, and then converts the averaged tensor to eigenframe and converts it to the desired symmetry. You can use the above function to prepare effective layers and pass the computed result to
 
->>> out = dtmm.transfer_field(field, data, eff_data = eff_data)
+>>> out = dtmm.transfer_field(field_data, data, eff_data = eff_data)
 
 For even higher accuracy, in more non-uniform systems where the mean dielectric tensor varies considerably across the layers you should define the effective medium for each of the layers separately:
 
 >>> n_layers = len(epsv)
->>> eff_data = dtmm.data.eff_data(data, [("uniaxial",)*n_layers])
+>>> eff_data = dtmm.data.effective_data(data, [("uniaxial",)*n_layers])
 
 which performs averaging of the dielectric tensor only across the individual layer and defines a unique effective data for each of the layers. You can also do:
 
->>> out = dtmm.transfer_field(field, data, eff_data = [("uniaxial",)*n_layers])
+>>> out = dtmm.transfer_field(field_data, data, eff_data = [("uniaxial",)*n_layers])
 
 You can also use the split_layers argument, which does essentially the same thing::
 
->>> out = dtmm.transfer_field(field, data, eff_data = "uniaxial", split_layers = True)
+>>> out = dtmm.transfer_field(field_data, data, eff_data = "uniaxial", split_layers = True)
 
 You can also mix the symmetry e.g.
 
@@ -339,15 +341,15 @@ Diffraction quality
 
 Diffraction calculation can be performed with different levels of accuracy. By default, diffraction and transmission through the inhomogeneous layer is calculated with a single step, assuming the field is a beam of light with a well defined wave vector. If your sample induces waves with higher frequencies, you should split the field into a sum of beams by defining how many beams to use in the diffraction calculation. For instance,
 
->>> out = dtmm.transfer_field(field, data, diffraction = 3) 
+>>> out = dtmm.transfer_field(field_data, data, diffraction = 3) 
 
 in the diffraction calculation step, the method takes beams defined with beta parameters in a 3x3 grid of beta_x beta_y values defined between -betamax and +betamax, so a total of 9 beams (instead of a single beam when diffraction = 1). Therefore this will take significantly longer to compute. You can use any sensible integer value - this depends on the pixel size and domain size. For calculation of 100x100 grid with pixelsize of 50 nm and 500nm wavelength, the maximum sensible value is 100*50/500=10, but generally, above say diffraction = 7 you will not notice much improvement, but this depends on the material of course. In the extreme case, the most accurate calculation can be done by specifying  
 
->>> out = dtmm.transfer_field(field, data, diffraction = np.inf)
+>>> out = dtmm.transfer_field(field_data, data, diffraction = np.inf)
 
 or with a value of 
 
->>> out = dtmm.transfer_field(field, data, diffraction = -1) 
+>>> out = dtmm.transfer_field(field_data, data, diffraction = -1) 
 
 This triggers a `full` treatment of diffraction, transfers all waves within the beta < betamax. This method is very slow, and should not be used generally, except for very small samples.
 
@@ -366,19 +368,19 @@ On the betamax parameter
 
 The `betamax` parameter defines the maximum value of the plane wave `beta` parameter in the diffraction step of the calculation. When decomposing the field in plane waves, the plane wave with the beta parameter higher than the specified betamax parameter is neglected. In air, the maximum value of beta is 1. A plane wave with beta = 1 is a plane wave traveling in the lateral direction (at 90 degree with respect to the layer normal). If beta is greater than 1 in air, the plane wave is no longer a traveling wave, but it becomes an evanescent wave and the propagation becomes unstable in the 4x4 method (when `method = "4x4"` is used in the computation). In a medium with higher refractive index, the maximum value for a traveling wave is the refractive index beta=n. Generally you should use betamax < n, where n is the lowest refractive index in the optical stack (including the input and output isotropic layers). Therefore, if you should set betamax < 1 when the input and output layers are air with n=1. Some examples:
 
->>> out = dtmm.transfer_field(field, data, betamax = 0.99, method = '4x4') #safe
->>> out = dtmm.transfer_field(field, data, betamax = 1,  method = '4x4') #unsafe
->>> out = dtmm.transfer_field(field, data, betamax = 1.49,  method = '4x4', nin = 1.5, nout = 1.5) #safe
->>> out = dtmm.transfer_field(field, data, betamax = 1.6, method = '4x4', nin = 1.5, nout = 1.5) #unsafe
+>>> out = dtmm.transfer_field(field_data, data, betamax = 0.99, method = '4x4', nin = 1, nout = 1) #safe
+>>> out = dtmm.transfer_field(field_data, data, betamax = 1,  method = '4x4', nin = 1, nout = 1) #unsafe
+>>> out = dtmm.transfer_field(field_data, data, betamax = 1.49,  method = '4x4', nin = 1.5, nout = 1.5) #safe
+>>> out = dtmm.transfer_field(field_data, data, betamax = 1.6, method = '4x4', nin = 1.5, nout = 1.5) #unsafe
 
 When dealing only with forward waves (the 2x2 approach).. the method is stable, and all above examples are safe to execute:
 
->>> out = dtmm.transfer_field(field, data, betamax = 2, method = '2x2') #safe
+>>> out = dtmm.transfer_field(field_data, data, betamax = 2, method = '2x2') #safe
 
 However, there is one caveat.. when increasing the diffraction accuracy it is also better to stay in the betamax < 1 range to increase computation speed. For instance, both examples below will give similarly accurate results, but computation complexity is higher when we use higher number of waves in the diffraction calculation step:
 
->>> out = dtmm.transfer_field(field, data, betamax = 2, diffraction = 5) #safe but slow
->>> out = dtmm.transfer_field(field, data, betamax = 1, diffraction = 3) #safe and faster
+>>> out = dtmm.transfer_field(field_data, data, betamax = 2, diffraction = 5) #safe but slow
+>>> out = dtmm.transfer_field(field_data, data, betamax = 1, diffraction = 3) #safe and faster
 
 Color Conversion
 ----------------
@@ -582,10 +584,11 @@ Here, the illuminant is a 2D table of intensity values of the source specified a
 If you have illuminant data stored in a file called "illuminant.dat". You can create a cmf function by
 
 >>> wavelengths = np.linspace(380,780,9)
->>> cmf = dc.load_tcmf(wavelengths, illuminant = "illuminant.dat")
+>>> cmf = dc.load_tcmf(wavelengths, illuminant = "illuminant.dat") # doctest: +SKIP
 
 or you can use one of the standard CIE illuminants, like the illuminant A:
 
+>>> field, wavelengths, pixelsize = field_data
 >>> cmf = dc.load_tcmf(wavelengths, illuminant = "A")
 
 Afterward, it is possible to set this cmf in the field_viewer or pom_viewer.

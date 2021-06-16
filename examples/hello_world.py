@@ -14,13 +14,11 @@ WAVELENGTHS = np.linspace(380,780,9)
 optical_block = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
           radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
 
-optical_data = [optical_block]
-
 #: create non-polarized input light
 field_data_in = dtmm.field.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
                                             pixelsize = PIXELSIZE) 
 #: transfer input light through stack
-field_data_out = dtmm.transfer_field(field_data_in, optical_data)
+field_data_out = dtmm.transfer_field(field_data_in, [optical_block])
 #: visualize output field
 viewer3 = dtmm.pom_viewer(field_data_out)
 viewer3.set_parameters(polarizer = "h", analyzer = "v", focus = -18)

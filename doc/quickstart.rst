@@ -9,9 +9,12 @@ First, import the library and, optionally, set the verbose level so that you can
 
 .. doctest::
 
-    >>> import ddmm
+    >>> import dtmm
     >>> dtmm.conf.set_verbose(2) # 0 (no info), 1 (some info) or 2 (max info) 
     0
+    >>> dtmm.conf.set_verbose(0) # disable for doctests below.
+    2
+
 
 Importing director data
 -----------------------
@@ -39,7 +42,7 @@ This reads director data and transposes it from (WIDTH, HEIGHT, NLAYERS,3) to sh
 
 .. doctest::
 
-   >>> block_data = dtmm.director2data(director, no = 1.5, ne = 1.6)
+   >>> optical_block = dtmm.director2data(director, no = 1.5, ne = 1.6)
 
 This converts director to a valid optical block data. Director array should be an array of director vectors. Length of the vector should generally be 1. Director length is used to determine the dielectric tensor of the material. See :ref:`optical-data` for details. You can also set the director mask. For instance, a sphere mask of radius 30 pixels can be defined by
 
@@ -51,7 +54,7 @@ With this mask you can construct optical data of a nematic droplet in a host mat
 
 .. doctest::
 
-   >>> block_data = dtmm.director2data(director, no = 1.5, ne = 1.6, mask = mask, nhost = 1.5)
+   >>> optical_block = dtmm.director2data(director, no = 1.5, ne = 1.6, mask = mask, nhost = 1.5)
 
 Of course you can provide any mask, just that the shape of the mask must mach the shape of the bounding box of the director - (60,96,96) in our case. This way you can crop the director field to any volume shape and put it in a host material with the above helper function. 
 
@@ -104,11 +107,11 @@ Next, we need to convert the epsilon tensor to eigenvalue and Euler angles matri
 
    >>> epsv, epsa = dtmm.data.eps2epsva(eps)
 
-Alternatively, you can use the convenience function to convert Q tensor to block_data directly
+Alternatively, you can use the convenience function to convert Q tensor to optical_block directly
 
 .. doctest::
 
-   >>> block_data = dtmm.data.Q2data(Q,no = 1.5, ne = 1.6, scale_factor = 1.)
+   >>> optical_block = dtmm.data.Q2data(Q,no = 1.5, ne = 1.6, scale_factor = 1.)
 
 .. note:: 
 
@@ -340,7 +343,7 @@ It is up to the user to apply a mask or to specify the optical data parameters o
 .. doctest::
 
    >>> mask = dtmm.sphere_mask((NLAYERS,HEIGHT,WIDTH),30) 
-   >>> block_data = dtmm.director2data(director, no = 1.5, ne = 1.6, mask = mask, nhost = 1.5)
+   >>> optical_block = dtmm.director2data(director, no = 1.5, ne = 1.6, mask = mask, nhost = 1.5)
 
 
 Data IO

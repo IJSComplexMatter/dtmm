@@ -1286,6 +1286,7 @@ def system_mat(cmat = None,fmatin = None, fmatout = None, fmatini = None, out = 
     else:
         return dotmm(fmatini,fmatout,out = out)
 
+
 def reflection_mat(smat, out = None):
     """Computes a 4x4 reflection matrix.
     
@@ -1358,50 +1359,53 @@ def E2fvec(evec, fmat = None, mode = +1, out = None):
     out[...,1::2] = hvec
     return out
     
-def transmit2x2(fvec_in, cmat, fmatout = None, tmatin = None, tmatout = None, fvec_out = None):
-    """Transmits field vector using 2x2 method.
+# def transmit2x2(fvecin, cmat, fmatout = None, tmatin = None, tmatout = None, fvecout = None):
+#     """Transmits field vector using 2x2 method.
     
-    This functions takes a field vector that describes the input field and
-    computes the output transmited field using the 2x2 characteristic matrix.
+#     This functions takes a field vector that describes the input field and
+#     computes the output transmited field using the 2x2 characteristic matrix.
     
-    Parameters
-    ----------
-    fvec_in : (...,4) array
-        Input field vector array. This function will update the input array  
-        with the calculated reflected field.
-    cmat : (...,4,4) array
-        Characteristic matrix.
-    fmatout : (...,4,4) array
-        Output field matrix array.
-    tmatin : (...,2,2) array
-        The transmittance matrix from the input medium to the first layer.
-    tmatout : (...,2,2) array, optional
-        The transmittance matrix from the last layer to the output maedium.
-    fvec_out : (...,4) array, optional
-        The ouptut field vector array. This function will update the output array 
-        with the calculated transmitted field.
+#     Parameters
+#     ----------
+#     fvecin : (...,4) array
+#         Input field vector array. This function will update the input array  
+#         with the calculated reflected field.
+#     cmat : (...,4,4) array
+#         Characteristic matrix.
+#     fmatout : (...,4,4) array
+#         Output field matrix array.
+#     tmatin : (...,2,2) array
+#         The transmittance matrix from the input medium to the first layer.
+#     tmatout : (...,2,2) array, optional
+#         The transmittance matrix from the last layer to the output maedium.
+#     fvecout : (...,4) array, optional
+#         The ouptut field vector array. This function will update the output array 
+#         with the calculated transmitted field.
     
-    """
-    b = np.broadcast(fvec_in[...,0][...,None,None],cmat)
-    if fmatout is None:
-        fmatout = f_iso(1,0,0) 
-    if fvec_out is not None:
-        fvec_out[...] = 0 
-    else:   
-        fvec_out = np.zeros(b.shape[:-2] + (4,), fvec_in.dtype)
+#     """
+#     b = np.broadcast(fvecin[...,0][...,None,None],cmat)
+#     if fmatout is None:
+#         fmatout = f_iso(1,0,0) 
+#     if fvecout is not None:
+#         fvecout[...] = 0 
+#     else:   
+#         fvecout = np.zeros(b.shape[:-2] + (4,), fvecin.dtype)
         
-    if tmatin is not None:
-        evec = dotmv(tmatin, fvec_in[...,::2], out = fvec_out[...,::2])
-    else:
-        evec = fvec_in[...,::2]
-    eout = dotmv(cmat, evec, out = fvec_out[...,::2])
-    if tmatout is not None:
-        eout = dotmv(tmatout, eout, out = fvec_out[...,::2])
-    e2h = E2H_mat(fmatout, mode = +1)
-    hout = dotmv(e2h, eout, out = fvec_out[...,1::2])
-    return fvec_out
+#     if tmatin is not None:
+#         evec = dotmv(tmatin, fvecin[...,::2], out = fvecout[...,::2])
+#     else:
+#         evec = fvecin[...,::2]
+#     eout = dotmv(cmat, evec, out = fvecout[...,::2])
+#     if tmatout is not None:
+#         eout = dotmv(tmatout, eout, out = fvecout[...,::2])
+#     e2h = E2H_mat(fmatout, mode = +1)
+#     hout = dotmv(e2h, eout, out = fvecout[...,1::2])
+#     return fvecout
 
-def reflect(fvec_in, rmat, fmatin = None, fmatout = None, fmatini = None, fmatouti = None, fvec_out = None):
+
+
+
+def reflect(fvecin, rmat, fmatin = None, fmatout = None, fmatini = None, fmatouti = None, fvecout = None):
     """Reflects/Transmits field vector using 4x4 reflection matrix.
     
     This functions takes a field vector that describes the input field and
@@ -1410,7 +1414,7 @@ def reflect(fvec_in, rmat, fmatin = None, fmatout = None, fmatini = None, fmatou
    
     Parameters
     ----------
-    fvec_in : (...,4) array
+    fvecin : (...,4) array
         Input field vector array. This function will update the input array  
         with the calculated reflected field
     rmat : (...,4,4) array
@@ -1424,15 +1428,15 @@ def reflect(fvec_in, rmat, fmatin = None, fmatout = None, fmatini = None, fmatou
     fmatouti : (...,4,4) array, optional
         Inverse of the output field matrix array. If not provided, it is computed
         from `fmatout`.
-    fvec_out : (...,4) array, optional
+    fvecout : (...,4) array, optional
         The ouptut field vector array. This function will update the output array 
         with the calculated transmitted field.
     """
-    b = np.broadcast(fvec_in[..., None],rmat[...,0:4,0:4], fmatin, fmatout)
+    b = np.broadcast(fvecin[..., None],rmat[...,0:4,0:4], fmatin, fmatout)
     
-    if fvec_in.shape != b.shape[:-1]:
+    if fvecin.shape != b.shape[:-1]:
         raise ValueError("Input field vector should have shape of {}".format(b.shape[:-1]))
-    if fvec_out is not None and fvec_out.shape != b.shape[:-1]:
+    if fvecout is not None and fvecout.shape != b.shape[:-1]:
         raise ValueError("Output field vector should have shape of {}".format(b.shape[:-1]))
     if fmatini is None:
         if fmatin is None:
@@ -1449,29 +1453,55 @@ def reflect(fvec_in, rmat, fmatin = None, fmatout = None, fmatini = None, fmatou
     if fmatout is None:
         fmatout = inv(fmatouti)
         
-    avec = dotmv(fmatini,fvec_in)
+    avec = dotmv(fmatini,fvecin)
     
     
     a = np.zeros(b.shape[:-1], avec.dtype)
     a[...,0::2] = avec[...,0::2]
     avec = a.copy()#so that it broadcasts
 
-    if fvec_out is not None:
-        bvec = dotmv(fmatouti,fvec_out)
+    if fvecout is not None:
+        bvec = dotmv(fmatouti,fvecout)
         a[...,1::2] = bvec[...,1::2] 
     else:
         bvec = np.zeros_like(avec)
 
-    out = dotmv(rmat,a, out = fvec_out)
+    out = dotmv(rmat,a, out = fvecout)
     
     avec[...,1::2] = out[...,1::2]
     bvec[...,::2] = out[...,::2]
         
-    dotmv(fmatin,avec,out = fvec_in)    
+    dotmv(fmatin,avec,out = fvecin)    
     return dotmv(fmatout,bvec,out = out)
 
+def transmit2x2(fvecin, cmat, fmatin = None, fmatout = None, fmatini = None, fmatouti = None, tmatin = None, tmatout = None, fvecout = None):
+    if fmatini is None:
+        if fmatin is None:
+            fmatin = f_iso()
+        fmatini = inv(fmatin)
+    if fmatin is None:
+        fmatin = inv(fmatini)
+    if fmatouti is None:
+        if fmatout is None:
+            fmatout = fmatin
+            fmatouti = fmatini
+        else:
+            fmatouti = inv(fmatout)
+    if fmatout is None:
+        fmatout = inv(fmatouti)
 
-def transmit4x4(fvec_in, cmat = None, fmatin = None, fmatout = None, fmatini = None, fmatouti = None, fvec_out = None):
+    Ein = fvec2E(fvecin, fmati = fmatini)
+    if tmatin is not None:
+        Ein = dotmv(tmatin, Ein, out = Ein)
+
+    Eout = dotmv(cmat,Ein, out = Ein)
+    if tmatout is not None:
+        Eout = dotmv(tmatout, Eout, out = Eout)    
+    
+    fvecout = E2fvec(Eout, fmat = fmatout, out = fvecout)
+    return fvecout
+
+def transmit4x4(fvecin, cmat = None, fmatin = None, fmatout = None, fmatini = None, fmatouti = None, fvecout = None):
     """Reflects/Transmits field vector using 4x4 method.
     
     This functions takes a field vector that describes the input field and
@@ -1480,7 +1510,7 @@ def transmit4x4(fvec_in, cmat = None, fmatin = None, fmatout = None, fmatini = N
    
     Parameters
     ----------
-    fvec_in : (...,4) array
+    fvecin : (...,4) array
         Input field vector array. This function will update the input array  
         with the calculated reflected field
     cmat : (...,4,4) array
@@ -1494,15 +1524,15 @@ def transmit4x4(fvec_in, cmat = None, fmatin = None, fmatout = None, fmatini = N
     fmatouti : (...,4,4) array, optional
         Inverse of the output field matrix array. If not provided, it is computed
         from `fmatout`.
-    fvec_out : (...,4) array, optional
+    fvecout : (...,4) array, optional
         The ouptut field vector array. This function will update the output array 
         with the calculated transmitted field.
     """
-    b = np.broadcast(fvec_in[..., None],cmat[...,0:4,0:4], fmatin, fmatout)
+    b = np.broadcast(fvecin[..., None],cmat[...,0:4,0:4], fmatin, fmatout)
     
-    if fvec_in.shape != b.shape[:-1]:
+    if fvecin.shape != b.shape[:-1]:
         raise ValueError("Input field vector should have shape of {}".format(b.shape[:-1]))
-    if fvec_out is not None and fvec_out.shape != b.shape[:-1]:
+    if fvecout is not None and fvecout.shape != b.shape[:-1]:
         raise ValueError("Output field vector should have shape of {}".format(b.shape[:-1]))
     if fmatini is None:
         if fmatin is None:
@@ -1521,46 +1551,79 @@ def transmit4x4(fvec_in, cmat = None, fmatin = None, fmatout = None, fmatini = N
         
     smat = system_mat(cmat = cmat,fmatini = fmatini, fmatout = fmatout)
      
-    avec = dotmv(fmatini,fvec_in)
+    avec = dotmv(fmatini,fvecin)
     
     
     a = np.zeros(b.shape[:-1], avec.dtype)
     a[...,0::2] = avec[...,0::2]
     avec = a.copy()#so that it broadcasts
 
-    if fvec_out is not None:
-        bvec = dotmv(fmatouti,fvec_out)
+    if fvecout is not None:
+        bvec = dotmv(fmatouti,fvecout)
         a[...,1::2] = bvec[...,1::2] 
     else:
         bvec = np.zeros_like(avec)
 
     r = reflection_mat(smat)
-    out = dotmv(r,a, out = fvec_out)
+    out = dotmv(r,a, out = fvecout)
     
     avec[...,1::2] = out[...,1::2]
     bvec[...,::2] = out[...,::2]
         
-    dotmv(fmatin,avec,out = fvec_in)    
+    dotmv(fmatin,avec,out = fvecin)    
     return dotmv(fmatout,bvec,out = out)
 
-transmit = transmit4x4
-# def transmit4x4(*args,**kwargs):
-#     deprecation("transmit4x4 was renamed to reflect.")
-#     return reflect(*args,**kwargs)
 
-# def transmit(*args,**kwargs):
-#     deprecation("transmit was renamed to reflect.")
-#     return reflect(*args,**kwargs)
+def transmit(fvecin, cmat = None, fmatin = None, fmatout = None, fmatini = None, fmatouti = None, tmatin = None, tmatout = None, fvecout = None):
+    """Reflects/Transmits field vector using 4x4 method.
+    
+    This functions takes a field vector that describes the input field and
+    computes the output transmited field and also updates the input field 
+    with the reflected waves.
+   
+    Parameters
+    ----------
+    fvecin : (...,4) array
+        Input field vector array. This function will update the input array  
+        with the calculated reflected field
+    cmat : (...,4,4) array
+        Characteristic matrix.
+    fmatin : (...,4,4) array
+        Input field matrix array.
+    fmatout : (...,4,4) array
+        Output field matrix array.
+    fmatini : (...,4,4) array
+        Inverse of the input field matrix array.
+    fmatouti : (...,4,4) array, optional
+        Inverse of the output field matrix array. If not provided, it is computed
+        from `fmatout`.
+    tmatin : (...,2,2) array
+        Input transmission matrix for 2x2 method only.
+    tmatout : (...,2,2) array
+        Output transmission matrix for 2x2 method only.        
+    fvecout : (...,4) array, optional
+        The ouptut field vector array. This function will update the output array 
+        with the calculated transmitted field.
+    """
+    if cmat is None:
+        raise ValueError("`cmat` is a required argument.")
 
-def transfer4x4(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1., 
-             method = "4x4", reflect_in = False, reflect_out = False, fvec_out = None):
+    if cmat.shape[-1] == 2:
+        return transmit2x2(fvecin,cmat, fmatin = fmatin, fmatout = fmatout, fmatini = fmatini, fmatouti = fmatouti, tmatin = tmatin, tmatout = tmatout, fvecout = fvecout )
+    else:
+        return transmit4x4(fvecin,cmat, fmatin = fmatin, fmatout = fmatout, fmatini = fmatini, fmatouti = fmatouti, fvecout = fvecout )
+    
+
+
+def transfer4x4(fvecin, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1., 
+             method = "4x4", reflect_in = False, reflect_out = False, fvecout = None):
     """Tranfers field using 4x4 method.
     
     see also :func:`transfer`
     
     Parameters
     ----------
-    fvec_in : (...,4) array
+    fvecin : (...,4) array
         Input field vector array. This function will update the input array  
         with the calculated reflected field
     kd : array of floats
@@ -1580,7 +1643,7 @@ def transfer4x4(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 
         Output layer refractive index.
     method : str
         Any of 4x4, 4x4_1, 4x4_2.
-    fvec_out : (...,4) array, optional
+    fvecout : (...,4) array, optional
         The ouptut field vector array. This function will update the output array 
         with the calculated transmitted field.
     """
@@ -1590,70 +1653,72 @@ def transfer4x4(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 
     if method not in ("4x4", "4x4_1","4x4_2"):
         raise ValueError("Unknown method '{}'!".format(method))
            
-    fveci = fvec_in
-    fvecf = fvec_out
+    fveci = fvecin
+    fvecf = fvecout
     
     fmatin = f_iso(n = nin, beta  = beta, phi = phi)
     fmatout = f_iso(n = nout, beta  = beta, phi = phi)
         
-#    if reflect_in == True:
-#        
-#        #make fresnel reflection of the input (forward propagating) field
-#        fin = f_iso(n = nin, beta  = beta, phi = phi)
-#        alpha,fmatin = alphaf(beta = beta, phi = phi, epsv = epsv[0], epsa = epsa[0])
-#        
-#        t = T_mat(fin = fin, fout = fmatin, mode = +1)
-#        fveci = dotmv(t,fveci, out = fveci)
-#        
-##        tmati = t_mat(fin,fmatin, mode = +1)
-##        evec0 = fvec2E(fveci, fin, mode = +1)
-##        evec = dotmv(tmati,evec0)
-##        fveci = E2fvec(evec,fmatin, mode = +1)
-##        fvec_in = E2fvec(evec0,fin, mode = +1, out = fvec_in)
-#    else:
-#        fmatin = f_iso(n = nin, beta  = beta, phi = phi)
-#       
-#    if reflect_out == True:
-#        #make fresnel reflection of the output (backward propagating) field
-#        alpha,fmatout = alphaf(beta = beta, phi = phi, epsv = epsv[-1], epsa = epsa[-1])
-#        fout = f_iso(n = nout, beta  = beta, phi = phi)
-#        if fvecf is not None:
-#            t = T_mat(fin = fout, fout = fmatout, mode = -1)
-#            fvecf = dotmv(t,fvecf)            
-#            
-##            tmatf = t_mat(fmatout,fout, mode = -1)
-##            evec0 = fvec2E(fvecf, fout, mode = -1)
-##            evec = dotmv(tmatf,evec) 
-##            fvecf = E2fvec(evec,fmatout, mode = -1)
-##            fvec_out = E2fvec(evec0,fout, mode = -1, out = fvec_out)
-#    else:
-#        fmatout = f_iso(n = nout, beta  = beta, phi = phi)
+    if reflect_in == True:
+        
+        #make fresnel reflection of the input (forward propagating) field
+        fin = f_iso(n = nin, beta  = beta, phi = phi)
+        alpha,fmatin = alphaf(beta = beta, phi = phi, epsv = epsv[0], epsa = epsa[0])
+        
+        t = T_mat(fmatin = fin, fmatout = fmatin, mode = +1)
+        fveci = dotmv(t,fveci, out = fveci)
+        
+#        tmati = t_mat(fin,fmatin, mode = +1)
+#        evec0 = fvec2E(fveci, fin, mode = +1)
+#        evec = dotmv(tmati,evec0)
+#        fveci = E2fvec(evec,fmatin, mode = +1)
+#        fvecin = E2fvec(evec0,fin, mode = +1, out = fvecin)
+    else:
+        fmatin = f_iso(n = nin, beta  = beta, phi = phi)
+      
+    if reflect_out == True:
+        #make fresnel reflection of the output (backward propagating) field
+        alpha,fmatout = alphaf(beta = beta, phi = phi, epsv = epsv[-1], epsa = epsa[-1])
+        fout = f_iso(n = nout, beta  = beta, phi = phi)
+        if fvecf is not None:
+            t = T_mat(fmatin = fout, fmatout = fmatout, mode = -1)
+            fvecf = dotmv(t,fvecf)            
+            
+#            tmatf = t_mat(fmatout,fout, mode = -1)
+#            evec0 = fvec2E(fvecf, fout, mode = -1)
+#            evec = dotmv(tmatf,evec) 
+#            fvecf = E2fvec(evec,fmatout, mode = -1)
+#            fvecout = E2fvec(evec0,fout, mode = -1, out = fvecout)
+    else:
+        fmatout = f_iso(n = nout, beta  = beta, phi = phi)
     
     cmat = stack_mat(kd, epsv, epsa, method = method)
-    fvecf = reflect(fveci, cmat = cmat, fmatin = fmatin, fmatout = fmatout, fvec_out = fvecf)
+    smat = system_mat(cmat, fmatin, fmatout)
+    rmat = reflection_mat(smat)
+    fvecf = reflect(fveci, rmat = rmat, fmatin = fmatin, fmatout = fmatout, fvecout = fvecf)
 
-#    if reflect_in == True:
-#        #make fresnel reflection of the input (backward propagating) field
-#        t = T_mat(fin = fmatin, fout = fin, mode = -1)
-#        fveci = dotmv(t,fveci, out = fvec_in)        
-#        
-##        tmati = t_mat(fin,fmatin, mode = -1)
-##        evec = fvec2E(fveci, mode = -1)
-##        evec = dotmv(tmati,evec)
-##        fveci = E2fvec(evec,fout, mode = -1) 
-##        np.add(fvec_in, fveci, out = fvec_in)
-#
-#
-#    if reflect_out == True:
-#        #make fresnel reflection of the output (forward propagating) field
-#        
-#        t = T_mat(fin = fmatout, fout = fout, mode = 1)
-#        fvecf = dotmv(t,fvecf, out = fvec_out)    
-##        tmati = t_mat(fmatout,fout, mode = +1)
-##        evec = fvec2E(fvecf, mode = +1)
-##        evec = dotmv(tmati,evec)
-##        fvecf = E2fvec(evec,fout, mode = +1) 
-##        fvecf = np.add(fvec_out, fvecf, out = fvec_out)  
+    if reflect_in == True:
+        #make fresnel reflection of the input (backward propagating) field
+        t = T_mat(fmatin = fmatin, fmatout = fin, mode = -1)
+        fveci = dotmv(t,fveci, out = fvecin)        
+        
+#        tmati = t_mat(fin,fmatin, mode = -1)
+#        evec = fvec2E(fveci, mode = -1)
+#        evec = dotmv(tmati,evec)
+#        fveci = E2fvec(evec,fout, mode = -1) 
+#        np.add(fvecin, fveci, out = fvecin)
+
+
+    if reflect_out == True:
+        #make fresnel reflection of the output (forward propagating) field
+        
+        t = T_mat(fmatin = fmatout, fmatout = fout, mode = 1)
+        fvecf = dotmv(t,fvecf, out = fvecout)    
+#        tmati = t_mat(fmatout,fout, mode = +1)
+#        evec = fvec2E(fvecf, mode = +1)
+#        evec = dotmv(tmati,evec)
+#        fvecf = E2fvec(evec,fout, mode = +1) 
+#        fvecf = np.add(fvecout, fvecf, out = fvecout)  
 
     return fvecf
 
@@ -1708,14 +1773,14 @@ def transfer2x2(evec, kd, epsv, epsa,  beta = 0., phi = 0., nin  = None, nout = 
        
     return evec
 
-def transfer(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1., 
-             method = "2x2", reflect_in = False, reflect_out = False, fvec_out = None):
+def transfer(fvecin, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1., 
+             method = "2x2", reflect_in = False, reflect_out = False, fvecout = None):
     """Transfer input field vector through a layered material specified by the propagation
     constand k*d, eps tensor (epsv, epsa) and input and output isotropic media.
     
     Parameters
     ----------
-    fvec_in : (...,4) array
+    fvecin : (...,4) array
         Input field vector array. This function will update the input array  
         with the calculated reflected field
     kd : array of floats
@@ -1741,7 +1806,7 @@ def transfer(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1.,
     reflect_out : bool
         Defines how to treat reflections from the last layer and the output media.
         If specified it does an incoherent reflection from the last interface.
-    fvec_out : (...,4) array, optional
+    fvecout : (...,4) array, optional
         The ouptut field vector array. This function will update the output array 
         with the calculated transmitted field.                
     """
@@ -1749,15 +1814,15 @@ def transfer(fvec_in, kd, epsv, epsa,  beta = 0., phi = 0., nin = 1., nout = 1.,
     if method.startswith("2x2"):
         fin = f_iso(n = nin, beta  = beta, phi = phi)
         fout = f_iso(n = nout, beta  = beta, phi = phi)
-        evec =  fvec2E(fvec_in, fmat = fin, mode = +1)
+        evec =  fvec2E(fvecin, fmat = fin, mode = +1)
         nin = nin if reflect_in == True else None
         nout = nout if reflect_out == True else None
         evec = transfer2x2(evec, kd, epsv, epsa,  beta = beta, phi = phi, nin  = nin, nout = nout, 
              method = method)
-        return E2fvec(evec,fout, mode = +1, out = fvec_out) 
+        return E2fvec(evec,fout, mode = +1, out = fvecout) 
     else:
-        return transfer4x4(fvec_in, kd, epsv, epsa,  beta = beta, phi = phi, nin = nin, nout = nout, 
-             method = method,  reflect_in = reflect_in, reflect_out = reflect_out, fvec_out = fvec_out)        
+        return transfer4x4(fvecin, kd, epsv, epsa,  beta = beta, phi = phi, nin = nin, nout = nout, 
+             method = method,  reflect_in = reflect_in, reflect_out = reflect_out, fvecout = fvecout)        
        
 transfer1d = transfer
         

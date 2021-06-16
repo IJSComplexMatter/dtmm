@@ -34,7 +34,7 @@ Installing in Anaconda
 Open the terminal (command prompt) and run::
 
     $ conda install numba scipy matplotlib numba
-    $ pip install ddmm
+    $ pip install dtmm
 
 Optionally, for faster FFT computation, you can install `mkl_fft`::
 

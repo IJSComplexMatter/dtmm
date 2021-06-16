@@ -576,11 +576,6 @@ def validate_optical_block(data, shape = None, wavelength = None, broadcast = Fa
         import warnings
         warnings.warn("homogeneous argument is not used any more and it will be removed in future versions", DeprecationWarning)
     
-    if isinstance(data, list):
-        if shape is None:
-            raise ValueError("For heterogeneous data, you must provide the `shape` argument.")
-        return [validate_optical_data(d, shape, wavelength, broadcast, copy) for d in data]
-    
     thickness, material, angles = data
     
     #for dispersive data, copy the coefficients, or evaluate if wavelength is provided.
@@ -609,7 +604,7 @@ def validate_optical_block(data, shape = None, wavelength = None, broadcast = Fa
         angles = angles[None,...]
     elif thickness.ndim != 1 and not single_layer:
         raise ValueError("Thickess dimension should be 1.")
-
+    
     n = None if single_layer else len(thickness)
     layer_dim = 0 if n is None else 1
     
@@ -622,25 +617,25 @@ def validate_optical_block(data, shape = None, wavelength = None, broadcast = Fa
         #regular data, angles and epsilon data have same shape
         material_broadcast_shape = angles_broadcast_shape
         if material.ndim == 1 + layer_dim:
-            material = material[None,None,:]
+            material = material[...,None,None,:]
         elif material.ndim == 2 + layer_dim:
-            material = material[None,:,:]
+            material = material[...,None,:,:]
         elif material.ndim != 3 + layer_dim:
             raise ValueError("Invalid material dimensions.")
     else:
         #coefficients-based data has one extra dimension
         material_broadcast_shape = angles_broadcast_shape + (1,)
         if material.ndim == 2 + layer_dim:
-            material = material[None,None,:,:]
+            material = material[...,None,None,:,:]
         elif material.ndim == 3 + layer_dim:
-            material = material[None,:,:,:]
+            material = material[...,None,:,:,:]
         elif material.ndim != 4 + layer_dim:
             raise ValueError("Invalid material coefficients dimensions.")        
 
     if angles.ndim == 1 + layer_dim:
-        angles = angles[None,None,:]
+        angles = angles[...,None,None,:]
     elif angles.ndim == 2 + layer_dim:
-        angles = angles[None,:,:]
+        angles = angles[...,None,:,:]
     elif angles.ndim != 3 +layer_dim:
         raise ValueError("Invalid angles dimensions.")
     
@@ -1287,9 +1282,9 @@ def uniaxial_order(order, eig, out):
     --------
     >>> np.allclose(uniaxial_order(0,[1,2,3.]) , (2,2,2)) 
     True
-    >>> uniaxial_order(1,[1,2,3.], (1.5,1.5,3)) 
+    >>> np.allclose(uniaxial_order(1,[1,2,3.]), (1.5,1.5,3)) 
     True
-    >>> uniaxial_order(-1,[1,2,3.], (1,2,3))  #negative, so no change
+    >>> np.allclose(uniaxial_order(-1,[1,2,3.]), (1,2,3))  #negative, so no change
     True
     >>> np.allclose(uniaxial_order(0.5,[1,2,3.]), (1.75,1.75,2.5)) #scale accordingly
     True

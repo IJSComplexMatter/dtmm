@@ -189,14 +189,20 @@ try:
     from dtmm.window import *
     from dtmm.linalg import *
     from dtmm.rotation import *
+    import dtmm.conf
+    dtmm.conf.set_verbose(0)
+    from dtmm.field_viewer import *
+    
 except ImportError:
 	pass
 
-field_in = (np.ones((1,4,6,6))+0j, np.array((3.,)), 100)
-field_data_in = field_in
+field_in = np.ones((1,4,6,6))+0j
+field_data_in = field_in, np.array((3.,)), 100
 field_data_out = (np.ones((1,4,6,6))+0j, np.array((3.,)), 100)
 field_bulk_data = (np.ones((1,2,1,4,6,6))+0j, np.array((3.,)), 100)
-field = field_in
+field_data = field_data_in
+nonpolarized_field_in = np.ones((2,1,4,6,6))+0j
+
 optical_data = np.array((1.,)), np.ones((1,6,6,3))*2+0j, np.zeros((1,6,6,3))
 data = optical_data
 NLAYERS, HEIGHT, WIDTH = 1,6,6

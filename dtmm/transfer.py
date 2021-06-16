@@ -576,6 +576,7 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = None
             if eff_data_name != "custom":
                 _eff_data = [eff_data]* len(_optical_data)
             else:
+                _eff_data = eff_data
                 if not len(_eff_data) == len(_optical_data):
                     raise ValueError("eff_data length must match optical_data length")
                     
@@ -598,8 +599,9 @@ def transfer_field(field_data, optical_data, beta = None, phi = None, nin = None
             _optical_data = validate_optical_data(_optical_data, shape = shape) #make it list of blocks
 
         if eff_data_name != "custom":
-            _eff_data = [eff_data]* len(_optical_data)
+            _eff_data = [eff_data] * len(_optical_data)
         else:
+            _eff_data = eff_data
             if not len(_eff_data) == len(_optical_data):
                 raise ValueError("eff_data length must match optical_data length")
                  
@@ -1217,7 +1219,7 @@ def transfer_2x2(field_data, optical_data, beta = None,
         print(" * Initializing.")
          
     try:
-        eff_data = validate_optical_block(eff_data, shape = (1,1))        
+        eff_data = validate_optical_data(eff_data, shape = (1,1))        
     except (TypeError, ValueError):
         symmetry = 0 if eff_data is None else eff_data
         eff_data = effective_data(optical_data, symmetry = symmetry)   
@@ -1267,7 +1269,6 @@ def transfer_2x2(field_data, optical_data, beta = None,
     block_layers = [_block_layers_list(block_data, nin = nin, nout = nout, nstep = nstep) for i,(block_data, nin, nout, nstep) in enumerate(zip(optical_data, nins,nouts, nsteps))]
     # virtual effective layers
     block_eff_layers = [_block_eff_layers_list(block_eff_data, nin = nin, nout = nout, nstep = nstep) for i,(block_eff_data, nin, nout, nstep) in enumerate(zip(eff_data, nins,nouts, nsteps))]
-        
     
     #: number of total layers in each optical block. 
     block_nlayers = [len(optical_block[0])+2 for optical_block in optical_data]    

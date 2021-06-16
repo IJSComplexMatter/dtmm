@@ -4,6 +4,9 @@ TMM Matrix solvers for 3d, 2d and 1d data.
 These objects can be used for a simplified treatment of the transfer matrices
 for 3d field data on 1d, 2d (and 3d) optical data. 
 
+* :class:`MatrixBlockSolver3D` for matrix-based 3d simulations on optical blocks.
+* :class:`MatrixDataSolver3D` for matrix-based 3d simulations on optical datas.
+
 """
 from dtmm.conf import get_default_config_option, DTMMConfig
 from dtmm.data import validate_optical_data, material_shape, validate_optical_block, validate_optical_layer, is_callable, shape2dim, optical_data_shape
@@ -271,8 +274,8 @@ class BaseMatrixSolver2D(BaseMatrixSolver3D):
 class MatrixBlockSolver3D(BaseMatrixSolver3D):
     """TMM matrix solver for 1d,2d or 3d optical block data using 3d field data.
     
-    Example
-    -------
+    Examples
+    --------
     
     # initialize with a problem shape, wavelengths and pixelsize
     >>> solver = MatrixBlockSolver3D(shape = (96,96), wavelengths = [500,550], pixelsize = 100)
@@ -483,8 +486,8 @@ class MatrixBlockSolver3D(BaseMatrixSolver3D):
 class MatrixDataSolver3D(BaseMatrixSolver3D):
     """TMM matrix solver for 1d,2d or 3d optical data using 3d field data.
     
-    Example
-    -------
+    Examples
+    --------
     
     # initialize with a problem shape, wavelengths and pixelsize
     >>> solver = MatrixBlockSolver3D(shape = (96,96), wavelengths = [500,550], pixelsize = 100)

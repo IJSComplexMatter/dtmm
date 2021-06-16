@@ -19,8 +19,8 @@ field_data_in = dtmm.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
 #: transfer input light through stack and compute bulk EM field
 field_data_out = dtmm.transfer_field(field_data_in, optical_data, ret_bulk = True)
 
-#: visualize output field
-viewer = dtmm.field_viewer(field_data_out, bulk_data = True)
+#: visualize output field, we take the first and only block bulk data
+viewer = dtmm.field_viewer(field_data_out[0], bulk_data = True)
 viewer.set_parameters(sample = 0, intensity = 2,
                 polarizer = 0, focus = 20, analyzer = 90)
 
