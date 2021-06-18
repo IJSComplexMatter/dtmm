@@ -8,7 +8,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
-resolution = 100       # pixels/μm
+resolution = 25      # pixels/μm
 
 dpml = 1.0             # PML thickness
 dsub = 1.0             # substrate thickness
