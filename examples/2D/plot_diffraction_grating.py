@@ -15,11 +15,11 @@ for ax, grating in zip(axes, gratings):
         ax.plot(x,y, "k-",label = "0th order (analytic)")
         y = np.sin(np.pi*x)**2
         ax.plot(x,y, "k--",label = "1th order (analytic)")        
-
+    gp = 1
     
-    t0_meep = np.load("simdata/meep_{}_{}_eff_m0.npy".format(resolution,grating))
+    t0_meep = np.load("simdata/meep_{}_{}_{}_eff_m0.npy".format(resolution,grating, gp))
     t0_tmm = np.load("simdata/tmm2d_{}_eff_m0.npy".format(grating))
-    t1_meep = np.load("simdata/meep_{}_{}_eff_m1.npy".format(resolution,grating))
+    t1_meep = np.load("simdata/meep_{}_{}_{}_eff_m1.npy".format(resolution,grating, gp))
     t1_tmm = np.load("simdata/tmm2d_{}_eff_m1.npy".format(grating)) + np.load("simdata/tmm2d_{}_eff_m-1.npy".format(grating))
     
     ax.plot(phase, t0_meep, label = "0th order (meep)")
