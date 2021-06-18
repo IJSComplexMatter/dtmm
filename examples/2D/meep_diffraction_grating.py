@@ -8,7 +8,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
-resolution = 50        # pixels/μm
+resolution = 20       # pixels/μm
 
 dpml = 1.0             # PML thickness
 dsub = 1.0             # substrate thickness
@@ -53,8 +53,8 @@ def pol_grating(d,ph,gp,nmode):
 
     # linear-polarized planewave pulse source
     src_pt = mp.Vector3(-0.5*sx+dpml+0.3*dsub,0,0)
-    sources = [mp.Source(mp.GaussianSource(fcen,fwidth=0.05*fcen), component=mp.Ez, center=src_pt, size=mp.Vector3(0,sy,0)),
-               mp.Source(mp.GaussianSource(fcen,fwidth=0.05*fcen), component=mp.Ey, center=src_pt, size=mp.Vector3(0,sy,0),amplitude = 1j)]
+    sources = [mp.Source(mp.GaussianSource(fcen,fwidth=0.05*fcen*2), component=mp.Ez, center=src_pt, size=mp.Vector3(0,sy,0)),
+               mp.Source(mp.GaussianSource(fcen,fwidth=0.05*fcen*2), component=mp.Ey, center=src_pt, size=mp.Vector3(0,sy,0),amplitude = 1j)]
 
     sim = mp.Simulation(resolution=resolution,
                         cell_size=cell_size,
@@ -66,7 +66,7 @@ def pol_grating(d,ph,gp,nmode):
     tran_pt = mp.Vector3(0.5*sx-dpml-0.5*dpad,0,0)
     tran_flux = sim.add_flux(fcen, 0, 1, mp.FluxRegion(center=tran_pt, size=mp.Vector3(0,sy,0)))
 
-    sim.run(until_after_sources=100)
+    sim.run(until_after_sources=200)
 
     input_flux = mp.get_fluxes(tran_flux)
 
@@ -81,7 +81,7 @@ def pol_grating(d,ph,gp,nmode):
 
     tran_flux = sim.add_flux(fcen, 0, 1, mp.FluxRegion(center=tran_pt, size=mp.Vector3(0,sy,0)))
 
-    sim.run(until_after_sources=300)
+    sim.run(until_after_sources=600)
 
     res1 = sim.get_eigenmode_coefficients(tran_flux, range(1,nmode+1), eig_parity=mp.ODD_Z+mp.EVEN_Y)
     res2 = sim.get_eigenmode_coefficients(tran_flux, range(1,nmode+1), eig_parity=mp.EVEN_Z+mp.ODD_Y)
