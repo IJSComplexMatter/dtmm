@@ -8,7 +8,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
-resolution = 20       # pixels/μm
+resolution = 100       # pixels/μm
 
 dpml = 1.0             # PML thickness
 dsub = 1.0             # substrate thickness
@@ -53,8 +53,8 @@ def pol_grating(d,ph,gp,nmode):
 
     # linear-polarized planewave pulse source
     src_pt = mp.Vector3(-0.5*sx+dpml+0.3*dsub,0,0)
-    sources = [mp.Source(mp.GaussianSource(fcen,fwidth=0.05*fcen*2), component=mp.Ez, center=src_pt, size=mp.Vector3(0,sy,0)),
-               mp.Source(mp.GaussianSource(fcen,fwidth=0.05*fcen*2), component=mp.Ey, center=src_pt, size=mp.Vector3(0,sy,0),amplitude = 1j)]
+    sources = [mp.Source(mp.GaussianSource(fcen,fwidth=0.05*fcen), component=mp.Ez, center=src_pt, size=mp.Vector3(0,sy,0)),
+               mp.Source(mp.GaussianSource(fcen,fwidth=0.05*fcen), component=mp.Ey, center=src_pt, size=mp.Vector3(0,sy,0),amplitude = -1j)]
 
     sim = mp.Simulation(resolution=resolution,
                         cell_size=cell_size,
@@ -66,7 +66,7 @@ def pol_grating(d,ph,gp,nmode):
     tran_pt = mp.Vector3(0.5*sx-dpml-0.5*dpad,0,0)
     tran_flux = sim.add_flux(fcen, 0, 1, mp.FluxRegion(center=tran_pt, size=mp.Vector3(0,sy,0)))
 
-    sim.run(until_after_sources=200)
+    sim.run(until_after_sources=100)
 
     input_flux = mp.get_fluxes(tran_flux)
 
@@ -81,11 +81,11 @@ def pol_grating(d,ph,gp,nmode):
 
     tran_flux = sim.add_flux(fcen, 0, 1, mp.FluxRegion(center=tran_pt, size=mp.Vector3(0,sy,0)))
 
-    sim.run(until_after_sources=600)
+    sim.run(until_after_sources=300)
 
     res1 = sim.get_eigenmode_coefficients(tran_flux, range(1,nmode+1), eig_parity=mp.ODD_Z+mp.EVEN_Y)
     res2 = sim.get_eigenmode_coefficients(tran_flux, range(1,nmode+1), eig_parity=mp.EVEN_Z+mp.ODD_Y)
-    angles = [math.degrees(math.acos(kdom.x/fcen)) for kdom in res1.kdom]
+    angles = [math.degrees(math.acos(min(kdom.x/fcen,1))) for kdom in res1.kdom]
 
     return input_flux[0], angles, res1.alpha[:,0,0], res2.alpha[:,0,0];
 
@@ -93,7 +93,7 @@ def pol_grating(d,ph,gp,nmode):
 
 ph_uniaxial = 0               # chiral layer twist angle for uniaxial grating
 ph_twisted = 70               # chiral layer twist angle for bilayer grating
-gp = 3                      # grating period
+gp = 1                    # grating period
 nmode = 5                     # number of mode coefficients to compute
 dd = np.arange(0.1,3.5,0.1)   # chiral layer thickness
 
@@ -137,7 +137,7 @@ for k in range(len(dd)):
 cos_angles = [math.cos(math.radians(t)) for t in ang_uniaxial]
 tran = m0_uniaxial+2*m1_uniaxial
 eff_m0 = m0_uniaxial/tran
-eff_m1 = (2*m1_uniaxial/tran)/cos_angles
+eff_m1 = (2*m1_uniaxial/tran)#*cos_angles
 
 phase = delta_n*dd/wvl
 eff_m0_analytic = [math.cos(math.pi*p)**2 for p in phase]
@@ -157,13 +157,13 @@ plt.legend(loc='center')
 plt.title("homogeneous uniaxial grating")
 
 np.save("simdata/meep_phase.npy", phase)
-np.save("simdata/meep_{}_uniaxial_eff_m0.npy".format(resolution), eff_m0)
-np.save("simdata/meep_{}_uniaxial_eff_m1.npy".format(resolution), eff_m1)
+np.save("simdata/meep_{}_uniaxial_{}_eff_m0.npy".format(resolution,gp), eff_m0)
+np.save("simdata/meep_{}_uniaxial_{}_eff_m1.npy".format(resolution,gp), eff_m1)
 
 cos_angles = [math.cos(math.radians(t)) for t in ang_twisted]
 tran = m0_twisted+2*m1_twisted
 eff_m0 = m0_twisted/tran
-eff_m1 = (2*m1_twisted/tran)/cos_angles
+eff_m1 = (2*m1_twisted/tran)#*cos_angles
 
 plt.subplot(1,2,2)
 plt.plot(phase,eff_m0,'bo-',clip_on=False,label='0th order (meep)')
@@ -175,7 +175,7 @@ plt.ylabel("diffraction efficiency @ λ = 0.54 μm")
 plt.legend(loc='center')
 plt.title("bilayer twisted-nematic grating")
 
-np.save("simdata/meep_{}_twisted_eff_m0.npy".format(resolution), eff_m0)
-np.save("simdata/meep_{}_twisted_eff_m1.npy".format(resolution), eff_m1)
+np.save("simdata/meep_{}_twisted_{}_eff_m0.npy".format(resolution,gp), eff_m0)
+np.save("simdata/meep_{}_twisted_{}_eff_m1.npy".format(resolution,gp), eff_m1)
 
 plt.show()
