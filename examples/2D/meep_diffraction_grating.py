@@ -8,7 +8,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
-resolution = 50        # pixels/μm
+resolution = 25        # pixels/μm
 
 dpml = 1.0             # PML thickness
 dsub = 1.0             # substrate thickness
@@ -156,9 +156,9 @@ plt.ylabel("diffraction efficiency @ λ = 0.54 μm")
 plt.legend(loc='center')
 plt.title("homogeneous uniaxial grating")
 
-np.save("meep_phase.npy", phase)
-np.save("meep_uniaxial_eff_m0.npy", eff_m0)
-np.save("meep_uniaxial_eff_m1.npy", eff_m1)
+np.save("simdata/meep_phase.npy", phase)
+np.save("simdata/meep_uniaxial_eff_m0.npy", eff_m0)
+np.save("simdata/meep_uniaxial_eff_m1.npy", eff_m1)
 
 cos_angles = [math.cos(math.radians(t)) for t in ang_twisted]
 tran = m0_twisted+2*m1_twisted
@@ -175,7 +175,7 @@ plt.ylabel("diffraction efficiency @ λ = 0.54 μm")
 plt.legend(loc='center')
 plt.title("bilayer twisted-nematic grating")
 
-np.save("meep_twisted_eff_m0.npy", eff_m0)
-np.save("meep_twisted_eff_m1.npy", eff_m1)
+np.save("simdata/meep_twisted_eff_m0.npy", eff_m0)
+np.save("simdata/meep_twisted_eff_m1.npy", eff_m1)
 
 plt.show()
