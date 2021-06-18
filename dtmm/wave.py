@@ -552,7 +552,7 @@ def eigenmask1(n, k0, betay = 0, betamax = None):
     betamax = get_default_config_option("betamax", betamax)
     betay = np.asarray(betay,FDTYPE)
     if betay.ndim > 0:
-        betay = betay[:,None]
+        betay = betay[...,None]
     b = (betax1(n, k0)**2 + betay**2)**0.5 
     mask = b <= betamax
     return mask
@@ -633,7 +633,7 @@ def eigenbetax1(n, k0, betay = 0, betamax = None):
 
     betay = np.asarray(betay,FDTYPE)
     if betay.ndim > 0:
-        betay = betay[:,None]
+        betay = betay[...,None]
     b = (betax1(n, k0)**2 + betay**2)**0.5 
     mask = b <= betamax
     

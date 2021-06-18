@@ -10,9 +10,9 @@ for 3d field data on 1d, 2d (and 3d) optical data.
 """
 from dtmm.conf import get_default_config_option, DTMMConfig
 from dtmm.data import validate_optical_data, material_shape, validate_optical_block, validate_optical_layer, is_callable, shape2dim, optical_data_shape
-from dtmm import tmm3d
-from dtmm.field import field2modes, modes2field
-from dtmm.wave import k0, eigenmask
+from dtmm import tmm3d, tmm2d
+from dtmm.field import field2modes, modes2field, field2modes1, modes2field1
+from dtmm.wave import k0, eigenmask, eigenmask1
 from dtmm.print_tools import print_progress
 import numpy as np
 
@@ -34,7 +34,252 @@ def _iterate_dispersive_layers3d(optical_block, wavelengths, wavenumbers, mask, 
                 mask = m, method = method) \
              for w,k,m in zip(wavelengths, wavenumbers, mask)))
         yield layer    
+ 
+class BaseMatrixSolver2D(object): 
+    """Base class for all 2D Matrix-based solvers."""
+    
+    tmm_system_mat = tmm2d.system_mat2d
+    tmm_reflection_mat = tmm2d.reflection_mat2d
+    tmm_stack_mat =  tmm2d.stack_mat2d
+    tmm_reflect = tmm2d.reflect2d
+    tmm_f_iso = tmm2d.f_iso2d
         
+    # field array
+    _field_out = None
+    _field_in = None
+    modes_in = None
+    modes_out = None
+    mask = None
+    
+    # transfer matrices
+    field_matrix_in = None
+    field_matrix_out = None
+    stack_matrix = None
+    refl_matrix = None
+    trans_matrix = None
+    
+    #material shape and dimension
+    material_shape = None
+    material_dim = None
+
+    def __init__(self, shape, betay = 0, wavelengths = [500], pixelsize = 100,  mask = None, method = "4x4", betamax = None):
+        """
+        Paramters
+        ---------
+        shape : int
+            Cross-section shape of the field data.
+        wavelengths : float or array
+            A list of wavelengths (in nanometers) or a single wavelength for 
+            which to create the solver.
+        pixelsize : float
+            Pixel size in (nm).
+        mask : ndarray, optional
+            A fft mode mask array. If not set, :func:`.wave.eigenmask` is 
+            used with `betamax` to create such mask.
+        method : str
+            Either '4x4' (default), '4x4_1' or '2x2'.
+        betamax : float, optional
+            If `mask` is not set, this value is used to create the mask. If not 
+            set, default value is taken from the config.
+        """
+        self.shape = int(shape),
+        self.betay = np.asarray(betay)
+        if self.betay.ndim == 1:
+            if not len(betay) == len(wavelengths):
+                raise ValueError("`betay` must have same length as `wavelengths`.")
+        elif self.betay.ndim != 0:
+            raise ValueError("`betay` must be a scalar or a 1D array")
+        self.wavelengths = np.asarray(wavelengths)
+        if self.wavelengths.ndim not in (0,1):
+            raise ValueError("`wavelengths` must be a scalar or an 1D array.")
+        self.pixelsize = float(pixelsize)
+        self.wavenumbers = k0(self.wavelengths, pixelsize)
+        
+        method = str(method) 
+        if method in AVAILABLE_MATRIX_SOLVER_METHODS :
+            self.method = method
+        else:
+            raise ValueError("Unsupported method {}".format(method))
+        
+        if mask is None:
+            betamax = get_default_config_option("betamax", betamax)
+            self.mask = eigenmask(shape, self.wavenumbers, betamax)
+        else:
+            self.set_mask(mask)
+            
+        self._field_dim = 2 if self.wavelengths.ndim == 0 else 3
+            
+    def set_mask(self, mask):
+        """Sets fft mask.
+        
+        Parameters
+        ----------
+        mask : ndarray
+            A boolean mask, describing fft modes that are used in the solver.
+        """
+        mask = np.asarray(mask)
+        mask_shape = self.wavelengths.shape + self.shape
+        
+        if mask.shape != mask_shape:
+            raise ValueError("Mask shape must be of shape {}".format(mask_shape))
+        if not mask.dtype == bool:
+            raise ValueError("Not a bool mask.")
+            
+        self.mask = mask
+        self.clear_matrices()
+        self.clear_data()
+    
+    def clear_matrices(self):
+        self.stack_matrix = None
+        self.refl_matrix = None
+        self.field_matrix_in = None
+        self.field_matrix_out = None
+        self.trans_matrix = None
+        self.layer_matrices = []
+        
+    def clear_data(self):
+        self.modes_in = None
+        self.modes_out = None
+
+    def _validate_field(self, field):
+        field = np.asarray(field)
+        field_shape = self.wavelengths.shape + (4,) + self.shape
+            
+        if field.shape[-self._field_dim:] != field_shape:
+            raise ValueError("Field shape not comaptible with solver's requirements. Must be (at least) of shape {}".format(field_shape))
+        return field
+        
+    @property
+    def field_in(self):
+        """Input field array"""
+        return self._field_in
+    
+    @field_in.setter
+    def field_in(self, field):
+        self._field_in =  self._validate_field(field)       
+        mask, self.modes_in = field2modes1(self._field_in,self.wavenumbers, betay = self.betay, mask = self.mask)    
+
+    def _get_field_data(self, field, copy):
+        if copy:
+            return field.copy(), self.wavelengths.copy(), self.pixelsize
+        else:
+            return field, self.wavelengths, self.pixelsize
+        
+    def get_field_data_in(self, copy = True):
+        """Returns input field data tuple.
+        
+        If copy is set to True (default), a copy of the field_out array is made. 
+        """
+        return self._get_field_data(self.field_in, copy)
+
+    @property
+    def field_out(self):
+        """Output field array"""
+        return self._field_out
+    
+    @field_out.setter
+    def field_out(self, field):
+        self._field_out = self._validate_field(field)   
+        mask, self.modes_out = field2modes1(self._field_out, self.wavenumbers, betay = self.betay, mask = self.mask)    
+
+    def get_field_data_out(self, copy = True):
+        """Returns output field data tuple.
+        
+        If copy is set to True (default), a copy of the field_out array is made. 
+        """
+        return self._get_field_data(self.field_out, copy)
+    
+    def calculate_field_matrix(self,nin = 1., nout = 1.):
+        """Calculates field matrices. 
+        
+        This must be called after you set material data.
+        """
+        if self.material_shape is None:
+            raise ValueError("You must first set material data")
+        self.nin = float(nin)
+        self.nout = float(nout)
+        #now build up matrices field matrices       
+        self.field_matrix_in = self.tmm_f_iso(self.mask, self.wavenumbers, n = self.nin, shape = self.material_shape, betay = self.betay)
+        self.field_matrix_out  = self.tmm_f_iso(self.mask, self.wavenumbers, n = self.nout, shape = self.material_shape, betay = self.betay)
+
+    def calculate_reflectance_matrix(self):
+        """Calculates reflectance matrix.
+        
+        Available in "4x4","4x4_1" methods only. This must be called after you 
+        have calculated the stack and field matrices.
+        """
+        if self.method not in ("4x4","4x4_1"):
+            raise ValueError("reflectance matrix is available in 4x4 and 4x4_1 methods only")
+        if self.stack_matrix is None:
+            raise ValueError("You must first calculate stack matrix")
+        if self.field_matrix_in is None:
+            raise ValueError("You must first calculate field matrix")
+        
+        mat = self.tmm_system_mat(self.stack_matrix, self.field_matrix_in, self.field_matrix_out)
+        mat = self.tmm_reflection_mat(mat)
+        self.refl_matrix = mat
+
+      
+    def calculate_transmittance_matrix(self):
+        """Calculates transmittance matrix.
+        
+        Available in "2x2" method only. This must be called after you have
+        calculated the stack matrix.
+        """
+        if self.method != "2x2":
+            raise ValueError("transmittance matrix is available in 2x2 method only")
+        if self.stack_matrix is None:
+            raise ValueError("You must first calculate stack matrix")
+        
+        self.trans_matrix  = self.tmm_transmission_mat(self.stack_matrix) 
+        
+    def _group_modes(self,modes):
+        return modes
+        
+    def transfer_field(self, field_in = None, field_out = None):
+        """Transfers field.
+        
+        This must be called after you have calculated the transmittance/reflectance 
+        matrix.
+        
+        Parameters
+        ----------
+        field_in : ndarray, optional
+            If set, the field_in attribute will be set to this value prior to
+            transfering the field.
+        field_out : ndarray, optional
+            If set, the field_out attribute will be set to this value prior to
+            transfering the field.            
+        """
+        if self.refl_matrix is None and self.trans_matrix is None:
+            raise ValueError("You must first create reflectance/transmittance matrix")
+        if field_in is not None:
+            self.field_in = field_in
+        if field_out is not None:
+            self.field_out = field_out       
+            
+        if self.modes_in is None:
+            raise ValueError("You must first set `field_in` data or set the `field_in` argument.")
+
+        grouped_modes_in = self._group_modes(self.modes_in)
+        grouped_modes_out = None if self.modes_out is None else self._group_modes(self.modes_out)
+    
+        # transfer field
+        if self.method.startswith("4x4"):
+            grouped_modes_out = self.tmm_reflect(grouped_modes_in, rmat = self.refl_matrix, fmatin = self.field_matrix_in, fmatout = self.field_matrix_out, fvecout = grouped_modes_out)
+        else:
+            grouped_modes_out = self.tmm_transmit(grouped_modes_in, tmat = self.trans_matrix, fmatin = self.field_matrix_in, fmatout = self.field_matrix_out, fvecout = grouped_modes_out)
+        
+        # now ungroup and convert modes to field array
+        self.modes_out = self._ungroup_modes(grouped_modes_out)
+        self.modes_in = self._ungroup_modes(grouped_modes_in)
+        
+        self._field_out = modes2field(self.mask, self.modes_out, out = self._field_out)
+    
+        if self.method.startswith("4x4"):
+            #we need to update input field because of relfections.
+            self.modes_in = self._ungroup_modes(grouped_modes_in)
+    
 class BaseMatrixSolver3D(object): 
     """Base class for all Matrix-based solvers."""
 
