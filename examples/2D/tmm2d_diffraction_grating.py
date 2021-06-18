@@ -10,31 +10,31 @@ dtmm.conf.set_verbose(2)
 
 WAVELENGTH = [540]
 TWIST = 70
-PIXELSIZE = 20 #equivalent to meep resolution of 50 pixels per microns
+PIXELSIZE = 20 #equivalent to meep resolution of 20 pixels per microns
 no = 1.55
 deltan = 0.159
 ne = no + deltan
-#thickness = 1.5 # in microns
+
 
 nin, nout = no,no
 
 
-WIDTH = 162 #almost equivalent to meep gp = 6.5 grating period in microns.
+WIDTH = 50 #equivalent to meep gp = 1 grating period in microns.
 
 
 BETA = 0
 INTENSITY = 1
 PHI = 0
 
-betamax = 1.4
+betamax = 1.
 
-POWER = 5
+POWER = 4
 
 MODES = (-1,0,1)
 
 
 def simulate(thickness, grating = "uniaxial"):
-    NLAYERS = int(1000/PIXELSIZE * thickness)
+    NLAYERS = int(1000/PIXELSIZE * thickness)*4
     
     phi = np.arange(0,np.pi, np.pi/WIDTH)
     assert len(phi) == WIDTH
@@ -79,7 +79,7 @@ def simulate(thickness, grating = "uniaxial"):
 
     
     #we use 3D non-polarized data and convert it to 2D
-    field_data_in = dtmm.illumination_data((1,WIDTH), WAVELENGTH, jones = None, 
+    field_data_in = dtmm.illumination_data((1,WIDTH), WAVELENGTH, jones = (1,1j), 
                       beta= BETA, phi = PHI, intensity = INTENSITY, pixelsize = PIXELSIZE, n = nin) 
 
 
@@ -118,18 +118,25 @@ def simulate(thickness, grating = "uniaxial"):
     
     ffin = field.modes2ffield1(mask,fmode_in)
     ffout = field.modes2ffield1(mask,fmode_out)
+    fr_rcp = ffin
+    fr_lcp = ffin
+    ft_lcp = ffout
+    ft_rcp = ffout
 
-    fr_rcp = ffin[0] - 1j * ffin[1] #right handed
-    ft_rcp  = ffout[0] - 1j * ffout[1]
+    # fr_rcp = ffin[0] - 1j * ffin[1] #right handed
+    # ft_rcp  = ffout[0] - 1j * ffout[1]
     
-    fr_lcp = ffin[0] + 1j * ffin[1] 
-    ft_lcp  = ffout[0] + 1j * ffout[1]   
+    # fr_lcp = ffin[0] + 1j * ffin[1] 
+    # ft_lcp  = ffout[0] + 1j * ffout[1]   
+
     
     #fmode_in_ref = tmm2d.unlist_modes(tmm2d.project2d(tmm2d.list_modes(fmode_in), fmatin))
     ffin_ref = field.modes2ffield1(mask,fmode_in_ref)
     
-    fr_rcp_ref = ffin_ref[0] - 1j * ffin_ref[1] #right handed
-    fr_lcp_ref = ffin_ref[0] + 1j * ffin_ref[1] 
+    #fr_rcp_ref = ffin_ref[0] - 1j * ffin_ref[1] #right handed
+    #fr_lcp_ref = ffin_ref[0] + 1j * ffin_ref[1] 
+    fr_lcp_ref = ffin
+    fr_rcp_ref = ffin
     i_rcp = tmm.poynting(fr_rcp_ref.swapaxes(-2,-1)).sum(-1)
     i_lcp = tmm.poynting(fr_lcp_ref.swapaxes(-2,-1)).sum(-1)
     
@@ -162,6 +169,7 @@ def simulate(thickness, grating = "uniaxial"):
 if __name__ == "__main__":
     
     grating = "uniaxial"
+    #grating = "twisted"
     
     thickness = np.arange(0.1,3.5,0.1)
     

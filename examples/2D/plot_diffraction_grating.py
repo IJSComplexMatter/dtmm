@@ -5,27 +5,32 @@ phase = np.load("simdata/meep_phase.npy")
 
 axes = plt.subplot(121), plt.subplot(122)
 gratings = ("uniaxial", "twisted")
+resolution = 50
 
 for ax, grating in zip(axes, gratings):
 
+    if grating == "uniaxial":
+        x = np.linspace(phase[0],phase[-1],200)
+        y = np.cos(np.pi*x)**2
+        ax.plot(x,y, "k-",label = "0th order (analytic)")
+        y = np.sin(np.pi*x)**2
+        ax.plot(x,y, "k--",label = "1th order (analytic)")        
+
     
-    t0_meep = np.load("simdata/meep_{}_eff_m0.npy".format(grating))
+    t0_meep = np.load("simdata/meep_{}_{}_eff_m0.npy".format(resolution,grating))
     t0_tmm = np.load("simdata/tmm2d_{}_eff_m0.npy".format(grating))
-    t1_meep = np.load("simdata/meep_{}_eff_m1.npy".format(grating))
+    t1_meep = np.load("simdata/meep_{}_{}_eff_m1.npy".format(resolution,grating))
     t1_tmm = np.load("simdata/tmm2d_{}_eff_m1.npy".format(grating)) + np.load("simdata/tmm2d_{}_eff_m-1.npy".format(grating))
     
-    ax.plot(phase, t0_meep, label = "meep (0th order)")
-    ax.plot(phase, t0_tmm, label = "tmm (0th order)")
-    ax.plot(phase, t1_meep, label = "meep (+-1th order)")
-    ax.plot(phase, t1_tmm, label = "tmm (+-1th order)")   
+    ax.plot(phase, t0_meep, label = "0th order (meep)")
+    ax.plot(phase, t0_tmm, label = "0th order (tmm)")
+    ax.plot(phase, t1_meep, label = "1th order (meep)")
+    ax.plot(phase, t1_tmm, label = "1th order (tmm)")   
     
     ax.plot(phase, t0_meep + t1_meep, "--", label = "meep trasnmission")
     ax.plot(phase, t0_tmm + t1_tmm, "--", label = "tmm trasnmission")
 
-#    if grating == "uniaxial":
-#        [math.cos(math.pi*p)**2 for p in phase]
-#        ax.plot(phase, [math.cos(math.pi*p)**2 for p in phase], "--", label = "analyitical")
-    
+
     ax.legend()
     
     # for mode in MODES:    
