@@ -5,18 +5,18 @@
 from __future__ import absolute_import, print_function, division
 
 import numpy as np
+import math
 
 from dtmm.conf import CDTYPE,DTMMConfig
 
 from dtmm.linalg import dotmm, inv, dotmv,  bdotmm, bdotmd, bdotdm, dotmdm
 from dtmm.print_tools import print_progress
-from dtmm.data import material_shape, shape2dim, material_dim
+from dtmm.data import material_shape, shape2dim, material_dim, validate_optical_layer, crop_fft2, resize_epsva
 import dtmm.tmm as tmm
 import dtmm.tmm2d as tmm2d
 from dtmm.tmm import alphaf, alphaffi, phase_mat
-from dtmm.wave import eigenbeta, eigenphi,eigenindices, eigenmask, eigenwave,mask2beta, mask2phi, mask2indices, betax1
+from dtmm.wave import eigenbeta, eigenphi,eigenindices, eigenmask, eigenwave,mask2beta, mask2phi, mask2indices, betax1, mask2order
 from dtmm.fft import mfft2
-
 
 def _iterate_masks_2d(mask, shape, k0):
     x,y = shape
@@ -173,7 +173,7 @@ def ungroup_modes(modes, mode_masks):
             out[...,m,:] = mode
         return out
         
-def layer_mat3d(k0, d, epsv,epsa, mask = None, method = "4x4", resolution_power = 0):
+def layer_mat3d(k0, d, epsv,epsa, mask = None, method = "4x4", nsteps = 1, resize = 1):
     """Computes characteristic matrix of a single layer M=F.P.Fi,
     
     Numpy broadcasting rules apply.
@@ -190,6 +190,14 @@ def layer_mat3d(k0, d, epsv,epsa, mask = None, method = "4x4", resolution_power 
         Optical axes orientation angles (psi, theta, phi).
     method : str, optional
         Either '4x4' (default), '4x4_1', or '2x2'.
+    nsteps : int, optional
+        Number of steps used in the matrix calculation. If layer thickness is
+        greater than e.g. > wavelength/10 you should use higher values of nsteps to 
+        split the layer into equal layer of thickness d/nsteps. `nsteps` should be
+        a power 2, else the algorithm rounds `nsteps to the power of 2. 
+    resize : int
+        Either 0,1 or 2. Determines level of material resize. 0 - no resizing
+        1 : safe resizing, 2 : full resize.
     
     Returns
     -------
@@ -207,17 +215,18 @@ def layer_mat3d(k0, d, epsv,epsa, mask = None, method = "4x4", resolution_power 
         mask = eigenmask(shape, k0)
         betas = eigenbeta(shape, k0)
         phis = eigenphi(shape, k0)
-        indices = eigenindices(shape, k0)
+        #indices = eigenindices(shape, k0)
+        indices = mask2order(mask)
     else:
         betas = mask2beta(mask,k0)
         phis = mask2phi(mask,k0)
-        indices = mask2indices(mask,k0)
+        indices = mask2order(mask)
         
     if dim == 3:
         if k0.ndim == 0:
-            return _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis,indices, method,resolution_power)
+            return _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis,indices, method,nsteps, resize)
         else:
-            out = (_layer_mat3d(k0[i],d,epsv,epsa, mask[i],betas[i], phis[i],indices[i],method,resolution_power) for i in range(len(k0)))
+            out = (_layer_mat3d(k0[i],d,epsv,epsa, mask[i],betas[i], phis[i],indices[i],method,nsteps, resize) for i in range(len(k0)))
             return tuple(out)
         
     elif dim == 2:
@@ -230,9 +239,9 @@ def layer_mat3d(k0, d, epsv,epsa, mask = None, method = "4x4", resolution_power 
             epsa2 = epsa[...,:,0,:] 
             swap_axes = True
         if k0.ndim == 0:
-            return [tmm2d.layer_mat2d(k0, d, epsv2, epsa2, betay = betay, method = method, mask = m, swap_axes = swap_axes,resolution_power = resolution_power) for (m,betay) in _iterate_masks_2d(mask,shape,k0)]
+            return [tmm2d.layer_mat2d(k0, d, epsv2, epsa2, betay = betay, method = method, mask = m, swap_axes = swap_axes,nsteps = nsteps, resize = resize) for (m,betay) in _iterate_masks_2d(mask,shape,k0)]
         else:
-            out =  ([tmm2d.layer_mat2d(k0[i], d, epsv2, epsa2, betay = betay, method = method, mask = m, swap_axes = swap_axes,resolution_power = resolution_power) for (m,betay) in _iterate_masks_2d(mask[i],shape,k0[i])] for i in range(len(k0)))
+            out =  ([tmm2d.layer_mat2d(k0[i], d, epsv2, epsa2, betay = betay, method = method, mask = m, swap_axes = swap_axes,nsteps = nsteps, resize = resize) for (m,betay) in _iterate_masks_2d(mask[i],shape,k0[i])] for i in range(len(k0)))
             return tuple(out)
     else:
         epsv1 = epsv[...,0,0,:]
@@ -243,60 +252,84 @@ def layer_mat3d(k0, d, epsv,epsa, mask = None, method = "4x4", resolution_power 
             out = (tmm.layer_mat(k0[i]*d,epsv1,epsa1, betas[i], phis[i], method = method) for i in range(len(k0)))
             return tuple(out)
 
-def _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis,indices, method, resolution_power):   
+def _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis, indices, method, nsteps, resize):   
     n = len(betas)
-    steps = 2**resolution_power
+    power = int(math.log2(nsteps))
+    steps = 2**power
     kd = k0*d/steps
     shape = mask.shape[-2:]
+    
+    
+    imax, jmax =  indices.max(axis = 0)
+
+    if resize == 1:
+        new_shape = (imax*4)+1, (jmax*4)+1
+    elif resize == 2:
+        new_shape = (imax*2)+1, (jmax*2)+1
+
+    #resize only if required and new_shape is actually smaller.
+    if resize in (1,2) and new_shape[0] < shape[0] and new_shape[1] < shape[1] :
+        mask = crop_fft2(mask, new_shape)
+        epsv,epsa = resize_epsva(epsv, epsa, new_shape)
+        shape = new_shape
+
     if method.startswith("2x2"):
         out = np.empty(shape = (n, n, 2, 2), dtype = CDTYPE)
     else:
         out = np.empty(shape = (n, n, 4, 4), dtype = CDTYPE)
 
     for j,(beta,phi) in enumerate(zip(betas,phis)):    
-        if method.startswith("2x2"):
-            alpha,fmat = alphaf(beta,phi,epsv,epsa)
-            f = tmm.E_mat(fmat, mode = +1, copy = False)
-            fi = inv(f)
-            pmat = phase_mat(alpha[...,::2],kd)
-        else:
-            alpha,f,fi = alphaffi(beta,phi,epsv,epsa)
-            pmat = phase_mat(alpha,-kd)
-            if method == "4x4_1":
-                pmat[...,1::2] = 0.
-            elif method != "4x4":
-                raise ValueError("Unsupported method.")
+        
+        if j == 0:
+            if method.startswith("2x2"):
+                alpha,fmat = alphaf(beta,phi,epsv,epsa)
+                f = tmm.E_mat(fmat, mode = +1, copy = False)
+                fi = inv(f)
+                pmat = phase_mat(alpha[...,::2],kd)
+            else:
+    
+                alpha,f,fi = alphaffi(beta,phi,epsv,epsa)
+                pmat = phase_mat(alpha,-kd)
+                if method == "4x4_1":
+                    pmat[...,1::2] = 0.
+                elif method != "4x4":
+                    raise ValueError("Unsupported method.")
+                    
+            m = dotmdm(f,pmat,fi) 
+                
+        ii = indices[j,0]
+        jj = indices[j,1]
 
-        wave = eigenwave(shape, indices[j,0],indices[j,1], amplitude = 1.)
+        wave = eigenwave(shape, ii,jj, amplitude = 1)
 
-        m = dotmdm(f,pmat,fi) 
+        
         mw = m*wave[...,None,None]
                 
-        mf = mfft2(mw, overwrite_x = True)
-        
-        #dd = np.linspace(0,1.,10)*d
-        
-        # dmat = 0.
-        
-        # for dm in dd:
-        
-        #     dmat = dmat + second_field_diffraction_matrix(shape, -k0, beta, phi,dm, 
-        #                                   epsv = (1.5,1.5,1.5),
-        #                             epsa = (0.,0.,0.), betamax = 1.4) /len(dd)
-            
-        # mf = dotmm(dmat,mf)
-        
-
+        mf = mfft2(mw, overwrite_x = True)        
         mf = mf[mask,...]
         
         out[:,j,:,:] = mf
         
-    for i in range(resolution_power):
+    for i in range(power):
         out = bdotmm(out,out)
         
     return [out]
 
-def stack_mat3d(k,d,epsv,epsa, mask = None, method = "4x4", resolution_power = 0):
+def dispersive_layer_mat3d(k0, d, epsv,epsa, mask = None, method = "4x4", nsteps = 1, resize = 1, wavelength = None):
+    if wavelength is None:
+        raise ValueError("`wavelength` is a required argument for dispersive layers.")
+    k0 = np.asarray(k0) 
+    wavelength = np.asarray(wavelength)
+    if k0.shape != wavelength.shape:
+        raise ValueError("Wrong length `wavelength` argument.")
+    if k0.ndim == 0:
+        return layer_mat3d(k0, *validate_optical_layer((d,epsv,epsa), wavelength = wavelength), \
+                mask = mask, method = method, nsteps = nsteps, resize = resize)
+    else:
+        return tuple((layer_mat3d(k, *validate_optical_layer((d,epsv,epsa), wavelength = w), \
+                mask = mask, method = method, nsteps = nsteps, resize = resize) for k,w in zip(k0, wavelength)))     
+    
+def stack_mat3d(k,d,epsv,epsa, mask = None, method = "4x4", nsteps = 1, resize = 1, wavelength = None):
     k = np.asarray(k)
     dim = material_dim(epsv, epsa)
     verbose_level = DTMMConfig.verbose
@@ -306,7 +339,10 @@ def stack_mat3d(k,d,epsv,epsa, mask = None, method = "4x4", resolution_power = 0
             if verbose_level > 0:    
                 print("Wavelength {}/{}".format(i+1,len(k)))
             m = None if mask is None else mask[i]
-            yield stack_mat3d(k[i],d,epsv,epsa, method = method, mask = m, resolution_power = resolution_power)
+            if wavelength is None:
+                yield stack_mat3d(k[i],d,epsv,epsa, method = method, mask = m, nsteps = nsteps, resize = resize)
+            else:
+                yield stack_mat3d(k[i],d,epsv,epsa, method = method, mask = m, nsteps = nsteps, resize = resize, wavelength = wavelength[i])
             
     if k.ndim == 1:
         return tuple(_iterate_wavelengths())
@@ -314,11 +350,11 @@ def stack_mat3d(k,d,epsv,epsa, mask = None, method = "4x4", resolution_power = 0
     n = len(d)
     
     try:
-        resolution_power = [int(i) for i in resolution_power]
-        if len(resolution_power) != n:
-            raise ValueError("Length of the `resolution_power` argument must match length of `d`.")
+        nsteps = [int(i) for i in nsteps]
+        if len(nsteps) != n:
+            raise ValueError("Length of the `nsteps` argument must match length of `d`.")
     except TypeError:
-        resolution_power = [int(resolution_power)] * n
+        nsteps = [int(nsteps)] * n
     
     prefix = ""
     
@@ -329,7 +365,10 @@ def stack_mat3d(k,d,epsv,epsa, mask = None, method = "4x4", resolution_power = 0
             
     for j in range(n):
         print_progress(j,n, prefix = prefix) 
-        mat = layer_mat3d(k,d[j],epsv[j],epsa[j], mask = mask, method = method, resolution_power = resolution_power[j])
+        if wavelength is None:
+            mat = layer_mat3d(k,d[j],epsv[j],epsa[j], mask = mask, method = method, nsteps = nsteps[j], resize = resize)
+        else:
+            mat = dispersive_layer_mat3d(k,d[j],epsv[j],epsa[j], mask = mask, method = method, nsteps = nsteps[j], resize = resize, wavelength = wavelength)
         if isinstance(mat, list):
             #2d and 3d case
             if j == 0:
@@ -351,6 +390,7 @@ def stack_mat3d(k,d,epsv,epsa, mask = None, method = "4x4", resolution_power = 0
          
     print_progress(n,n) 
     return out
+
 
 def dotmm3d(m1, m2):
     if isinstance(m1, tuple):
@@ -467,6 +507,7 @@ def f_iso3d(mask, k0, n = 1., shape = None):
         out = (f_iso3d(m, k, n = n, shape = shape) for m, k in zip(mask, k0))
         return tuple(out)
 
+
 def f3d(mask, k0, epsv = (1,1,1), epsa = (0,0,0), shape = None):
     k0 = np.asarray(k0)
     if shape is None:
@@ -480,8 +521,6 @@ def f3d(mask, k0, epsv = (1,1,1), epsa = (0,0,0), shape = None):
         fmat = (tmm.f(beta[i],phi[i],epsv,epsa) for i in range(len(k0)))
         return tuple(fmat)    
 
-#from dtmm.tmm2d import system_mat2d as system_mat3d
-#from dtmm.tmm2d import reflection_mat2d as reflection_mat3d
 
 def _system_mat3d(fmatin, cmat, fmatout):
     """Computes a system matrix from a characteristic matrix Fin-1.C.Fout"""
@@ -515,8 +554,8 @@ def system_mat3d(cmat = None, fmatin = None, fmatout = None):
         return tuple(out)
     else:
         return _system_mat3d(fmatin, cmat, fmatout)
-
     
+
 def _reflection_mat3d(smat):
     """Computes a 4x4 reflection matrix.
     """
@@ -546,7 +585,6 @@ def reflection_mat3d(smat):
         return tuple(out)
     else:
         return _reflection_mat3d(smat)
-
 
 def _transmission_mat3d(cmat):
     """Computes a 2x2 transmission matrix.
@@ -693,7 +731,8 @@ def transmit3d(fvecin, tmat, fmatin,  fmatout, fvecout = None):
             return tuple((_transmit3d(fvecin[i], fmatin[i], tmat[i], fmatout[i], fvecout[i]) for i in range(n)))
     else:
         return _transmit3d(fvecin, fmatin, tmat, fmatout, fvecout)
-    
+
+   
 def multiply_mat3d(matrices, mask = None, data_shapes = None, reverse = False):
     if data_shapes is not None:
         #heterogeneous data shapes. We must first convert matrices to a common shape 
@@ -742,3 +781,38 @@ def multiply_mat3d(matrices, mask = None, data_shapes = None, reverse = False):
             mat0 = mat
         return mat               
 
+
+def validate_modes3d(mask, modes):
+    def validate_mode(mask, mode, i = None):
+        mode = np.asarray(mode)
+        if mode.ndim < 2:
+            raise ValueError("mode {} must be a numpy array of dimension 2 or more.".format(i))
+        elif mode.shape[-2:] != (mask.sum(),4):
+            raise ValueError("mode {} must be of shape (...,{},4)".fromat(i))        
+        return mode
+    
+    mask = np.asarray(mask)
+    if not isinstance(mask, np.ndarray) or mask.ndim not in (2,3) or mask.dtype != bool:
+        raise ValueError("`mask` must be a boolean numpy array of dimension 2 or 3.")
+        
+    if mask.ndim == 3:
+        if not isinstance(modes, tuple) or len(modes) != len(mask):
+            raise ValueError("`modes` must be a tuple of length {}".format(len(mask)))
+        return mask, tuple((validate_mode(m,mode,i) for i, (m,mode) in enumerate(zip(mask,modes))))   
+    else:
+        return mask, validate_mode(mask, modes)
+                        
+# make aliases - for solvers
+
+_f_iso = f_iso3d
+_stack_mat = stack_mat3d
+_dispersive_layer_mat = dispersive_layer_mat3d
+_layer_mat = layer_mat3d
+_system_mat =  system_mat3d
+_reflection_mat = reflection_mat3d
+_transmission_mat = transmission_mat3d
+_reflect = reflect3d
+_transmit = transmit3d
+_multiply_mat = multiply_mat3d
+_validate_modes = validate_modes3d
+_dotmv = dotmv3d

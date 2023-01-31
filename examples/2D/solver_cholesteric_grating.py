@@ -33,12 +33,28 @@ beta, phi, intensity = 0,0,1
 
 optical_data = [(d,epsv,epsa[...,None,:,:])] 
 
-sim = solver.MatrixDataSolver3D((1,WIDTH), wavelengths = WAVELENGTHS, pixelsize = PIXELSIZE)
+
+
+sim = solver.MatrixDataSolver3D((1,WIDTH), wavelengths = WAVELENGTHS, pixelsize = PIXELSIZE, betamax = 1.49, resolution = 100)
 sim.set_optical_data(optical_data)
 sim.calculate_stack_matrix(keep_layer_matrices = False, keep_stack_matrices = False)
 sim.calculate_field_matrix(nin, nout)
 sim.calculate_reflectance_matrix()
-sim.transfer_field(field_data_in[0])
+sim.field_in = field_data_in[0]
+fmode_in  = sim.modes_in
+
+i_lcp = []
+i_rcp = []
+
+for fin in fmode_in:
+           
+    fr_rcp = fin[0] - 1j * fin[1] #right handed
+    fr_lcp = fin[0] + 1j * fin[1] 
+    i_rcp.append(tmm.intensity(fr_rcp[0]))
+    i_lcp.append(tmm.intensity(fr_lcp[0]))
+
+
+sim.transfer_field()
 
 field_data_out = sim.get_field_data_out()
 
@@ -62,22 +78,27 @@ t_lcp = []
 r_lcp = []
 ws = []
 
-mode = 3
+mode = -2
 
-for fin,fout, w, f0in,f0out in zip(fmode_in, fmode_out, WAVELENGTHS, fmatin, fmatout):
-            
+
+for i,fin,fout, w, f0in,f0out in zip(range(len(fmode_in)),fmode_in, fmode_out, WAVELENGTHS, fmatin, fmatout):
+           
+    
     fr_rcp = fin[0] - 1j * fin[1] #right handed
     ft_rcp  = fout[0] - 1j * fout[1]
     fr_lcp = fin[0] + 1j * fin[1] 
     ft_lcp  = fout[0] + 1j * fout[1]    
-    i_rcp = tmm.intensity(fr_rcp[0])
-    i_lcp = tmm.intensity(fr_lcp[0])
+    #i_rcp = tmm.intensity(fr_rcp[0])
+    #i_lcp = tmm.intensity(fr_lcp[0])
+    
+    
+    
     try:
-        r_rcp.append(tmm.intensity(fr_rcp[mode])/i_rcp)
-        t_rcp.append(tmm.intensity(ft_rcp[0])/i_rcp)
+        r_rcp.append(tmm.intensity(fr_rcp[mode])/i_rcp[i])
+        t_rcp.append(tmm.intensity(ft_rcp[0])/i_rcp[i])
         
-        r_lcp.append(tmm.intensity(fr_lcp[mode])/i_lcp)
-        t_lcp.append(tmm.intensity(ft_lcp[0])/i_lcp)
+        r_lcp.append(tmm.intensity(fr_lcp[mode])/i_lcp[i])
+        t_lcp.append(tmm.intensity(ft_lcp[0])/i_lcp[i])
         ws.append(w)
     except IndexError:
         #nonexistent mode.. break
@@ -96,9 +117,9 @@ ax2.set_xlabel("wavelength")
 ax1.legend()
 ax2.legend()
 
-viewer1 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows, analyzer = "h")
-viewer2 = dtmm.field_viewer(field_data_out, mode = "t", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows, analyzer = "h")
-viewer3 = dtmm.field_viewer(field_data_in, mode = "t", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows, analyzer = "h")
+viewer1 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows, analyzer = "h", betamax = 0.7)
+viewer2 = dtmm.field_viewer(field_data_out, mode = "t", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows, analyzer = "h", betamax = 0.7)
+viewer3 = dtmm.field_viewer(field_data_in, mode = "t", n = 1.5, focus = 0,intensity = 1, cols = cols,rows = rows, analyzer = "h", betamax = 0.7)
 
 fig,ax = viewer1.plot()
 ax.set_title("Reflected field")

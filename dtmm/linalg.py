@@ -605,6 +605,10 @@ def _dotmm2(a,b,out):
 
     out[1,0] = b0
     out[1,1] = b1
+    
+# @njit([(NCDTYPE[:,::1],NCDTYPE[:,::1],NCDTYPE[:,::1])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)    
+# def _dotmm(a,b,out):
+#     np.dot(a,b, out)
  
 @njit([(NCDTYPE[:,:],NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)    
 def _dotmm(a,b,out):
@@ -1112,25 +1116,38 @@ or a less efficient general matrix multiplication.
 #                     out[i,j] += tmp
 
 
-def bdotmm(m1,m2, out = None):
-    """Performs a dot product of two nxn block matrices of blocks of size 4x4.
-    Matrices must be of shape nxnx4x4 that describe two mxm matrices
-    (m = 4*n) of blocks of size 4x4. 
+def bdotmm_old(m1,m2, out = None):
+    """Performs a dot product of two nxn block matrices of blocks of size 4x4
+    or 2x2. Matrices must be of shape nxnx4x4  or nxnx2x2 that describe two 
+    mxm matrices (m = 4*n or m = 2*n) of blocks of size 4x4 (or 2x2). 
     """
     assert m1.shape == m2.shape
     assert m2 is not out
     if out is None:
         out = np.empty(shape = m1.shape, dtype = CDTYPE)
-        
+ 
     tmp = np.empty(shape = m1.shape, dtype = CDTYPE)
     for j in range(m1.shape[0]):
         # for some reason it is much more efficient to copy. This may be resolved in future numba versions.
         # TODO: inspect this issue and file a bug report
-        b = np.broadcast_to(m1[j][:,None,:,:],m2.shape).copy()
+        #b = np.broadcast_to(m1[j][:,None,:,:],m2.shape).copy()
+        tmp[...] = m1[j][:,None,:,:]
+        b = tmp
         dotmm(b,m2, out = tmp)
         #dotmm(m1[j][:,None,:,:],m2, out = tmp)
-        out[j] = tmp.sum(-4, out = out[j])
+        #out[j] = tmp.sum(-4, out = out[j])
+        tmp.sum(-4, out = out[j])
     return out
+
+def bdotmm(m1,m2):
+    
+    new_shape = m1.shape[:-4] + (m1.shape[-4] * m1.shape[-2], m1.shape[-3] * m1.shape[-1])
+    _m1 = np.moveaxis(m1,-2,-3).reshape(new_shape)
+    _m2 = np.moveaxis(m2,-2,-3).reshape(new_shape)
+    
+    new_shape = m1.shape[:-4] + (m1.shape[-4], m1.shape[-2], m1.shape[-3], m1.shape[-1])
+    out = np.matmul(_m1,_m2).reshape(new_shape)
+    return np.moveaxis(out,-2,-3)
 
 def _bdotmm_ref(m1,m2, out = None):
     """same as bdotmm, but slower, for testing"""
@@ -1149,10 +1166,10 @@ def _bdotmm_ref(m1,m2, out = None):
 
 
 def bdotmd(m1,m2, out = None):
-    """Performs a dot product of two nxn block matrices of blocks 4x4.
-    The second matrix is block diagonal matrix of shape nx4x4,
-    The first matrix must be of shape nxnx4x4 that describe two mxm matrices
-    (m = 4*n) of blocks of size 4x4.
+    """Performs a dot product of two nxn block matrices of blocks 4x4 or 2x2.
+    The second matrix is block diagonal matrix of shape nx4x4 or nx2x2,
+    The first matrix must be of shape nxnx4x4 or nxnx2x2 that describe two mxm matrices
+    (m = 4*n or m = 2*n) of blocks of size 4x4 or 2x2.
     """
     if out is None:
         out = np.empty(shape = m1.shape, dtype = CDTYPE)
@@ -1171,10 +1188,10 @@ def _bdotmd_ref(m1,d):
 
 
 def bdotdm(m1,m2, out = None):
-    """Performs a dot product of two nxn block matrices of blocks 4x4.
-    The second matrix is block diagonal matrix of shape nx4x4,
-    The first matrix must be of shape nxnx4x4 that describe two mxm matrices
-    (m = 4*n) of blocks of size 4x4.
+    """Performs a dot product of two nxn block matrices of blocks 4x4 or 2x2.
+    The first matrix is block diagonal matrix of shape nx4x4 or nx2x2,
+    The second matrix must be of shape nxnx4x4 or nxnx2x2 that describe two mxm matrices
+    (m = 4*n or m = 2*n) of blocks of size 4x4 or 2x2.
     """
     assert m2 is not out
     if out is None:

@@ -11,7 +11,7 @@ from dtmm.field import field2modes, field2modes1, modes2field, modes2field1
 from dtmm.wave import eigenmask1, eigenmask, k0
 
 import dtmm.conf
-from dtmm.solver import MatrixBlockSolver3D
+from dtmm.solver import matrix_block_solver, matrix_data_solver
 
 rtol, atol = (1e-05,1e-08) if dtmm.conf.PRECISION == "double" else (1e-3,1e-4)
 
@@ -22,13 +22,17 @@ n = 1.5
 ks = k0(wavelengths, pixelsize)
 
 SWAP_AXES = False
+N = 16
 
 if SWAP_AXES:
-    field = np.random.randn(2,4,16,1) + 0j
+    field = np.random.randn(2,4,N,1) + 0j
 else:    
-    field = np.random.randn(2,4,1,16) + 0j
+    field = np.random.randn(2,4,1,N) + 0j
     
-field_3d = np.random.randn(2,4,16,16) + 0j
+field3 = field
+field2 = field3[:,:,:,0].copy() if SWAP_AXES else field3[:,:,0,:].copy()
+    
+field_3d = np.random.randn(2,4,N,N) + 0j
 
 emask3, modes3 = field2modes(field,ks)
 
@@ -67,7 +71,7 @@ else:
 f2 = f_iso2d(emask_2d,ks,n = n, swap_axes = SWAP_AXES)
 f3 = f_iso3d(emask_3d,ks, n = n)
 
-cmat2 = stack_mat2d(ks, d, epsv_2d,epsa_2d, mask = emask_2d,swap_axes = SWAP_AXES)
+cmat2 = stack_mat2d(ks, d, epsv_2d,epsa_2d, mask = emask_2d, swap_axes = SWAP_AXES)
 cmat3 = stack_mat3d(ks, d, epsv_3d,epsa_3d, mask = emask_3d)
 
 smat2 = system_mat2d(cmat2, f2)
@@ -91,12 +95,19 @@ field_out3 = modes2field(emask3,modes_out3)
 field_in2 = modes2field1(emask2,modes_in2)
 field_in3 = modes2field(emask3,modes_in3)
 
-solver = MatrixBlockSolver3D(field.shape[-2:],wavelengths,pixelsize,mask = emask3)
-solver.set_optical_block((d, epsv_3d,epsa_3d))
-solver.calculate_stack_matrix()
-solver.calculate_field_matrix(n,n)
-solver.calculate_reflectance_matrix()
-solver.transfer_field(field)
+solver3d = matrix_data_solver(field.shape[-2:],wavelengths,pixelsize,mask = emask3)
+solver3d.set_optical_data([(d, epsv_3d,epsa_3d)],resize = 1)
+solver3d.calculate_stack_matrix()
+solver3d.calculate_field_matrix(n,n)
+solver3d.calculate_reflectance_matrix()
+solver3d.transfer_field(field3)
+
+solver2d = matrix_data_solver(N,wavelengths,pixelsize,mask = emask2, swap_axes = SWAP_AXES)
+solver2d.set_optical_data([(d, epsv_2d,epsa_2d)],resize = 1)
+solver2d.calculate_stack_matrix()
+solver2d.calculate_field_matrix(n,n)
+solver2d.calculate_reflectance_matrix()
+solver2d.transfer_field(field2)
 
 def allclose(a,b):
     return np.allclose(a,b, rtol = rtol, atol = atol)
@@ -104,37 +115,74 @@ def allclose(a,b):
 class TestSolver3D(unittest.TestCase):
     def test_field_matrices(self):
         for i in range(len(ks)):
-            for a,b in zip(f3[i], solver.field_matrix_in[i]):
+            for a,b in zip(f3[i], solver3d.field_matrix_in[i]):
                 self.assertTrue(allclose(a,b))
         for i in range(len(ks)):
-            for a,b in zip(f3[i], solver.field_matrix_out[i]):
+            for a,b in zip(f3[i], solver3d.field_matrix_out[i]):
                 self.assertTrue(allclose(a,b))
 
     def test_stack_matrices(self):
         for i in range(len(ks)):
-            for a,b in zip(cmat3[i], solver.stack_matrix[i]):
+            for a,b in zip(cmat3[i], solver3d.stack_matrix[i]):
                 self.assertTrue(allclose(a,b))
                 
     def test_refl_matrices(self):
         for i in range(len(ks)):
-            for a,b in zip(rmat3[i], solver.refl_matrix[i]):
+            for a,b in zip(rmat3[i], solver3d.refl_matrix[i]):
                 self.assertTrue(allclose(a,b))
                 
     def test_modes_out(self):
         for i in range(len(ks)):
-            for a,b in zip(modes_out3[i], solver.modes_out[i]):
+            for a,b in zip(modes_out3[i], solver3d.modes_out[i]):
                 self.assertTrue(allclose(a,b))        
 
     def test_modes_in(self):
         for i in range(len(ks)):
-            for a,b in zip(modes_in3[i], solver.modes_in[i]):
+            for a,b in zip(modes_in3[i], solver3d.modes_in[i]):
                 self.assertTrue(allclose(a,b))        
 
     def test_field_out(self):
-        self.assertTrue(allclose(field_out3,solver.field_out))        
+        self.assertTrue(allclose(field_out3,solver3d.field_out))        
 
     def test_field_in(self):
-        self.assertTrue(allclose(field_in3,solver.field_in))        
+        self.assertTrue(allclose(field_in3,solver3d.field_in))        
+
+
+class TestSolver2D(unittest.TestCase):
+    def test_field_matrices(self):
+        for i in range(len(ks)):
+            for a,b in zip(f2[i], solver2d.field_matrix_in[i]):
+                self.assertTrue(allclose(a,b))
+        for i in range(len(ks)):
+            for a,b in zip(f2[i], solver2d.field_matrix_out[i]):
+                self.assertTrue(allclose(a,b))
+
+    def test_stack_matrices(self):
+        for i in range(len(ks)):
+            for a,b in zip(cmat2[i], solver2d.stack_matrix[i]):
+                self.assertTrue(allclose(a,b))
+                
+    def test_refl_matrices(self):
+        for i in range(len(ks)):
+            for a,b in zip(rmat2[i], solver2d.refl_matrix[i]):
+                self.assertTrue(allclose(a,b))
+                
+    def test_modes_out(self):
+        for i in range(len(ks)):
+            for a,b in zip(modes_out2[i], solver2d.modes_out[i]):
+                self.assertTrue(allclose(a,b))        
+
+    def test_modes_in(self):
+        for i in range(len(ks)):
+            for a,b in zip(modes_in2[i], solver2d.modes_in[i]):
+                self.assertTrue(allclose(a,b))        
+
+    def test_field_out(self):
+        self.assertTrue(allclose(field_out2,solver2d.field_out))        
+
+    def test_field_in(self):
+        self.assertTrue(allclose(field_in2,solver2d.field_in))        
+
 
 
 class TestUpscale(unittest.TestCase):

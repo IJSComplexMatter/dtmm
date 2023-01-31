@@ -64,7 +64,7 @@ from dtmm.conf import FDTYPE, CDTYPE, NFDTYPE, NCDTYPE, NUMBA_CACHE,\
 NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE, DTMMConfig, deprecation
 from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector, rotation_angles, rotation_matrix, rotate_diagonal_tensor
 from dtmm.wave import betaphi, k0
-from dtmm.fft import fft2, ifft2
+from dtmm.fft import fft2, ifft2, fft, ifft
 from dtmm.linalg import tensor_eig
 
 def read_director(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
@@ -452,8 +452,12 @@ def Q2eps(tensor, no = 1.5, ne = 1.6,scale_factor = 1., out = None):
     eps : ndarray
         Calculated epsilon tensor.
     """
-
+    
     qtensor = np.asarray(tensor)
+    
+    if (np.iscomplexobj(no) or np.iscomplexobj(ne)) and not np.iscomplexobj(tensor):
+        # output epsilon tensor will be complex, so convert
+        qtensor = qtensor + 0j
 
     if qtensor.shape[-1] == 6:
         qdiag = qtensor[...,0:3]
@@ -531,15 +535,15 @@ def epsva2eps(epsv,epsa):
     r = rotation_matrix(epsa)
     return rotate_diagonal_tensor(r,epsv)
 
-def validate_optical_layer(data, shape = None, wavelength = None, broadcast = False, copy = False):
+def validate_optical_layer(data, shape = None, wavelength = None, broadcast = False, copy = False, dim = 3):
     """Convenience function. See validate_optical_block for details.
     
     Calls validate_optical_block with single_layer = True"""
     return validate_optical_block(data, shape = shape, wavelength = wavelength, \
-                    broadcast = broadcast, copy = copy, single_layer = True)
+                    broadcast = broadcast, copy = copy, single_layer = True, dim = dim)
 
         
-def validate_optical_block(data, shape = None, wavelength = None, broadcast = False, copy = False, homogeneous = None, single_layer = False):
+def validate_optical_block(data, shape = None, wavelength = None, broadcast = False, copy = False, homogeneous = None, single_layer = False, dim = 3):
     """Validates optical block.
     
     This function inspects validity of the optical block data, and makes proper data
@@ -566,12 +570,16 @@ def validate_optical_block(data, shape = None, wavelength = None, broadcast = Fa
     single_layer : bool
         If set to True, input data has to be a single layer data. Validated data
         is not converted to optical block of length 1.
+    dim : int
+        Integer 1,2 or 3 describing the dimensionality of the material.
         
     Returns
     -------
     data : tuple
         Validated optical block tuple. 
     """
+    dim = _validate_dim(dim)
+
     if homogeneous is not None:
         import warnings
         warnings.warn("homogeneous argument is not used any more and it will be removed in future versions", DeprecationWarning)
@@ -609,34 +617,59 @@ def validate_optical_block(data, shape = None, wavelength = None, broadcast = Fa
     layer_dim = 0 if n is None else 1
     
     if shape is None:
-        angles_broadcast_shape = (1,1,3) if n is None else (n,1,1,3)
+        if dim == 3:
+            angles_broadcast_shape = (1,1,3) if n is None else (n,1,1,3)
+        elif dim == 2:
+            angles_broadcast_shape = (1,3) if n is None else (n,1,3)
+        else:
+            angles_broadcast_shape = (3,) if n is None else (n,3)
+            
     else:
-        height,width = shape
-        angles_broadcast_shape = (height,width,3) if n is None else (n, height, width,3)
+        if dim == 3:
+            height,width = shape
+            angles_broadcast_shape = (height,width,3) if n is None else (n, height, width,3)
+        elif dim == 2:
+            width, = shape
+            angles_broadcast_shape = (width,3) if n is None else (n, width,3)   
+        else:
+            angles_broadcast_shape = (3,) if n is None else (n, 3) 
+            
     if dispersive_material is None:
         #regular data, angles and epsilon data have same shape
         material_broadcast_shape = angles_broadcast_shape
         if material.ndim == 1 + layer_dim:
-            material = material[...,None,None,:]
+            if dim == 3:
+                material = material[...,None,None,:]
+            elif dim == 2:
+                material = material[...,None,:]
         elif material.ndim == 2 + layer_dim:
-            material = material[...,None,:,:]
-        elif material.ndim != 3 + layer_dim:
+            if dim == 3:
+                material = material[...,None,:,:]
+        elif material.ndim != dim + layer_dim:
             raise ValueError("Invalid material dimensions.")
     else:
         #coefficients-based data has one extra dimension
         material_broadcast_shape = angles_broadcast_shape + (1,)
         if material.ndim == 2 + layer_dim:
-            material = material[...,None,None,:,:]
+            if dim == 3:
+                material = material[...,None,None,:,:]
+            elif dim == 2:
+                material = material[...,None,:,:]
         elif material.ndim == 3 + layer_dim:
-            material = material[...,None,:,:,:]
-        elif material.ndim != 4 + layer_dim:
+            if dim == 3:
+                material = material[...,None,:,:,:]
+        elif material.ndim != (1 + dim + layer_dim):
             raise ValueError("Invalid material coefficients dimensions.")        
 
     if angles.ndim == 1 + layer_dim:
-        angles = angles[...,None,None,:]
+        if dim == 3:
+            angles = angles[...,None,None,:]
+        elif dim ==2:
+            angles = angles[...,None,:]
     elif angles.ndim == 2 + layer_dim:
-        angles = angles[...,None,:,:]
-    elif angles.ndim != 3 +layer_dim:
+        if dim == 3:
+            angles = angles[...,None,:,:]
+    elif angles.ndim != dim +layer_dim:
         raise ValueError("Invalid angles dimensions.")
     
     material_shape = np.broadcast_shapes(material.shape, material_broadcast_shape)
@@ -655,7 +688,7 @@ def validate_optical_block(data, shape = None, wavelength = None, broadcast = Fa
     
     return thickness, material, angles
 
-def validate_optical_data(data, shape = None, wavelength = None, broadcast = False, copy = False, homogeneous = None):
+def validate_optical_data(data, shape = None, wavelength = None, broadcast = False, copy = False, homogeneous = None, dim = 3):
     """Validates optical data.
     
     This function inspects validity of the optical data, and makes proper data
@@ -688,11 +721,11 @@ def validate_optical_data(data, shape = None, wavelength = None, broadcast = Fal
     if isinstance(data, list):
         if shape is None:
             raise ValueError("For heterogeneous data, you must provide the `shape` argument.")
-        return [validate_optical_block(d, shape, wavelength, broadcast, copy) for d in data]
+        return [validate_optical_block(d, shape, wavelength, broadcast, copy, dim = dim) for d in data]
     else:
         import warnings
         warnings.warn("A single-block optical data must be a list of length 1. Converting optical data to list. In the future, exception will be raised.", DeprecationWarning)
-        return validate_optical_data([data], shape, wavelength, broadcast, copy)
+        return validate_optical_data([data], shape, wavelength, broadcast, copy, dim = dim)
 
 def evaluate_optical_block(optical_block, wavelength = 550):
     """In case of dispersive material. This function evaluates and returns optical block at a given wavelength"""
@@ -1292,7 +1325,7 @@ def uniaxial_order(order, eig, out):
     assert eig.shape[0] in (3,)
     _uniaxial_order(order[0], eig, out)
        
-def eig_symmetry(order, eig, out = None):
+def eig_symmetry(symmetry, eig, out = None):
     """Takes the ordered diagonal values of the tensor and converts it to 
     uniaxial or isotropic tensor, or keeps it as biaxial.
 
@@ -1300,7 +1333,7 @@ def eig_symmetry(order, eig, out = None):
     
     Parameters
     ----------
-    order : int or array 
+    symmetry : int or array 
         Integer describing the symmetry 0 : isotropic, 1 : uniaxial, 2 : biaxial.
         If specified as an array it mast be broadcastable. See :func:`uniaxial_order`.
     eig : array
@@ -1312,19 +1345,18 @@ def eig_symmetry(order, eig, out = None):
     Returns
     -------
     out : ndarray
-        Effective eigenvalues based on the provided symmetry (order) argument
+        Effective eigenvalues based on the provided symmetry argument.
         
     See Also
     --------
     :func:`.uniaxial_order` for scalled order adjustment.
     """
-    order = np.asarray(order, int)
+    order = np.asarray(symmetry, int)
     mask = order > 1
     #if order is negative... it is not applied in uniaxial_order function... so it remains biaxial
     order[mask] = -1
     return uniaxial_order(order ,eig, out)  
     
-
 def filter_block(optical_block, wavelength, pixelsize, betamax = 1, symmetry = "isotropic"):
     d, epsv, epsa = optical_block
     k = k0(wavelength, pixelsize) 
@@ -1357,6 +1389,79 @@ def filter_epsva(epsv, epsa, k, betamax = 1):
     eps = epsva2eps(epsv,epsa)
     eps = filter_eps(eps, k, betamax)
     return eps2epsva(eps)
+
+def resize_epsva(epsv,epsa, shape, symmetry = "biaxial"):
+    eps = epsva2eps(epsv,epsa)
+    eps = resize_eps(eps, shape)
+    epsv, epsa = eps2epsva(eps)
+    if symmetry in (1, "uniaxial"):
+        uniaxial_order(1., epsv, epsv)
+    elif symmetry in (0,"isotropic"):
+        uniaxial_order(0., epsv, epsv)
+    elif symmetry not in (2,"biaxial"):
+        raise ValueError("Unknown symmetry.")  
+    return epsv, epsa
+
+def crop_fft2(f,shape):
+    h,w = shape
+    assert h%2 != 0
+    assert w%2 != 0
+    
+    out_shape = f.shape[:-2] + shape
+    out = np.empty(out_shape, f.dtype)
+    out[...,0:(h+1)//2,0:(w+1)//2] = f[...,0:(h+1)//2,0:(w+1)//2]
+    out[...,0:(h+1)//2,-(w-1)//2:] = f[...,0:(h+1)//2,-(w-1)//2:]
+    out[...,-(h-1)//2:,-(w-1)//2:] = f[...,-(h-1)//2:,-(w-1)//2:]
+    out[...,-(h-1)//2:,0:(w+1)//2] = f[...,-(h-1)//2:,0:(w+1)//2]
+    return out
+    
+def crop_fft(f,shape):
+    w, = shape
+    assert w%2 != 0
+    out_shape = f.shape[:-1] + shape
+    out = np.empty(out_shape, f.dtype)
+    out[...,0:(w+1)//2] = f[...,0:(w+1)//2]
+    out[...,-(w-1)//2:] = f[...,-(w-1)//2:]
+    return out
+        
+def fft_resize2(a, shape):
+    h0,w0 = a.shape[-2:]
+    h,w = shape
+    f = fft2(a)
+    f = crop_fft2(f, shape)
+    scale = h*w/(h0*w0)
+    return ifft2(f)*scale
+
+def fft_resize(a, shape):
+    w0 = a.shape[-1]
+    w, = shape
+    f = fft(a)
+    f = crop_fft(f, shape)
+    scale = w/(w0)
+    return ifft(f)*scale        
+         
+def resize_eps(eps, shape):
+    if len(shape) == 2:
+        eps = np.moveaxis(eps,-1,-3)
+        eps = fft_resize2(eps, shape)
+        eps = np.moveaxis(eps,-3,-1)
+    else:
+        eps = np.moveaxis(eps,-1,-2)
+        eps = fft_resize(eps, shape)
+        eps = np.moveaxis(eps,-2,-1)        
+    return eps
+
+def symmetry(epsv):
+    """Determines symmetry of epsv"""
+    m = epsv[...,0] == epsv[...,1] 
+    if np.all(m):
+        m = epsv[...,0] == epsv[...,2] 
+        if np.all(m):
+            return 0
+        else:
+            return 1
+    else:
+        return 2
 
 _symmetry_key_maps = {"isotropic" : 0, "uniaxial" : 1,  "biaxial" : 2}
 
@@ -1558,36 +1663,60 @@ def merge_blocks(optical_data, shape = None, wavelength = None):
     epsa = np.vstack(tuple((d[2] for d in optical_data)))
     return thickness, epsv, epsa
 
-def material_shape(epsv, epsa):
+def _validate_dim(dim):
+    if dim not in (1,2,3):
+        raise ValueError("The `dim` argument masut be either 1, 2 or 3" )
+    return dim
+    
+def material_shape(epsv, epsa, dim = 3):
     """Determines material 2D - crossection shape from the epsv -eigenvalues 
     and epsa - eigenangles arrays"""
-    x,y = epsv.shape[-3:-1]
-    xa,ya = epsa.shape[-3:-1]
-    return (max(x,xa), max(y,ya))
+    dim = _validate_dim(dim)
+    if dim == 3:
+        x,y = epsv.shape[-3:-1]
+        xa,ya = epsa.shape[-3:-1]
+        return (max(x,xa), max(y,ya))
+    elif dim == 2:
+        x, = epsv.shape[-2:-1]
+        xa, = epsa.shape[-2:-1]
+        return max(x,xa),
+    return ()
 
-def optical_block_shape(optical_block):
+def optical_block_shape(optical_block, dim = 3):
     """Determines optical block 2D - crossection shape from the epsv -eigenvalues 
     and epsa - eigenangles arrays"""
-    d, epsv, epsa = validate_optical_block(optical_block)
-    return material_shape(epsv, epsa)
+    d, epsv, epsa = validate_optical_block(optical_block, dim = dim)
+    return material_shape(epsv, epsa, dim = dim)
     
-def optical_data_shape(optical_data):
+def optical_data_shape(optical_data, dim = 3):
     """Determines optical data 2D - crossection shape from the epsv -eigenvalues 
     and epsa - eigenangles arrays"""
-    common_shape = (1,1)
+    dim = _validate_dim(dim)
+    common_shape = (1,) * (dim - 1)
     for optical_block in optical_data:
-        data_shape = optical_block_shape(optical_block)
+        data_shape = optical_block_shape(optical_block, dim = dim)
         common_shape = tuple((max(x,y) for (x,y) in zip(common_shape, data_shape)))        
     return common_shape
 
-def shape2dim(shape):
+def shape2dim(shape, dim = 3):
     """Converts material 2D shape to material dimension""" 
-    if shape == (1,1):
+    dim = _validate_dim(dim)
+    if dim == 3 and len(shape) ==2: 
+        if shape == (1,1):
+            return 1
+        elif shape[0] == 1 or shape[-1] == 1:
+            return 2
+        else:
+            return 3
+    elif dim ==2 and len(shape) == 1:
+        if shape == (1,):
+            return 1
+        else:
+            return 2
+    elif dim == 1 and len(shape) == 0:
         return 1
-    elif shape[0] == 1 or shape[1] == 1:
-        return 2
     else:
-        return 3
+        raise ValueError("Invalid shape")
 
 def material_dim(epsv, epsa):
     """Returns material dimension"""

@@ -9,7 +9,7 @@ from dtmm.conf import cached_function, BETAMAX, FDTYPE, CDTYPE
 from dtmm.wave import betaphi
 from dtmm.data import refind2eps
 from dtmm.tmm import phase_mat,  alphaffi, alphaf,  alphaEEi, tr_mat, alphaE
-from dtmm.linalg import dotmdm, dotmf
+from dtmm.linalg import dotmdm, dotmf, dotmm
 from dtmm.fft import fft2, ifft2
 
 
@@ -77,7 +77,7 @@ def diffraction_alphaffi(shape, ks, epsv = (1.,1.,1.),
 
 @cached_function
 def E_diffraction_alphaEEi(shape, ks, epsv = (1,1,1), 
-                            epsa = (0.,0.,0.), mode = +1, betamax = BETAMAX, out = None):
+                            epsa = (0.,0.,0.), mode = +1, normalize_fmat = False, infinity_space = False, betamax = BETAMAX, out = None):
 
     ks = np.asarray(ks)
     ks = abs(ks)
@@ -85,7 +85,12 @@ def E_diffraction_alphaEEi(shape, ks, epsv = (1,1,1),
 
     mask0 = (beta >= betamax)#betamax)
             
-    alpha, j, ji = alphaEEi(beta,phi,epsv,epsa, mode = mode, out = out) 
+    alpha, j, ji = alphaEEi(beta,phi,epsv,epsa, mode = mode, normalize_fmat = normalize_fmat, out = out) 
+
+    if infinity_space == True:
+        j /= np.cos(beta[...,None,None])**0.5
+        ji *= np.cos(beta[...,None,None])**0.5
+
     ji[mask0] = 0.
     j[mask0] = 0.
     alpha[mask0] = 0.
@@ -95,7 +100,7 @@ def E_diffraction_alphaEEi(shape, ks, epsv = (1,1,1),
 
 @cached_function
 def E_diffraction_alphaE(shape, ks, epsv = (1,1,1), 
-                            epsa = (0.,0.,0.), mode = +1, betamax = BETAMAX, out = None):
+                            epsa = (0.,0.,0.), mode = +1, normalize_fmat = False, infinity_space = False, betamax = BETAMAX, out = None):
 
     ks = np.asarray(ks)
     ks = abs(ks)
@@ -103,7 +108,11 @@ def E_diffraction_alphaE(shape, ks, epsv = (1,1,1),
 
     mask0 = (beta >= betamax)#betamax)
             
-    alpha, j = alphaE(beta,phi,epsv,epsa, mode = mode, out = out) 
+    alpha, j = alphaE(beta,phi,epsv,epsa, mode = mode, normalize_fmat = normalize_fmat, out = out) 
+    
+    if infinity_space == True:
+        j /= np.cos(beta[...,None,None])**0.5
+    
     j[mask0] = 0.
     alpha[mask0] = 0.
     out = (alpha,j)
@@ -196,6 +205,19 @@ def E_cover_diffraction_matrix(shape, ks,  n = 1., d_cover = 0, n_cover = 1.5, m
     pmat = phase_matrix(alphac, kd)
     return dotmdm(j0,pmat,j0i,out = out) 
 
+
+@cached_function
+def E_magnification_matrix(shape, ks,  m = 1., epsv = (1,1,1), epsa = (0,0,0.), mode = +1, betamax = BETAMAX, out = None):
+    ks = np.asarray(ks, dtype = FDTYPE)
+    ksm = ks * m
+    epsv = np.asarray(epsv, dtype = CDTYPE)
+    epsa = np.asarray(epsa, dtype = FDTYPE)
+    
+    # we have to normalize because we work in different space. 
+    _,_, ji = E_diffraction_alphaEEi(shape, ks, epsv = epsv, epsa = epsa, mode = mode, normalize_fmat = True, infinity_space = True, betamax = betamax)
+    _, j = E_diffraction_alphaE(shape, ksm, epsv = epsv, epsa = epsa, mode = mode,normalize_fmat = True, infinity_space = True, betamax = betamax)
+    
+    return dotmm(j,ji,out = out) 
 
 
 #@cached_function

@@ -39,7 +39,7 @@ if _matplotlib_3_4_or_greater:
 
 #from dtmm.project import projection_matrix, project
 from dtmm.color import load_tcmf, specter2color
-from dtmm.diffract import diffract, field_diffraction_matrix, E_cover_diffraction_matrix, E_diffraction_matrix, E_tr_matrix
+from dtmm.diffract import diffract, field_diffraction_matrix, E_cover_diffraction_matrix, E_diffraction_matrix, E_tr_matrix, E_magnification_matrix
 from dtmm.jones4 import ray_jonesmat4x4, mode_jonesmat4x4, mode_jonesmat2x2, ray_jonesmat2x2
 from dtmm.field import field2specter, field2jones, jones2field
 from dtmm.wave import k0
@@ -67,7 +67,7 @@ def _is_full_lambda_plate(name):
     return True if name.strip().lower() in (r"$\lambda$", "lambda") else False
     
 
-def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = None, input_fft = False, output_fft = False, out = None):
+def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, mmat = None, window = None, input_fft = False, output_fft = False, out = None):
     """Calculates polarizing optical microscope field from the input field.
     
     This function refocuses the field, applies polarizer and analayzers
@@ -84,11 +84,13 @@ def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = N
         field to choose. Input field must be of unpolarized type if this parameter
         is specified. 
     pmat : ndarray, optional
-       A 4x4 or 2x2 matrix describing the analyzer and retarder matrix. This matrix
-       is applied in real space only if both input_fft and output_fft are False,
-       otherwise, the matrix is applied in Fourier space.
+        A 4x4 or 2x2 matrix describing the analyzer and retarder matrix. This matrix
+        is applied in real space only if both input_fft and output_fft are False,
+        otherwise, the matrix is applied in Fourier space.
     dmat : ndarray, optional
-       A diffraction matrix.
+        A diffraction matrix.
+    mmat : ndarray, optional.
+        A magnification matrix.
     window : array, optional
         If specified, windowing is applied after field is diffracted.
     input_fft : bool
@@ -122,6 +124,16 @@ def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = N
         y = np.multiply(field[...,1,:,:,:,:], s, out = out)
         field = np.add(x,y, out = out)#numexpr.evaluate("x*c+y*s", out = out)
     
+    #first, build a combined diffraction-magnification matrix
+    if mmat is not None:
+        #no diffraction, magnification only
+        if dmat is None:
+            dmat = mmat
+        # diffraction followed by magnification
+        else:
+            dmat = dotmm(mmat, dmat)
+
+    
     if input_fft == True or output_fft == True:
         #we are working on fft data, applying polarizer matrix in fft space
     
@@ -134,9 +146,12 @@ def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, window = N
         else:
             tmat = np.asarray(np.diag((1,1,1,1)), CDTYPE) 
             
-        diffract(field,tmat,window = window, input_fft = input_fft, output_fft = output_fft, out = out)
+        if mmat is not None:
+            tmat = dotmm(mmat, tmat)
+            
+        out = diffract(field,tmat,window = window, input_fft = input_fft, output_fft = output_fft, out = out)
     else:
-        diffract(field,dmat,window = window, input_fft = input_fft, output_fft = output_fft,  out = out)
+        out = diffract(field,dmat,window = window, input_fft = input_fft, output_fft = output_fft,  out = out)
         #apply polarizer matrix in real space
         if pmat is not None:
             dotmf(pmat, field, out = out)
@@ -366,7 +381,7 @@ def field_viewer(field_data, cmf=None, bulk_data=False, n=1., mode=None, is_pola
 
 def pom_viewer(field_data, cmf=None, n = None, immersion = None, n_cover = None, d_cover = None, mode = +1, 
                  
-                 is_polarized = None, window=None, NA = None, beta = None,  **parameters):
+                 is_polarized = None, window=None, magnification = None, NA = None, beta = None,  **parameters):
     """
     Returns a FieldViewer object for optical microscope simulation.
     
@@ -403,7 +418,9 @@ def pom_viewer(field_data, cmf=None, n = None, immersion = None, n_cover = None,
     window : ndarray, optional
         Window function by which the calculated field is multiplied. This can 
         be used for removing artefact from the boundaries.
-    NA : float
+    magnification : float, optional
+        Objective magnification. 
+    NA : float, optional
         Numerical aperture of the objective. 
     beta : ndarray, optional
         For multi-ray fields you must provide the beta array that was used to
@@ -442,7 +459,7 @@ def pom_viewer(field_data, cmf=None, n = None, immersion = None, n_cover = None,
     viewer = POMViewer(field.shape[-2:], wavelengths, pixelsize, propagation_mode = mode,
                          is_polarized = is_polarized,
                          refractive_index = n, n_cover = n_cover, d_cover = d_cover,
-                         NA=NA, immersion = immersion, beta = beta)
+                         NA=NA, immersion = immersion, beta = beta, magnification = magnification)
     
     viewer.image_parameters.cmf = cmf
     viewer.image_parameters.window = window
@@ -606,6 +623,8 @@ class POMViewerOptions(BaseViewerOptions):
     _immersion = None
     #: NA of the objective
     _NA = None
+    #: magnification factor of the objective
+    _magnification = None
     
     def print_info(self):
         print(" $ polarization mode: {}".format(self.polarization_mode))  
@@ -615,7 +634,8 @@ class POMViewerOptions(BaseViewerOptions):
         print(" $ immersion: {}".format(self.immersion))
         print(" $ medium refractive index: {}".format(self.refractive_index))
         print(" $ propagation mode: {}".format(self.propagation_mode))   
-        print(" $ objective NA: {}".format(self.NA))    
+        print(" $ objective NA: {}".format(self.NA))   
+        print(" $ objectivemagnification: {}".format(self.magnification))   
     
     @property
     def preserve_memory(self):
@@ -676,7 +696,15 @@ class POMViewerOptions(BaseViewerOptions):
     def NA(self, value):
         self._NA = value       
         
- 
+    @property    
+    def magnification(self):
+        return get_default_config_option("magnification", self._magnification)
+
+    @magnification.setter    
+    def magnification(self, value):
+        self._magnification = value      
+    
+
 class ImageParameters(object):
     """Image parameters are storred here"""
     _wavelengths = None
@@ -1262,7 +1290,7 @@ class FieldViewer(object):
         return field2specter(field)
     
     def _calculate_pom_field(self, data, jvec, pmat, dmat, window = None, input_fft = False, out = None):
-        return calculate_pom_field(data,jvec,pmat ,dmat,window = window,input_fft = input_fft, out = out)
+        return calculate_pom_field(data,jvec,pmat ,dmat, window = window,input_fft = input_fft, out = out)
         
     def _calculate_specter(self):
         if self._specter is None:
@@ -1288,7 +1316,7 @@ class FieldViewer(object):
             #we may heve calculated diffraction before, set to None if we had
             dmat = self.diffraction_matrix if preserve_memory or modal else None
             for i,data in enumerate(tmp): 
-                field = self._calculate_pom_field(data,jvec,self.output_matrix,dmat,window = self.image_parameters.window,input_fft = input_fft, out = out)
+                field = self._calculate_pom_field(data,jvec,self.output_matrix,dmat, window = self.image_parameters.window,input_fft = input_fft, out = out)
                 self._specter += self._field2specter(field)
                    
     def calculate_field(self, recalc = False, **params):
@@ -1308,7 +1336,7 @@ class FieldViewer(object):
         #we may heve calculated diffraction before, set to None if we had
         dmat = self.diffraction_matrix if preserve_memory or modal else None
 
-        return calculate_pom_field(field,jvec,self.output_matrix,dmat,window = self.image_parameters.window,input_fft = input_fft)
+        return calculate_pom_field(field,jvec,self.output_matrix,dmat,mmat = self.magnification_matrix, window = self.image_parameters.window,input_fft = input_fft)
                     
     def calculate_specter(self, **params):
         """Calculates field specter.
@@ -1478,6 +1506,7 @@ class POMViewer(FieldViewer):
     _fjones = None
     _jones = None
     _cmat = None
+    _mmat = None
     
     def __init__(self,shape, wavelengths, pixelsize,  **kwargs):
         self.viewer_options = POMViewerOptions()
@@ -1557,8 +1586,22 @@ class POMViewer(FieldViewer):
         return field2specter(jones2field(field, vp.wavenumbers, epsv = epsv, mode = vp.propagation_mode, input_fft = True, betamax = vp.betamax))
 
     def _calculate_pom_field(self, data, jvec, pmat, dmat, window = None, input_fft = False, out = None):
-        return calculate_pom_field(data,jvec,pmat ,dmat,window = window,input_fft = input_fft, output_fft = True, out = out)
-      
+        return calculate_pom_field(data,jvec,pmat ,dmat,mmat = self.magnification_matrix, window = window,input_fft = input_fft, output_fft = True, out = out)
+
+    @property
+    def magnification_matrix(self):
+        """magnification matrix"""
+        if self._mmat is None:
+            vp = self.viewer_options
+            epsv = vp.epsv
+            mmat = E_magnification_matrix(vp.shape, vp.wavenumbers,  m = vp.magnification, 
+                                      epsv = epsv, 
+                                      mode = vp.propagation_mode, betamax = vp.betamax) 
+            self._mmat = mmat
+
+        return self._mmat   
+
+
     @property
     def output_matrix(self):
         """2x2 jones output matrix"""

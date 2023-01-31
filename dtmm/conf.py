@@ -507,7 +507,8 @@ class DTMMConfig(object):
         self.npass = _readconfig(config.getint, "transfer", "npass", 1)
         self.reflection = _readconfig(config.getint, "transfer", "reflection", None)
         self.eff_data = _readconfig(config.getint, "transfer", "eff_data", 0)        
-        self.betamax = _readconfig(config.getfloat, "core", "betamax", np.inf)
+        self.betamax = _readconfig(config.getfloat, "core", "betamax", np.inf)  
+        self.magnification = _readconfig(config.getfloat, "viewer", "magnification", 10.)
     
     @property
     def nthreads(self):

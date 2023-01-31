@@ -5,12 +5,13 @@ from __future__ import absolute_import, print_function, division
 
 from dtmm.conf import BETAMAX
 from dtmm.wave import eigenwave, betaphi
-from dtmm.tmm import alphaf, E2H_mat, E_mat, Eti_mat, phase_mat, Etri_mat, tr_mat
+from dtmm.tmm import alphaf, E2H_mat, E_mat, Eti_mat, t_mat, normalize_f, phase_mat, Etri_mat, tr_mat
 
-from dtmm.linalg import dotmf, dotmdmf, inv, dotmd
+from dtmm.linalg import dotmf, dotmdmf, inv, dotmd, dotmm, dotmv, dotmdm
 from dtmm.diffract import diffract, E_tr_matrix
-from dtmm.fft import fft2, ifft2
+from dtmm.fft import fft2, ifft2, mfft2
 import numpy as np
+
 
 from dtmm.matrix import corrected_E_diffraction_matrix,second_E_diffraction_matrix,first_E_diffraction_matrix
 from dtmm.mode import fft_mask
@@ -386,7 +387,102 @@ def propagate_2x2_full(field, wavenumbers, layer, input_layer = None,
     if input_layer is not None:
         d_in, epsv_in, epsa_in = input_layer
 
-    kd = wavenumbers*d/nsteps
+    kd = wavenumbers*d#/nsteps
+    
+    if out is None:
+        out = np.empty_like(field)
+        
+    ii,jj = np.meshgrid(range(shape[0]), range(shape[1]),copy = False, indexing = "ij") 
+    
+    for step in range(nsteps):
+        for i in range(len(wavenumbers)):
+            ffield = fft2(field[...,i,:,:,:])
+            ofield = np.zeros_like(out[...,i,:,:,:])
+
+            b,p = betaphi(shape,wavenumbers[i])
+            mask = b < betamax
+            not_mask = np.logical_not(mask)
+            
+            amplitude = ffield[...,mask]
+            
+            betas = b[mask]
+            phis = p[mask]
+            iind = ii[mask]
+            jind = jj[mask]
+            
+            if bulk is not None:
+                obulk = bulk[...,i,:,:,:]
+            
+            if refl is not None:
+                tampl = fft2(refl[...,i,:,:,:])[...,mask]
+                orefl = refl[...,i,:,:,:]
+                orefl[...] = 0.
+              
+            for bp in sorted(zip(range(len(betas)),betas,phis,iind,jind),key = lambda el : el[1], reverse = False):     
+                #for j,bp in enumerate(zip(betas,phis,iind,jind)):     
+                              
+                j, beta, phi, ieig, jeig = bp
+
+                out_af = alphaf(beta,phi,epsv,epsa)
+                alpha,fmat_out = out_af 
+                
+                #fmat_out = normalize_f(fmat_out)
+                e = E_mat(fmat_out, mode = mode)
+                ei0 = inv(e)
+                ei = ei0                        
+                pm = phase_mat(alpha,kd[i,None,None],mode = mode)
+                w = eigenwave(amplitude.shape[:-1]+shape, ieig,jeig, amplitude = amplitude[...,j])
+                if step == 0 and reflection != False:
+                    alphain, fmat_in = alphaf(beta,phi,epsv_in,epsa_in)
+                    #fmat_in = normalize_f(fmat_in)
+
+                    if refl is not None:
+                        ei,eri = Etri_mat(fmat_in, fmat_out, mode = mode)
+                        ein =  E_mat(fmat_in, mode = -1*mode)
+                        t = eigenwave(amplitude.shape[:-1]+shape, ieig,jeig, amplitude = tampl[...,j])
+                        r = dotmf(eri, w)
+                        r = dotmf(ein,r, out = r)
+                        np.add(orefl,r,orefl)
+                    
+                        w = dotmf(ei, w, out = w)
+                        t = dotmf(ei0,t, out = t)
+                        w = np.add(t,w,out = w)
+  
+                    else:
+                        ei = Eti_mat(fmat_in, fmat_out, mode = mode)
+                        w = dotmf(ei, w, out = w)
+
+                            
+                    w = dotmf(dotmd(e,pm),w, out = w)   
+                    np.add(ofield,w,ofield)                         
+                    
+                else:
+                    w = dotmdmf(e,pm,ei,w, out = w)
+                    np.add(ofield,w,ofield)
+
+                if bulk is not None:
+                    e2h = E2H_mat(fmat_out, mode = mode)
+                    obulk[...,1::2,:,:] +=  dotmf(e2h, w)
+                    obulk[...,::2,:,:] += w
+            out[...,i,:,:,:] = ofield
+                    
+        field = out
+    return out, refl
+
+def propagate_2x2_full2(field, wavenumbers, layer, input_layer = None, 
+                    nsteps = 1,  mode = +1, reflection = True,
+                    betamax = BETAMAX, refl = None, bulk = None, out = None):
+
+    shape = field.shape[-2:]
+   
+    d, epsv, epsa = layer
+    if input_layer is not None:
+        d_in, epsv_in, epsa_in = input_layer
+        
+    epsv_eff = (2.8,2.8,2.8)
+    epsa_eff = (0,0,0)
+
+    kd = wavenumbers*d#/nsteps
     
     if out is None:
         out = np.empty_like(field)
@@ -423,6 +519,8 @@ def propagate_2x2_full(field, wavenumbers, layer, input_layer = None,
 
                 out_af = alphaf(beta,phi,epsv,epsa)
                 alpha,fmat_out = out_af 
+                
+                #fmat_out = normalize_f(fmat_out)
                 e = E_mat(fmat_out, mode = mode)
                 ei0 = inv(e)
                 ei = ei0                        
@@ -430,6 +528,331 @@ def propagate_2x2_full(field, wavenumbers, layer, input_layer = None,
                 w = eigenwave(amplitude.shape[:-1]+shape, ieig,jeig, amplitude = amplitude[...,j])
                 if step == 0 and reflection != False:
                     alphain, fmat_in = alphaf(beta,phi,epsv_in,epsa_in)
+                    fmat_in = normalize_f(fmat_in)
+
+                    if refl is not None:
+                        ei,eri = Etri_mat(fmat_in, fmat_out, mode = mode)
+                        ein =  E_mat(fmat_in, mode = -1*mode)
+                        t = eigenwave(amplitude.shape[:-1]+shape, ieig,jeig, amplitude = tampl[...,j])
+                        r = dotmf(eri, w)
+                        r = dotmf(ein,r, out = r)
+                        np.add(orefl,r,orefl)
+                    
+                        w = dotmf(ei, w, out = w)
+                        t = dotmf(ei0,t, out = t)
+                        w = np.add(t,w,out = w)
+  
+                    else:
+                        
+                        _, fmat_out2 = alphaf(0,phi,epsv_eff,epsa_eff)
+                        fmat_out2 = normalize_f(fmat_out2)
+                        
+                        _, fmat_in2 = alphaf(beta,phi,epsv_eff,epsa_eff)
+                        fmat_in2 = normalize_f(fmat_in2)
+                        
+                        fmat_out = normalize_f(fmat_out)
+                        fmat_in = normalize_f(fmat_in)
+                        t = t_mat(fmat_in, fmat_out)
+                        #ei = Eti_mat(fmat_in, fmat_out, mode = mode)
+    
+                        ei = E_mat(fmat_in2, mode = mode)
+                        e = E_mat(fmat_out2, mode = mode)
+                        ei = inv(ei)
+                                
+                        w = dotmf(t, w, out = w)
+                        w = dotmf(ei, w, out = w)
+                        w = dotmf(e, w, out = w)
+
+                            
+                    #w = dotmf(dotmd(e,pm),w, out = w)   
+                    np.add(ofield,w,ofield)                         
+                    
+                else:
+                    w = dotmdmf(e,pm,ei,w, out = w)
+                    np.add(ofield,w,ofield)
+
+                if bulk is not None:
+                    e2h = E2H_mat(fmat_out, mode = mode)
+                    obulk[...,1::2,:,:] +=  dotmf(e2h, w)
+                    obulk[...,::2,:,:] += w
+            out[...,i,:,:,:] = ofield
+
+
+    for step in range(nsteps):
+        for i in range(len(wavenumbers)):
+            ffield = fft2(out[...,i,:,:,:])
+            ofield = np.zeros_like(out[...,i,:,:,:])
+
+            b,p = betaphi(shape,wavenumbers[i])
+            mask = b < betamax
+            
+            amplitude = ffield[...,mask]
+            
+            betas = b[mask]
+            phis = p[mask]
+            iind = ii[mask]
+            jind = jj[mask]
+            
+            if bulk is not None:
+                obulk = bulk[...,i,:,:,:]
+            
+            if refl is not None:
+                tampl = fft2(refl[...,i,:,:,:])[...,mask]
+                orefl = refl[...,i,:,:,:]
+                orefl[...] = 0.
+              
+            for bp in sorted(zip(range(len(betas)),betas,phis,iind,jind),key = lambda el : el[1], reverse = False):     
+                #for j,bp in enumerate(zip(betas,phis,iind,jind)):     
+                              
+                j, beta, phi, ieig, jeig = bp
+
+                alpha,fmat_in = alphaf(beta,phi,epsv_eff,epsa_eff) 
+
+                _, fmat_out2 = alphaf(beta,phi,epsv_eff,epsa_eff)
+                fmat_out2 = normalize_f(fmat_out2)
+                
+                _, fmat_in2 = alphaf(0,phi,epsv_eff,epsa_eff)
+                fmat_in2 = normalize_f(fmat_in2)
+                
+                fmat_out = normalize_f(fmat_out)
+                fmat_in = normalize_f(fmat_in)
+   
+                out_af = alphaf(beta,phi,epsv,epsa)
+                alpha,fmat_out = out_af 
+                fmat_in = fmat_out
+                
+                fmat_out = normalize_f(fmat_out)
+                fmat_in = normalize_f(fmat_in)
+                
+                e = E_mat(fmat_out2, mode = mode)
+                ei = E_mat(fmat_in2, mode = mode)
+                ei = inv(ei)
+                
+                w = dotmf(ei, w, out = w)
+                w = dotmf(e, w, out = w)
+                
+                #fmat_out = normalize_f(fmat_out)
+                e = E_mat(fmat_out, mode = mode)
+                
+                ei = E_mat(fmat_in, mode = mode)
+                ei = inv(ei)
+
+                         
+                pm = phase_mat(alpha,kd[i,None,None],mode = mode)
+                w = eigenwave(amplitude.shape[:-1]+shape, ieig,jeig, amplitude = amplitude[...,j])
+
+                
+                w = dotmdmf(e,pm,ei,w, out = w)
+                np.add(ofield,w,ofield)
+
+            out[...,i,:,:,:] = ofield
+                    
+        field = out
+    return out, refl
+
+
+    
+def propagate_2x2_full2(field, wavenumbers, layer, input_layer = None, 
+                    nsteps = 1,  mode = +1, reflection = True,
+                    betamax = BETAMAX, refl = None, bulk = None, out = None):
+
+    shape = field.shape[-2:]
+   
+    d, epsv, epsa = layer
+    if input_layer is not None:
+        d_in, epsv_in, epsa_in = input_layer
+
+    kd = wavenumbers*d#/nsteps
+    
+    if out is None:
+        out = np.empty_like(field)
+        
+    ii,jj = np.meshgrid(range(shape[0]), range(shape[1]),copy = False, indexing = "ij") 
+    
+    for step in range(nsteps):
+        for i in range(len(wavenumbers)):
+            ffield = fft2(field[...,i,:,:,:])
+            ofield = np.zeros_like(out[...,i,:,:,:])
+
+            b,p = betaphi(shape,wavenumbers[i])
+            mask = b < betamax
+            mask_not = np.logical_not(b < betamax/2)
+            
+            amplitude = ffield[...,mask]
+            
+            betas = b[mask]
+            phis = p[mask]
+            iind = ii[mask]
+            jind = jj[mask]
+            
+            if bulk is not None:
+                obulk = bulk[...,i,:,:,:]
+            
+            if refl is not None:
+                tampl = fft2(refl[...,i,:,:,:])[...,mask]
+                orefl = refl[...,i,:,:,:]
+                orefl[...] = 0.
+              
+            for bp in sorted(zip(range(len(betas)),betas,phis,iind,jind),key = lambda el : el[1], reverse = False):     
+                #for j,bp in enumerate(zip(betas,phis,iind,jind)):     
+                              
+                j, beta, phi, ieig, jeig = bp
+
+                out_af = alphaf(beta,phi,epsv,epsa)
+                alpha,fmat_out = out_af 
+                
+                #fmat_out = normalize_f(fmat_out)
+                e = E_mat(fmat_out, mode = mode)
+                ei0 = inv(e)
+                ei = ei0                        
+                pm = phase_mat(alpha,kd[i,None,None],mode = mode)
+                w = eigenwave(amplitude.shape[:-1]+shape, ieig,jeig, amplitude = amplitude[...,j])
+                if step == 0 and reflection != False:
+                    alphain, fmat_in = alphaf(beta,phi,epsv_in,epsa_in)
+                    #fmat_in = normalize_f(fmat_in)
+
+                    if refl is not None:
+                        ei,eri = Etri_mat(fmat_in, fmat_out, mode = mode)
+                        ein =  E_mat(fmat_in, mode = -1*mode)
+                        t = eigenwave(amplitude.shape[:-1]+shape, ieig,jeig, amplitude = tampl[...,j])
+                        r = dotmf(eri, w)
+                        r = dotmf(ein,r, out = r)
+                        np.add(orefl,r,orefl)
+                    
+                        w = dotmf(ei, w, out = w)
+                        t = dotmf(ei0,t, out = t)
+                        w = np.add(t,w,out = w)
+  
+                    else:
+                        t = t_mat(fmat_in, fmat_out)
+                        ei = Eti_mat(fmat_in, fmat_out, mode = mode)
+                        w = dotmf(ei, w, out = w)
+
+                        
+                    w = dotmf(dotmd(e,pm),w, out = w)  
+                    
+                    epsv_eff = (2.575227,2.575227,2.575227)
+                    
+                    _,fmat_in = alphaf(beta,phi,epsv_eff,epsa)
+                    _,fmat_out = alphaf(0,phi,epsv_eff,epsa)
+                    
+                    e = E_mat(fmat_out, mode = mode)
+                    ei = inv(E_mat(fmat_in, mode = mode))
+                    
+                    w = dotmf(ei, w, out = w)
+                    w = dotmf(e, w, out = w)
+                    
+                    np.add(ofield,w,ofield)                         
+                    
+                else:
+                    w = dotmdmf(e,pm,ei,w, out = w)
+                    np.add(ofield,w,ofield)
+
+                if bulk is not None:
+                    e2h = E2H_mat(fmat_out, mode = mode)
+                    obulk[...,1::2,:,:] +=  dotmf(e2h, w)
+                    obulk[...,::2,:,:] += w
+            out[...,i,:,:,:] = ofield
+
+    for i in range(len(wavenumbers)):
+        ffield = fft2(out[...,i,:,:,:])
+        ofield = np.zeros_like(out[...,i,:,:,:])
+    
+        b,p = betaphi(shape,wavenumbers[i])
+        mask = b < betamax
+        mask_not = np.logical_not(b < betamax/2)
+        
+        amplitude = ffield[...,mask]
+        
+        betas = b[mask]
+        phis = p[mask]
+        iind = ii[mask]
+        jind = jj[mask]
+        
+        epsv_eff = (2.575227,2.575227,2.575227)
+          
+        for bp in sorted(zip(range(len(betas)),betas,phis,iind,jind),key = lambda el : el[1], reverse = False):     
+            #for j,bp in enumerate(zip(betas,phis,iind,jind)):     
+                          
+            j, beta, phi, ieig, jeig = bp
+            
+            _,fmat_in = alphaf(0,phi,epsv_eff,epsa)
+            _,fmat_out = alphaf(beta,phi,epsv_eff,epsa)
+            
+            e = E_mat(fmat_out, mode = mode)
+            ei = inv(E_mat(fmat_in, mode = mode))
+            
+            w = eigenwave(amplitude.shape[:-1]+shape, ieig,jeig, amplitude = amplitude[...,j])
+            w = dotmf(ei, w, out = w)
+            w = dotmf(e, w, out = w)
+            
+            np.add(ofield,w,ofield)
+        out[...,i,:,:,:] = ofield
+
+                    
+        field = out
+    return out, refl
+
+
+def propagate_2x2_full(field, wavenumbers, layer, input_layer = None, 
+                    nsteps = 1,  mode = +1, reflection = True,
+                    betamax = BETAMAX, refl = None, bulk = None, out = None):
+
+    shape = field.shape[-2:]
+   
+    d, epsv, epsa = layer
+    if input_layer is not None:
+        d_in, epsv_in, epsa_in = input_layer
+
+    kd = wavenumbers*d#/nsteps
+    
+    if out is None:
+        out = np.empty_like(field)
+        
+    ii,jj = np.meshgrid(range(shape[0]), range(shape[1]),copy = False, indexing = "ij") 
+    
+    for step in range(nsteps):
+        for i in range(len(wavenumbers)):
+            ffield = fft2(field[...,i,:,:,:])
+            ofield = np.zeros_like(out[...,i,:,:,:])
+
+            b,p = betaphi(shape,wavenumbers[i])
+            mask = b < betamax
+            not_mask = np.logical_not(mask)
+            
+            amplitude = ffield[...,mask]
+            
+            betas = b[mask]
+            phis = p[mask]
+            iind = ii[mask]
+            jind = jj[mask]
+            
+            if bulk is not None:
+                obulk = bulk[...,i,:,:,:]
+            
+            if refl is not None:
+                tampl = fft2(refl[...,i,:,:,:])[...,mask]
+                orefl = refl[...,i,:,:,:]
+                orefl[...] = 0.
+              
+            for bp in sorted(zip(range(len(betas)),betas,phis,iind,jind),key = lambda el : el[1], reverse = False):     
+                #for j,bp in enumerate(zip(betas,phis,iind,jind)):     
+                              
+                j, beta, phi, ieig, jeig = bp
+
+                out_af = alphaf(beta,phi,epsv,epsa)
+                alpha,fmat_out = out_af 
+                
+                #fmat_out = normalize_f(fmat_out)
+                e = E_mat(fmat_out, mode = mode)
+                ei0 = inv(e)
+                ei = ei0                        
+                pm = phase_mat(alpha,kd[i,None,None],mode = mode)
+                w = eigenwave(amplitude.shape[:-1]+shape, ieig,jeig, amplitude = amplitude[...,j])
+                if step == 0 and reflection != False:
+                    alphain, fmat_in = alphaf(beta,phi,epsv_in,epsa_in)
+                    #fmat_in = normalize_f(fmat_in)
+
                     if refl is not None:
                         ei,eri = Etri_mat(fmat_in, fmat_out, mode = mode)
                         ein =  E_mat(fmat_in, mode = -1*mode)
@@ -445,20 +868,64 @@ def propagate_2x2_full(field, wavenumbers, layer, input_layer = None,
                     else:
                         ei = Eti_mat(fmat_in, fmat_out, mode = mode)
                         w = dotmf(ei, w, out = w)
-                    w = dotmf(dotmd(e,pm),w, out = w)
-                    np.add(ofield,w,ofield)                         
+
+                            
+                    w = dotmf(dotmd(e,pm),w, out = w)   
+                    np.add(ofield,w,ofield)    
+                    #1/0                     
                     
                 else:
-                    w = dotmdmf(e,pm,ei,w, out = w)
+                    alphain, fmat_in = alphaf(beta,phi,epsv_in,epsa_in)
+                    ein = E_mat(fmat_in, mode = mode)
+                    eini = inv(ein)
+                    
+                    # v = amplitude[...,j].copy()
+                    # #v[...,0] = 1
+                    # #v[...,1] =1
+                    
+                    # ain = dotmv(eini,v)
+                    # aout = dotmv(ei,v)
+                    # sin = (np.abs(ain)**2).sum(axis = -1)
+                    # sout = (np.abs(aout)**2).sum(axis = -1)
+                    # fact = np.sqrt(sout/sin)
+                    # if np.any(np.isnan(fact)):
+                    v = amplitude[...,j].copy()
+                    v[...,0] = 1
+                    v[...,1] =1
+                    
+                    ain = dotmv(eini,v)
+                    aout = dotmv(ei,v)
+                    sin = (np.abs(ain)**2).sum(axis = -1)
+                    sout = (np.abs(aout)**2).sum(axis = -1)
+                    fact = np.sqrt(sout/sin)
+                        
+                    #fact[...] = 1
+                    
+                    #ei = fact[...,None,None] * ei
+                    #t1 = t_mat(fmat_eff, fmat_out, mode = mode)
+                    #t2 = t_mat(fmat_out, fmat_eff, mode = mode)
+                    #m = dotmm(ei,t1)
+                    m = dotmdm(e,pm,ei)
+                    #m = dotmm(t2,m)
+                    w = eigenwave(shape, ieig,jeig, amplitude = 1)
+                    m = m * w[...,None,None]
+                    m = mfft2(m)
+                    m[not_mask] = 0
+                    w = dotmv(m,amplitude[...,j])
+                    w = np.moveaxis(w,-1,-3)
+                    w = ifft2(w)
+                    #w = dotmdmf(e,pm,ei,w, out = w)
+                    #ofield = ofield + w
+                    
                     np.add(ofield,w,ofield)
 
                 if bulk is not None:
+
                     e2h = E2H_mat(fmat_out, mode = mode)
                     obulk[...,1::2,:,:] +=  dotmf(e2h, w)
                     obulk[...,::2,:,:] += w
-                
+                                            
             out[...,i,:,:,:] = ofield
                     
         field = out
     return out, refl
-

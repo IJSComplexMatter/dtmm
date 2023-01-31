@@ -140,14 +140,82 @@ def fft_mask(shape, k0, n, betax_off = 0., betay_off = 0., betamax = BETAMAX):
     
     
 if __name__ == "__main__":
-    w,bp = fft_mask_full((64,64), (1,), 3, betax_off = 0.9, betamax = 1.2)
+    S = 64 # array size
+    W = 500 #wavelength
+    P = 200 # pixel size in real space
+    k = 2*np.pi/W * P #k for 500 nm
+    N = 8
+    p = W/P/S #pixel size in reciprocal spaxe 
+    
+    XOFF = 2*0
+    YOFF = 2*0
+    
+    BMAX = 0.8
+        
+    BX = XOFF*p
+    BY = YOFF*p
+    
+    w,bp = fft_mask_full((S,S), (k,), N, betax_off = BX, betay_off = BY, betamax = BMAX)
     import matplotlib.pyplot as plt
-    fig,axes = plt.subplots(3,3)
-    for i in range(3):
-        for j in range(3):
-            n = i + 3*j
-            axes[i,j].imshow(np.fft.fftshift(w[n,0,0]))
-            axes[i,j].axis('off')
+    
+    beta,phi = bp
+    beta = beta/p
+    
+    centerx = beta*np.cos(phi) + S//2
+    centery = beta*np.sin(phi) + S//2
+    
+    originx = XOFF + S//2
+    originy = YOFF + S//2
+    
+    xticks = np.linspace(-BMAX/p, BMAX/p,N) + S//2 + XOFF
+    yticks = np.linspace(-BMAX/p, BMAX/p,N) + S//2 + YOFF
+    #xlabel = np.arange(N) - N//2
+    
+    
+    #fig = plt.figure(figsize=(4., 4.))
+    #from mpl_toolkits.axes_grid1 import ImageGrid
+    #grid = ImageGrid(fig, 111,  # similar to subplot(111)
+    #             nrows_ncols=(N, N),  # creates 2x2 grid of axes
+    #             axes_pad=0.1,  # pad between axes in inch.
+    #             )
+    
+    fig,axes = plt.subplots(N,N)
+    for i in range(N):
+        for j in range(N):
+            n = i + N*j
+            
+            ax = axes[i,j]
+            
+            ax.imshow(np.fft.fftshift(w[n,0,0]))
+            #ax.axis('off')
+            ax.set_title("{},{}".format(-(N//2)+i,-(N//2)+j))
+            # Major ticks
+            ax.set_xticks(xticks)
+            ax.set_yticks(yticks)
+            ax.set_xticklabels([])
+            #ax.set_yticks([originy])
+            ax.set_yticklabels([])
+            ax.grid(which='major', color='w', linestyle='-', linewidth=0.5)
+            ax.plot(centerx[n],centery[n],"r.")
+            #ax.plot(originx,originy,"r.")
+            
+            
+            
+# ax.set_yticks(np.arange(0, 10, 1))
+
+# # Labels for major ticks
+# ax.set_xticklabels(np.arange(1, 11, 1))
+# ax.set_yticklabels(np.arange(1, 11, 1))
+
+# # Minor ticks
+# ax.set_xticks(np.arange(-.5, 10, 1), minor=True)
+# ax.set_yticks(np.arange(-.5, 10, 1), minor=True)
+
+# # Gridlines based on minor ticks
+# ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
+
+# # Remove minor ticks
+# ax.tick_params(which='minor', bottom=False, left=False)
 
     plt.show()
     

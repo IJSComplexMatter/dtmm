@@ -8,7 +8,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt
 
-resolution = 25      # pixels/μm
+resolution = 100      # pixels/μm
 
 dpml = 1.0             # PML thickness
 dsub = 1.0             # substrate thickness
@@ -93,7 +93,7 @@ def pol_grating(d,ph,gp,nmode):
 
 ph_uniaxial = 0               # chiral layer twist angle for uniaxial grating
 ph_twisted = 70               # chiral layer twist angle for bilayer grating
-gp = 1                    # grating period
+gp = 0.7                    # grating period
 nmode = 5                     # number of mode coefficients to compute
 dd = np.arange(0.1,3.5,0.1)   # chiral layer thickness
 

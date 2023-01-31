@@ -365,7 +365,7 @@ def modes2field(mask, modes, out = None):
     out = modes2ffield(mask, modes, out = out)
     return ifft2(out, out)
 
-def modes2ffield1(mask, modes):
+def modes2ffield1(mask, modes, out = None):
     """Takes the output of field2modes and recunstructs
     the fft of the field array. 
     
@@ -382,13 +382,19 @@ def modes2ffield1(mask, modes):
     shape = mask.shape[-1:]
     if mask.ndim == 1:
         shape = modes.shape[:-2] + (4,) + shape
-        out = np.zeros(shape =shape, dtype = CDTYPE )
+        if out is None:
+            out = np.zeros(shape =shape, dtype = CDTYPE )
+        else:
+            out[...] = 0.
 
         modes = np.moveaxis(modes,-1,-2)
         out[...,mask] = modes
     else:
         shape = modes[0].shape[:-2] + (len(mask),4,) + shape
-        out = np.zeros(shape =shape, dtype = CDTYPE )
+        if out is None:
+            out = np.zeros(shape =shape, dtype = CDTYPE )
+        else:
+            out[...] = 0.
 
         for i,(mode, m) in enumerate(zip(modes,mask)):
             mode = np.moveaxis(mode,-1,-2)
@@ -396,7 +402,7 @@ def modes2ffield1(mask, modes):
             o[...,m] = mode
     return out
 
-def modes2field1(mask, modes):
+def modes2field1(mask, modes, out = None):
     """Inverse of field2modes. Takes the output of field2modes and recunstructs
     the field array.
     
@@ -407,10 +413,15 @@ def modes2field1(mask, modes):
     modes : ndarray or tuple of ndarrays
         Modes array or a tuple of modes array (in case of multi-wavelength data).
     """   
-    out = modes2ffield1(mask, modes)   
-    return ifft(out, overwrite_x = True)
-
-
+    _out = modes2ffield1(mask, modes, out = out)   
+    _out = ifft(_out, overwrite_x = True)
+    if out is not None:
+        if out is not _out:
+            out[...] = _out
+        return out
+    else:
+        return _out
+            
 def aperture2rays(diaphragm, betastep = 0.1, norm = True):
     """Takes a 2D image of a diaphragm and converts it to beta, phi, intensity"""
     shape = diaphragm.shape

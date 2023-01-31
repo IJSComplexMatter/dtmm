@@ -482,7 +482,7 @@ def alphaffi(beta=None,phi=None,epsv=None,epsa=None,out = None):
         fi = inv(f)
     return a,f,fi
 
-def alphaE(beta = None,phi = None,epsv = None,epsa = None, mode = +1, out = None):
+def alphaE(beta = None,phi = None,epsv = None,epsa = None, mode = +1, normalize_fmat = False, out = None):
     """Computes E-field eigenvalue and eigenvector matrix for the 2x2 formulation.
     
     Broadcasting rules apply to all arguments, except `mode`.
@@ -499,6 +499,8 @@ def alphaE(beta = None,phi = None,epsv = None,epsa = None, mode = +1, out = None
         Euler rotation angles (psi, theta, phi) (defaults to (0.,0.,0.)).
     mode : int
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    normalize_fmat : bool
+        Whether to normalize field matrix prior to converting to E matrix
     out : (ndarray,ndarray), optional
         Output arrays where results are written.
         
@@ -510,6 +512,8 @@ def alphaE(beta = None,phi = None,epsv = None,epsa = None, mode = +1, out = None
     """
     mode = _mode_to_int(mode)
     alpha,f = alphaf(beta,phi,epsv,epsa)
+    if normalize_fmat == True:
+        normalize_f(f,f)
     e = E_mat(f,mode = mode, copy = False)
     if mode == 1:
         alpha = alpha[...,::2]
@@ -522,7 +526,7 @@ def alphaE(beta = None,phi = None,epsv = None,epsa = None, mode = +1, out = None
         out = alpha.copy(), e.copy()
     return out
 
-def alphaEEi(beta = None, phi = None, epsv = None, epsa = None, mode = +1, out = None):
+def alphaEEi(beta = None, phi = None, epsv = None, epsa = None, mode = +1, normalize_fmat = False, out = None):
     """Computes E-field eigenvalue and eigenvector matrix and inverse of the 
     eigenvector array for the 2x2 formulation. See also :func:`alphaE` 
     
@@ -540,6 +544,8 @@ def alphaEEi(beta = None, phi = None, epsv = None, epsa = None, mode = +1, out =
         Euler rotation angles (psi, theta, phi) (defaults to (0.,0.,0.)).
     mode : int
         Either +1, for forward propagating mode, or -1 for negative propagating mode.
+    normalize_fmat : bool
+        Whether to normalize field matrice prior to converting to E matrix
     out : (ndarray,ndarray,ndarray), optional
         Output arrays where results are written.
 
@@ -550,11 +556,11 @@ def alphaEEi(beta = None, phi = None, epsv = None, epsa = None, mode = +1, out =
     """
     mode = _mode_to_int(mode)
     if out is None:
-        alpha,E = alphaE(beta,phi,epsv,epsa, mode = mode)
+        alpha,E = alphaE(beta,phi,epsv,epsa, mode = mode, normalize_fmat = normalize_fmat)
         return alpha, E, inv(E)
     else:
         alpha, E, Ei = out
-        alpha, E = alphaE(beta,phi,epsv,epsa, mode = mode, out = (alpha, E))
+        alpha, E = alphaE(beta,phi,epsv,epsa, mode = mode, normalize_fmat = normalize_fmat, out = (alpha, E))
         Ei = inv(E,out = Ei)
         return alpha, E, Ei 
 
@@ -924,7 +930,7 @@ def S_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1):
 #    return dotmm(dotmm(dotmm(A1m,B,out = Ai),Ai, out = Ai),A1pi, out = Ai)
 
 def tr_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1, out = None):
-    """Computes the 2x2 tr matrix.
+    """Computes the 2x2 t and r matrix.
     
     Parameters
     ----------
@@ -951,7 +957,7 @@ def tr_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1,
     return dotmm(et,eti, out = eti), dotmm(er,eri, out = eri)
 
 def t_mat(fmatin, fmatout, fmatini = None, overwrite_fmatin = False, mode = +1, out = None):
-    """Computes the 2x2 tr matrix.
+    """Computes the 2x2 t matrix.
     
     Parameters
     ----------
@@ -1630,8 +1636,10 @@ def transmit(fvecin, cmat = None, fmatin = None, fmatout = None, fmatini = None,
         raise ValueError("`cmat` is a required argument.")
 
     if cmat.shape[-1] == 2:
+        # a 2x2 problem
         return transmit2x2(fvecin,cmat, fmatin = fmatin, fmatout = fmatout, fmatini = fmatini, fmatouti = fmatouti, tmatin = tmatin, tmatout = tmatout, fvecout = fvecout )
     else:
+        # must be 4x4 
         return transmit4x4(fvecin,cmat, fmatin = fmatin, fmatout = fmatout, fmatini = fmatini, fmatouti = fmatouti, fvecout = fvecout )
     
 

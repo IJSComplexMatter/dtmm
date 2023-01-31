@@ -1441,9 +1441,10 @@ def transfer_2x2(field_data, optical_data, beta = None,
                             field, refli = propagate_2x2_effective_2(field, ks, input_layer, output_layer ,input_layer_eff, output_layer_eff, 
                                     beta = beta, phi = phi, nsteps = nstep, diffraction = diffraction, split_diffraction = split_diffraction, reflection = reflection, 
                                     betamax = betamax,mode = direction, refl = refl[iblock][j], bulk = bulk, tmpdata = tmpdata)
-                    else:
+                    else:   
+                        
                         field, refli = propagate_2x2_full(field, ks, output_layer, input_layer = input_layer, 
-                            nsteps = 1,  reflection = reflection, mode = direction,
+                            nsteps = nstep,  reflection = reflection, mode = direction,
                             betamax = betamax, refl = refl[iblock][j], bulk = bulk)
         
                 print_progress(n,n,suffix = suffix, prefix = prefix) 

@@ -6,6 +6,17 @@ phase = np.load("simdata/meep_phase.npy")
 axes = plt.subplot(121), plt.subplot(122)
 gratings = ("uniaxial", "twisted")
 resolution = 50
+pixelsize = 20
+
+resolutions = (100,50,25)
+pixelsizes = (10,20,40,200)
+
+resolutions = (100,25)
+pixelsizes = (10,40)
+
+linestyles = "-", "--",":"
+linewidths = 1.5,1.,1
+gp = 1
 
 for ax, grating in zip(axes, gratings):
 
@@ -15,20 +26,36 @@ for ax, grating in zip(axes, gratings):
         ax.plot(x,y, "k-",label = "0th order (analytic)")
         y = np.sin(np.pi*x)**2
         ax.plot(x,y, "k--",label = "1th order (analytic)")        
-    gp = 1
     
-    t0_meep = np.load("simdata/meep_{}_{}_{}_eff_m0.npy".format(resolution,grating, gp))
-    t0_tmm = np.load("simdata/tmm2d_{}_eff_m0.npy".format(grating))
-    t1_meep = np.load("simdata/meep_{}_{}_{}_eff_m1.npy".format(resolution,grating, gp))
-    t1_tmm = np.load("simdata/tmm2d_{}_eff_m1.npy".format(grating)) + np.load("simdata/tmm2d_{}_eff_m-1.npy".format(grating))
+    for i,(linestyle, linewidth,resolution, pixelsize) in enumerate(zip(linestyles,linewidths, resolutions,pixelsizes)):
     
-    ax.plot(phase, t0_meep, label = "0th order (meep)")
-    ax.plot(phase, t0_tmm, label = "0th order (tmm)")
-    ax.plot(phase, t1_meep, label = "1th order (meep)")
-    ax.plot(phase, t1_tmm, label = "1th order (tmm)")   
-    
-    ax.plot(phase, t0_meep + t1_meep, "--", label = "meep trasnmission")
-    ax.plot(phase, t0_tmm + t1_tmm, "--", label = "tmm trasnmission")
+        t0_meep = np.load("simdata/meep_{}_{}_{}_eff_m0.npy".format(resolution,grating, gp))
+        t0_tmm = np.load("simdata/tmm2d_{}_{}_{}_eff_m0.npy".format(pixelsize,grating,gp))
+        t0_bpm = np.load("simdata/bpm2d_{}_{}_{}_eff_m0.npy".format(pixelsize,grating,gp))
+
+        t1_meep = np.load("simdata/meep_{}_{}_{}_eff_m1.npy".format(resolution,grating, gp))
+        t1_tmm = np.load("simdata/tmm2d_{}_{}_{}_eff_m1.npy".format(pixelsize,grating,gp)) + np.load("simdata/tmm2d_{}_{}_{}_eff_m-1.npy".format(pixelsize,grating,gp))
+        t1_bpm = np.load("simdata/bpm2d_{}_{}_{}_eff_m1.npy".format(pixelsize,grating,gp)) + np.load("simdata/tmm2d_{}_{}_{}_eff_m-1.npy".format(pixelsize,grating,gp))
+        
+        
+        if i == 0:
+            ax.plot(phase, t0_meep, linestyle + "C0", label = "0th order (meep)", linewidth=linewidth)
+            ax.plot(phase, t0_tmm, linestyle + "C1", label = "0th order (tmm)", linewidth=linewidth)
+            ax.plot(phase, t1_meep, linestyle + "C2", label = "1th order (meep)", linewidth=linewidth)
+            ax.plot(phase, t1_tmm, linestyle + "C3", label = "1th order (tmm)", linewidth=linewidth)  
+            ax.plot(phase, t0_bpm, linestyle + "C4", label = "0th order (bpm)", linewidth=linewidth)
+            ax.plot(phase, t1_bpm, linestyle + "C5", label = "1th order (bpm)", linewidth=linewidth)  
+
+        else:
+            ax.plot(phase, t0_meep, linestyle + "C0", linewidth=linewidth)
+            ax.plot(phase, t0_tmm, linestyle + "C1", linewidth=linewidth)
+            ax.plot(phase, t1_meep, linestyle + "C2", linewidth=linewidth)
+            ax.plot(phase, t1_tmm, linestyle + "C3", linewidth=linewidth)               
+            ax.plot(phase, t0_bpm, linestyle + "C4", linewidth=linewidth)
+            ax.plot(phase, t1_bpm, linestyle + "C5",  linewidth=linewidth)  
+        
+        #ax.plot(phase, t0_meep + t1_meep, "--", label = "meep trasnmission")
+        #ax.plot(phase, t0_tmm + t1_tmm, "--", label = "tmm trasnmission")
 
 
     ax.legend()

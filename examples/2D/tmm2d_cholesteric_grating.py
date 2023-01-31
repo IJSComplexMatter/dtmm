@@ -15,7 +15,7 @@ from dtmm import tmm2d, rotation, data, wave, field, tmm, solver
 dtmm.conf.set_verbose(2)
 
 #: illumination wavelengths in nm
-WAVELENGTHS = np.linspace(380,780,21)
+WAVELENGTHS = np.linspace(320,780,41)
 #WAVELENGTHS = np.linspace(450,5,3)
 
 SCALE = (16,1)
@@ -31,8 +31,7 @@ ne = 1.7
 
 pitch_z = 5*SCALE[0]
 pitch_x = 20*SCALE[1]
-#pitch_z = 36*SCALE
-#pitch_x = 180*SCALE
+
 
 LAYER_THICKNESS = SCALE[1]/SCALE[0]
 #LAYER_THICKNESS = 1
@@ -106,7 +105,7 @@ if __name__ == "__main__":
     fmatin = tmm2d.f_iso2d(mask = mask,  k0 = k0, n=nin, betay = 0)
     fmatout = tmm2d.f_iso2d(mask = mask,  k0 = k0, n=nout, betay = 0)
     
-    cmat = tmm2d.stack_mat2d(k0,d, epsv, epsa, betay = 0, mask = mask, resolution_power = POWER)
+    cmat = tmm2d.stack_mat2d(k0,d, epsv, epsa, betay = 0, mask = mask, nsteps = 2**POWER)
     smat = tmm2d.system_mat2d(fmatin = fmatin, cmat = cmat, fmatout = fmatout)
     rmat = tmm2d.reflection_mat2d(smat)
     

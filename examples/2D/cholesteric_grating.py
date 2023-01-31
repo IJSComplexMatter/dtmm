@@ -15,27 +15,28 @@ from dtmm import tmm2d, rotation, data, wave, field, tmm, solver
 dtmm.conf.set_verbose(2)
 
 #: illumination wavelengths in nm
-WAVELENGTHS = np.linspace(380,780,21)
+WAVELENGTHS = np.linspace(380,780,81)
 #WAVELENGTHS = np.linspace(450,490,21)
 
-SCALE = 1
+SCALE = 2
 
 PIXELSIZE = 10/SCALE
 
 nin = 1.5# refractive index of the  input material 
 nout = 1.5# refractive index of the oputput material
-no = 1.5
-ne = 1.7
+no = 1.54
+ne = 1.74
 
-pitch_z = 36*SCALE
-pitch_x = 180*SCALE
+#pitch_z = 36*SCALE
+pitch_z = 43*SCALE
+pitch_x = 188*SCALE
 
 pitch_true = 1/(1/pitch_z **2 + 1/pitch_x**2)**0.5
 print("pitch : {} nm".format(pitch_true * PIXELSIZE))
 print("pitch * n : {} nm".format(pitch_true * PIXELSIZE * no))
 
 size_x = pitch_x * 1
-size_z = pitch_z * 2
+size_z = pitch_z * 5.
 
 tilt = np.arctan(pitch_z/pitch_x)
 
@@ -94,10 +95,11 @@ if __name__ == "__main__":
     smat = tmm2d.system_mat2d(fmatin = fmatin, cmat = cmat, fmatout = fmatout)
     rmat = tmm2d.reflection_mat2d(smat)
     
-    fmode_in_listed = tmm2d.list_modes(fmode_in)
+    #fmode_in_listed = tmm2d.list_modes(fmode_in)
     
-    fmode_out_listed = tmm2d.reflect2d(fmode_in_listed , rmat = rmat, fmatin = fmatin, fmatout = fmatout)
-    fmode_out = tmm2d.unlist_modes(fmode_out_listed)
+    #fmode_out_listed = tmm2d.reflect2d(fmode_in_listed , rmat = rmat, fmatin = fmatin, fmatout = fmatout)
+    #fmode_out = tmm2d.unlist_modes(fmode_out_listed)
+    fmode_out =tmm2d.reflect2d(fmode_in , rmat = rmat, fmatin = fmatin, fmatout = fmatout)
     
     field_out = field.modes2field1(mask, fmode_out)
     f[...] = field.modes2field1(mask, fmode_in)
@@ -140,7 +142,9 @@ if __name__ == "__main__":
     fr_lcp = ffin[0] + 1j * ffin[1] 
     ft_lcp  = ffout[0] + 1j * ffout[1]   
     
-    fmode_in_ref = tmm2d.unlist_modes(tmm2d.project2d(tmm2d.list_modes(fmode_in), fmatin))
+    #fmode_in_ref = tmm2d.unlist_modes(tmm2d.project2d(tmm2d.list_modes(fmode_in), fmatin))
+    fmode_in_ref = tmm2d.project2d(fmode_in, fmatin)
+    
     ffin_ref = field.modes2ffield1(mask,fmode_in_ref)
     
     fr_rcp_ref = ffin_ref[0] - 1j * ffin_ref[1] #right handed

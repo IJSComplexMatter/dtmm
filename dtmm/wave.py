@@ -358,13 +358,41 @@ def mask2indices(mask, k0 = None):
     Returns
     -------
     beta : ndarray or tuple of ndarrays
-        Array(s) of maksed indices values.
+        Array(s) of masked indices values.
     """
     mask = np.asarray(mask)
     if k0 is not None:
         deprecation("mask2indices: This function will only take one argument in the future")
     shape = mask.shape[-2:]
     ii, jj = np.meshgrid(range(shape[-2]), range(shape[-1]),copy = False, indexing = "ij") 
+    if mask.ndim == 3: #multiwavelength
+        out = (_get_indices_array(ii,jj, mask[i]) for i in range(mask.shape[0]))
+        return tuple(out)
+    elif mask.ndim == 2:
+        return _get_indices_array(ii,jj, mask) 
+    else:
+        raise ValueError("Invalid mask shape")
+
+def mask2order(mask):
+    """Converts mask to a masked diffraction order array(s)
+    
+    Parameters
+    ----------
+    mask : ndarray
+        A mask array of shape (n,height,width) or (height,width).
+        
+    Returns
+    -------
+    beta : ndarray or tuple of ndarrays
+        Array(s) of masked diffraction order indices.    
+    
+    """
+    mask = np.asarray(mask)
+    shape = mask.shape[-2:]
+    freqi = np.asarray(np.fft.fftfreq(shape[-2],1/shape[-2]),int)
+    freqj = np.asarray(np.fft.fftfreq(shape[-1],1/shape[-1]),int)
+    
+    ii, jj = np.meshgrid(freqi, freqj ,copy = False, indexing = "ij") 
     if mask.ndim == 3: #multiwavelength
         out = (_get_indices_array(ii,jj, mask[i]) for i in range(mask.shape[0]))
         return tuple(out)
@@ -474,6 +502,7 @@ def wave2eigenwave(wave, out = None):
         eigenwave(a.shape,ii,jj, amplitude = avg**0.5, out = o[i])
     
     return out
+        
 
 #------------------
 #1D implementations
@@ -610,6 +639,30 @@ def mask2indices1(mask, k0 = None):
         return ii[mask]
     else:
         raise ValueError("Invalid mask shape.")
+        
+def mask2order1(mask):
+    """Converts mask to a masked diffraction order array(s)
+    
+    Parameters
+    ----------
+    mask : ndarray
+        A mask array of shape (n,height) or (height,).
+        
+    Returns
+    -------
+    beta : ndarray or tuple of ndarrays
+        Array(s) of masked diffraction order values.
+    """
+    n = mask.shape[-1]
+    ii = np.asarray(np.fft.fftfreq(n,1/n),int)
+    if mask.ndim == 2: #multiwavelength
+        out = (ii[mask[i]] for i in range(mask.shape[0]))
+        return tuple(out)
+    elif mask.ndim == 1:
+        return ii[mask]
+    else:
+        raise ValueError("Invalid mask shape.")
+        
 
 @cached_function
 def eigenbetax1(n, k0, betay = 0, betamax = None):
@@ -705,3 +758,4 @@ def planewave1(n, k0, beta, out = None):
     kx = np.asarray(k0*beta, dtype = FDTYPE)
     out = np.exp((1j*(kx*xx)), out = out)
     return np.divide(out,out[...,0][...,None],out)
+
