@@ -1529,7 +1529,8 @@ class POMViewer(FieldViewer):
         self._jones = None
         self._fjones = None
         self._field = None
-        self._ffield = None      
+        self._ffield = None  
+        self._specter = None
          
     @property
     def jones(self):
