@@ -98,7 +98,7 @@ def simulate(thickness, grating = "uniaxial"):
     
     mask, fmode_in = field.field2modes1(f,k0, betamax = betamax)
     
-    solver = matrix_block_solver(WIDTH, WAVELENGTH, PIXELSIZE, resolution = 10, mask = mask, method = "4x4_1")
+    solver = matrix_block_solver(WIDTH, WAVELENGTH, PIXELSIZE, resolution = 10, mask = mask, method = "4x4")
     solver.set_optical_block((dd*thickness,epsvd,epsad))
     solver.calculate_field_matrix(nin = nin, nout = nout)
     solver.calculate_stack_matrix()

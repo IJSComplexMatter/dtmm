@@ -64,8 +64,9 @@ from dtmm.conf import FDTYPE, CDTYPE, NFDTYPE, NCDTYPE, NUMBA_CACHE,\
 NF32DTYPE,NF64DTYPE,NC128DTYPE,NC64DTYPE, DTMMConfig, deprecation
 from dtmm.rotation import rotation_matrix_x,rotation_matrix_y,rotation_matrix_z, rotate_vector, rotation_angles, rotation_matrix, rotate_diagonal_tensor
 from dtmm.wave import betaphi, k0
-from dtmm.fft import fft2, ifft2, fft, ifft
+import dtmm.fft #import fft2, ifft2#, #fft, ifft
 from dtmm.linalg import tensor_eig
+
 
 def read_director(file, shape, dtype = FDTYPE,  sep = "", endian = sys.byteorder, order = "zyxn", nvec = "xyz"):
     """Reads raw director data from a binary or text file. 
@@ -1377,11 +1378,11 @@ def filter_data(optical_data, wavelength, pixelsize, betamax = 1, symmetry = "is
          
 def filter_eps(eps, k, betamax = 1):
     eps = np.moveaxis(eps,-1,-3)
-    feps = fft2(eps)
+    feps = dtmm.fft.fft2(eps)
     beta, phi = betaphi(feps.shape[-2:],k)
     mask = beta > betamax
     feps[...,mask] = 0.
-    eps = ifft2(feps)
+    eps = dtmm.fft.ifft2(feps)
     eps = np.moveaxis(eps,-3,-1)
     return eps
 
@@ -1427,18 +1428,18 @@ def crop_fft(f,shape):
 def fft_resize2(a, shape):
     h0,w0 = a.shape[-2:]
     h,w = shape
-    f = fft2(a)
+    f = dtmm.fft.fft2(a)
     f = crop_fft2(f, shape)
     scale = h*w/(h0*w0)
-    return ifft2(f)*scale
+    return dtmm.fft.ifft2(f)*scale
 
 def fft_resize(a, shape):
     w0 = a.shape[-1]
     w, = shape
-    f = fft(a)
+    f = dtmm.fft.fft(a)
     f = crop_fft(f, shape)
     scale = w/(w0)
-    return ifft(f)*scale        
+    return dtmm.fft.ifft(f)*scale        
          
 def resize_eps(eps, shape):
     if len(shape) == 2:

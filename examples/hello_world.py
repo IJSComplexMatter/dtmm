@@ -3,6 +3,7 @@
 import dtmm
 import numpy as np
 import matplotlib.pyplot as plt
+import dtmm.conf
 dtmm.conf.set_verbose(2)
 #: pixel size in nm
 PIXELSIZE = 200
