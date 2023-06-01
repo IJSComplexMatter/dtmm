@@ -29,18 +29,11 @@ field_data_in = dtmm.field.illumination_data((HEIGHT, WIDTH), WAVELENGTHS,
 # field_out = solver.transfer_field(field_data_in[0])
 # field_data_out = field_out, solver.wavelengths, solver.pixelsize
 #: transfer input light through stack
-field_data_out = dtmm.transfer_field(field_data_in, [optical_block], betamax = 1, diffraction = 3)
+field_data_out = dtmm.transfer_field(field_data_in, [optical_block], betamax = 1, diffraction = 1)
 #: visualize output field
 viewer1 = dtmm.pom_viewer(field_data_out, magnification = 100, d_cover = 0, NA = 0.9)
 viewer1.set_parameters(polarizer = "v", analyzer = "h", focus = -18)
 fig,ax = viewer1.plot()
 
-field_data_out = dtmm.transfer_field(field_data_in, [optical_block],beta = 0, phi = 0, betamax = 1, diffraction = 3)
-
-viewer2 = dtmm.pom_viewer(field_data_out, magnification = 100., d_cover = 0, NA = 0.9)
-viewer2.set_parameters(polarizer = "v", analyzer = "h", focus = -18)
-fig,ax = viewer2.plot()
-
-plt.show()
 
 

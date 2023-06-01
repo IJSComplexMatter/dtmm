@@ -519,7 +519,7 @@ def _inv4x4(src,dst):
 
 
 @guvectorize([(NCDTYPE[:,:], NCDTYPE[:,:])], '(n,n)->(n,n)', target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def inv(mat, out):
+def inv_numba(mat, out):
     """inv(mat), gufunc
     
     Calculates inverse of a 4x4 complex matrix or 2x2 complex matrix
@@ -548,6 +548,17 @@ def inv(mat, out):
     else:
         inv = np.linalg.inv(mat)
         out[...] = inv
+        
+def inv(mat, out = None, method = "auto"):
+    mat = np.asarray(mat)
+    if method == 'numba' or (method == 'auto' and mat.shape[-1] in (2,4)):
+        return inv_numba(mat, out)
+    elif method in ('numpy','auto')  :
+        if out is not None:
+            raise ValueError("Cannot use out array to store inverse matrix")
+        return np.linalg.inv(mat)
+    else:
+        raise ValueError(f"Unknown method `{method}`")
 
 
 @njit([(NCDTYPE[:,:],NCDTYPE[:,:],NCDTYPE[:,:])], cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)    
@@ -1048,7 +1059,7 @@ This is equivalent to
                 
                 
 @guvectorize([(NCDTYPE[:,:],NCDTYPE[:,:],NCDTYPE[:,:])],"(n,k),(k,m)->(n,m)",target = NUMBA_TARGET, cache = NUMBA_CACHE, fastmath = NUMBA_FASTMATH)
-def dotmm(a, b, out):
+def dotmm_numba(a, b, out):
     """dotmm(a, b)
     
 Computes an efficient dot product of a 4x4,  2x2 
@@ -1060,6 +1071,16 @@ or a less efficient general matrix multiplication.
         _dotmm4(a, b, out)
     else:
         _dotmm(a, b, out)
+        
+def dotmm(a,b, out = None, method = "auto"):
+    a = np.asarray(a)
+    if method == 'numba' or (method == 'auto' and a.shape[-1] in (2,4)):
+        return dotmm_numba(a,b, out)
+    elif method in ('numpy','auto')  :
+        return np.dot(a,b,out)
+    else:
+        raise ValueError(f"Unknown method `{method}`")
+    
         
 # def dotmm(a,b,out = None):
 #     a = np.asarray(a)
@@ -1148,6 +1169,7 @@ def bdotmm(m1,m2):
     new_shape = m1.shape[:-4] + (m1.shape[-4], m1.shape[-2], m1.shape[-3], m1.shape[-1])
     out = np.matmul(_m1,_m2).reshape(new_shape)
     return np.moveaxis(out,-2,-3)
+
 
 def _bdotmm_ref(m1,m2, out = None):
     """same as bdotmm, but slower, for testing"""

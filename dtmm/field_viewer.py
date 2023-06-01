@@ -30,7 +30,7 @@ from matplotlib.widgets import Slider, AxesWidget, RadioButtons
 from matplotlib.image import imsave
 import scipy.ndimage as nd
 
-from dtmm.conf import _matplotlib_3_4_or_greater
+from dtmm.conf import _matplotlib_3_4_or_greater, _matplotlib_3_7_or_greater
 
 if _matplotlib_3_4_or_greater:
     from matplotlib.widgets import RangeSlider
@@ -157,72 +157,197 @@ def calculate_pom_field(field, jvec = None, pmat = None, dmat = None, mmat = Non
             dotmf(pmat, field, out = out)
     return out
 
-class CustomRadioButtons(RadioButtons):
+def _expand_text_props(props):
+    from matplotlib import cbook, collections, cycler, text as mtext
+    import itertools
+    props = cbook.normalize_kwargs(props, mtext.Text)
+    return cycler(**props)() if props else itertools.repeat({})
 
-    def __init__(self, ax, labels, active=0, activecolor='blue', size=49,
-                 orientation="horizontal", **kwargs):
-        """
-        Add radio buttons to an `~.axes.Axes`.
-        Parameters
-        ----------
-        ax : `~matplotlib.axes.Axes`
-            The axes to add the buttons to.
-        labels : list of str
-            The button labels.
-        active : int
-            The index of the initially selected button.
-        activecolor : color
-            The color of the selected button.
-        size : float
-            Size of the radio buttons
-        orientation : str
-            The orientation of the buttons: 'vertical' (default), or 'horizontal'.
-        Further parameters are passed on to `Legend`.
-        """
-        AxesWidget.__init__(self, ax)
-        self.activecolor = activecolor
-        axcolor = ax.get_facecolor()
-        self.value_selected = None
-
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_navigate(False)
-
-        circles = []
-        for i, label in enumerate(labels):
-            if i == active:
-                self.value_selected = label
-                facecolor = activecolor
+if not _matplotlib_3_7_or_greater:
+    class CustomRadioButtons(RadioButtons):
+    
+        def __init__(self, ax, labels, active=0, activecolor='blue', size=49,
+                     orientation="horizontal", **kwargs):
+            """
+            Add radio buttons to an `~.axes.Axes`.
+            Parameters
+            ----------
+            ax : `~matplotlib.axes.Axes`
+                The axes to add the buttons to.
+            labels : list of str
+                The button labels.
+            active : int
+                The index of the initially selected button.
+            activecolor : color
+                The color of the selected button.
+            size : float
+                Size of the radio buttons
+            orientation : str
+                The orientation of the buttons: 'vertical' (default), or 'horizontal'.
+            Further parameters are passed on to `Legend`.
+            """
+            AxesWidget.__init__(self, ax)
+            
+            
+            self.activecolor = activecolor
+            axcolor = ax.get_facecolor()
+            self.value_selected = None
+    
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_navigate(False)
+    
+            circles = []
+            for i, label in enumerate(labels):
+                if i == active:
+                    self.value_selected = label
+                    facecolor = activecolor
+                else:
+                    facecolor = axcolor
+                p = ax.scatter([],[], s=size, marker="o", edgecolor='black',
+                               facecolor=facecolor)
+                circles.append(p)
+            if orientation == "horizontal":
+                kwargs.update(ncol=len(labels), mode="expand")
+            kwargs.setdefault("frameon", False)    
+            self.box = ax.legend(circles, labels, loc="center", **kwargs)
+            self.labels = self.box.texts
+            self.circles = self.box.legendHandles
+            for c in self.circles:        
+                c.set_picker(5)
+                
+            if _matplotlib_3_4_or_greater:
+                self._observers = matplotlib.widgets.cbook.CallbackRegistry()
+                
             else:
-                facecolor = axcolor
-            p = ax.scatter([],[], s=size, marker="o", edgecolor='black',
-                           facecolor=facecolor)
-            circles.append(p)
-        if orientation == "horizontal":
-            kwargs.update(ncol=len(labels), mode="expand")
-        kwargs.setdefault("frameon", False)    
-        self.box = ax.legend(circles, labels, loc="center", **kwargs)
-        self.labels = self.box.texts
-        self.circles = self.box.legendHandles
-        for c in self.circles:        
-            c.set_picker(5)
+                self.cnt = 0
+                self.observers = {}
+    
+            self.connect_event('pick_event', self._clicked)
+    
+    
+        def _clicked(self, event):
+            if (self.ignore(event) or event.mouseevent.button != 1 or
+                event.mouseevent.inaxes != self.ax):
+                return
+            if event.artist in self.circles:
+                self.set_active(self.circles.index(event.artist))
+    
+else:
+    class CustomRadioButtons(RadioButtons):
+        def __init__(self, ax, labels, active=0, activecolor=None, *,
+                     useblit=True, label_props=None, radio_props=None, orientation="horizontal"):
+            """
+            Add radio buttons to an `~.axes.Axes`.
+            Parameters
+            ----------
+            ax : `~matplotlib.axes.Axes`
+                The Axes to add the buttons to.
+            labels : list of str
+                The button labels.
+            active : int
+                The index of the initially selected button.
+            activecolor : color
+                The color of the selected button. The default is ``'blue'`` if not
+                specified here or in *radio_props*.
+            useblit : bool, default: True
+                Use blitting for faster drawing if supported by the backend.
+                See the tutorial :ref:`blitting` for details.
+                .. versionadded:: 3.7
+            label_props : dict or list of dict, optional
+                Dictionary of `.Text` properties to be used for the labels.
+                .. versionadded:: 3.7
+            radio_props : dict, optional
+                Dictionary of scatter `.Collection` properties to be used for the
+                radio buttons. Defaults to (label font size / 2)**2 size, black
+                edgecolor, and *activecolor* facecolor (when active).
+                .. note::
+                    If a facecolor is supplied in *radio_props*, it will override
+                    *activecolor*. This may be used to provide an active color per
+                    button.
+                .. versionadded:: 3.7
+            """
+            AxesWidget.__init__(self, ax)
+            from matplotlib import cbook, collections, _api
+    
+            _api.check_isinstance((dict, None), label_props=label_props,
+                                  radio_props=radio_props)
+    
+            radio_props = cbook.normalize_kwargs(radio_props,
+                                                 collections.PathCollection)
+            if activecolor is not None:
+                if 'facecolor' in radio_props:
+                    _api.warn_external(
+                        'Both the *activecolor* parameter and the *facecolor* '
+                        'key in the *radio_props* parameter has been specified. '
+                        '*activecolor* will be ignored.')
+            else:
+                activecolor = 'blue'  # Default.
+    
+            self._activecolor = activecolor
+            self.value_selected = labels[active]
+    
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_navigate(False)
+    
+       
+            if orientation == 'horizontal':
+                xs = np.linspace(0, 1, len(labels) + 1)[:-1] + 0.05
+            else:
+                ys = np.linspace(1, 0, len(labels) + 2)[1:-1]
+    
+            self._useblit = useblit and self.canvas.supports_blit
+            self._background = None
+    
+            label_props = _expand_text_props(label_props)
             
-        if _matplotlib_3_4_or_greater:
-            self._observers = matplotlib.widgets.cbook.CallbackRegistry()
+            if orientation == 'horizontal':
+                self.labels = [
+                    ax.text(x+0.02,0.5, label, transform=ax.transAxes,
+                            horizontalalignment="left", verticalalignment="center",
+                            **props)
+                    for x, label, props in zip(xs, labels, label_props)]            
+            else:
+                self.labels = [
+                    ax.text(0.25,y, label, transform=ax.transAxes,
+                            horizontalalignment="left", verticalalignment="center",
+                            **props)
+                    for y, label, props in zip(ys, labels, label_props)]
+            text_size = np.array([text.get_fontsize() for text in self.labels]) / 2
+    
+            radio_props = {
+                's': text_size**2,
+                **radio_props,
+                'marker': 'o',
+                'transform': ax.transAxes,
+                'animated': self._useblit,
+            }
+            radio_props.setdefault('edgecolor', radio_props.get('color', 'black'))
+            radio_props.setdefault('facecolor',
+                                   radio_props.pop('color', activecolor))
             
-        else:
-            self.cnt = 0
-            self.observers = {}
-
-        self.connect_event('pick_event', self._clicked)
-
-
-    def _clicked(self, event):
-        if (self.ignore(event) or event.mouseevent.button != 1 or
-            event.mouseevent.inaxes != self.ax):
-            return
-        if event.artist in self.circles:
-            self.set_active(self.circles.index(event.artist))
+            if orientation == 'horizontal':
+                self._buttons = ax.scatter(xs,[.5] * len(xs), **radio_props)
+            else:
+                self._buttons = ax.scatter([.15] * len(ys), ys, **radio_props)
+            # The user may have passed custom colours in radio_props, so we need to
+            # create the radios, and modify the visibility after getting whatever
+            # the user set.
+            self._active_colors = self._buttons.get_facecolor()
+            if len(self._active_colors) == 1:
+                self._active_colors = np.repeat(self._active_colors, len(labels),
+                                                axis=0)
+            self._buttons.set_facecolor(
+                [activecolor if i == active else "none"
+                 for i, activecolor in enumerate(self._active_colors)])
+    
+            self.connect_event('button_press_event', self._clicked)
+            if self._useblit:
+                self.connect_event('draw_event', self._clear)
+    
+            self._observers = cbook.CallbackRegistry(signals=["clicked"])
+    
 
 def _redim(a, ndim=1):
     """Reshapes dimensions of input array by flattenig over first few dimensions. If

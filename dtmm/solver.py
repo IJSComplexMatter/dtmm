@@ -480,7 +480,6 @@ class BaseMatrixSolver(MatrixReadOnlyProperties):
             raise ValueError("You must first calculate stack matrix")
         if self.field_matrix_in is None:
             raise ValueError("You must first calculate field matrix")
-        
         mat = self.tmm._system_mat(self.stack_matrix, self.field_matrix_in, self.field_matrix_out)
         mat = self.tmm._reflection_mat(mat)
         self._refl_matrix = mat
@@ -1061,7 +1060,7 @@ class MatrixDataSolver2D(MatrixDataSolver3D,MatrixBlockSolver2D):
         block_solver =  MatrixBlockSolver2D(self.shape, wavelengths = self.wavelengths, pixelsize = self.pixelsize, method = self.method, mask = self.mask,betay = self.betay, swap_axes = self.swap_axes,  resolution = self.resolution)
         if i is not None:
             block_solver.set_optical_block(self.optical_data[i], resize = resize)
-        return block_solver      
+        return block_solver     
        
 def transfer3d(field_data_in, optical_data, nin = 1., nout = 1., resolution = 1, method = "4x4", betamax = None, split_wavelengths = False, field_out = None):
     """Transfers 3d field data using 3d matrix solver."""

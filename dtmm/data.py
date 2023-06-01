@@ -317,7 +317,7 @@ def director2data(director, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_
         material[np.logical_not(mask),:] = refind2eps([nhost,nhost,nhost])[None,...] 
         
     if thickness is None:
-        thickness = np.ones(shape = (material.shape[0],))
+        thickness = np.ones(shape = (material.shape[0],)) 
     return (thickness, material, director2angles(director))
 
 def Q2data(tensor, mask = None, no = 1.5, ne = 1.6, nhost = None,scale_factor = 1., 
@@ -817,14 +817,14 @@ def read_raw(file, shape, dtype, sep = "", endian = sys.byteorder):
     else:
         return a.reshape(shape).byteswap(True)
        
-def _r3(shape):
+def _r3(shape, copy = True):
     """Returns r vector array of given shape."""
     az, ay, ax = [np.arange(-l / 2. + .5, l / 2. + .5) for l in shape]
-    zz,yy,xx = np.meshgrid(az,ay,ax, indexing = "ij")
+    zz,yy,xx = np.meshgrid(az,ay,ax, indexing = "ij", copy = copy)
     return xx, yy, zz
 
     
-def sphere_mask(shape, radius, offset = (0,0,0)):
+def sphere_mask(shape, radius, offset = (0,0,0), d = 1.):
     """Returns a bool mask array that defines a sphere.
     
     The resulting bool array will have ones (True) insede the sphere
@@ -847,7 +847,8 @@ def sphere_mask(shape, radius, offset = (0,0,0)):
         Bool array defining the sphere.
     """
     xx, yy, zz = _r3(shape)
-    r = ((xx-offset[0])**2 + (yy-offset[1])**2 + (zz--offset[2])**2) ** 0.5 
+    zz *= d
+    r = ((xx-offset[0])**2 + (yy-offset[1])**2 + (zz--offset[2]*d)**2) ** 0.5 
     mask = (r <= radius)
     return mask   
 
@@ -877,7 +878,7 @@ def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
     
     nz, ny, nx = shape
     out = np.zeros(shape = (nz,ny,nx,3), dtype = FDTYPE)
-    xx, yy, zz = _r3(shape)
+    xx, yy, zz = _r3(shape, copy = False)
     
     r = (xx**2 + yy**2 + zz**2) ** 0.5 
     mask = (r <= radius)
@@ -903,6 +904,101 @@ def nematic_droplet_director(shape, radius, profile = "r", retmask = False):
         except:
             raise ValueError("Unsupported profile type!")
             
+    if retmask == True:
+        return mask, out
+    else: 
+        return out
+    
+def _r2dir(x,y,z, q = 0, phi = 0):
+    phi = np.arctan2(y,x)
+    theta = np.arctan2(np.sqrt(x**2+y**2),z)
+    
+    r = (x**2 + y**2 + z**2) ** 0.5 
+        
+    omega = q * r + phi
+    
+    x = np.cos(theta) + np.cos(phi) * np.cos(omega) - np.sin(phi) * np.sin(omega)
+    y = np.cos(theta) + np.sin(phi) * np.cos(omega) + np.cos(phi) * np.sin(omega)
+    z =  - np.sin(theta) * np.cos(omega) 
+    
+    return x,y,z
+    
+def cholesteric_droplet_director(shape, radius, pitch, hand = "left", core = 0., d = 1, s0 = 1, omega0 = 0, view = 'z', retmask = False):
+    """Returns cholesteric director data of a cholesteric droplet with a given radius.
+    
+    Parameters
+    ----------
+    shape : tuple
+        (nz,nx,ny) shape of the output data box. First dimension is the 
+        number of layers, second and third are the x and y dimensions of the box.
+    radius : float
+        radius of the droplet.
+    pitch : float
+        Cholesteric pitch in pixel units.
+    hand : str, optional
+        Handedness of the pitch; either 'left' (default) or 'right'
+    core : float
+        Radius of the isotropic core. Zero or negative means no isotropic core.
+    retmask : bool, optional
+        Whether to output mask data as well
+        
+    Returns
+    -------
+    out : array or tuple of arrays 
+        A director data array, or tuple of director mask and director data arrays.
+    """
+    
+    nz, ny, nx = shape
+    out = np.zeros(shape = (nz,ny,nx,3), dtype = FDTYPE)
+    xx, yy, zz = _r3(shape, copy = False)
+    
+    # so that we can write to
+    zz.flags.writeable = True
+    zz *= d
+    
+    rr = (xx**2 + yy**2 + zz**2) ** 0.5 
+    
+    mask = np.logical_and((rr <= radius), (rr >= core))
+    
+    for i in range(nz):
+        
+        m = mask[i]
+    
+        
+        x = xx[i][m]
+        y = yy[i][m]
+        z = zz[i][m]
+        r = rr[i][m]
+        
+        if hand == 'left':
+            q = -2*np.pi/pitch
+        elif hand == "right":
+            q = 2*np.pi/pitch
+            
+        
+        if view == 'x':
+            x,z = -z, x
+        elif view == 'y':
+            y,z = -z, y
+            
+        phi = np.arctan2(y,x)
+        theta = np.arctan2(np.sqrt(x**2+y**2),z)
+            
+        omega = q * r + phi * (s0 - 1) + omega0
+        
+        x = np.cos(theta) * np.cos(phi) * np.cos(omega) - np.sin(phi) * np.sin(omega)
+        y = np.cos(theta) * np.sin(phi) * np.cos(omega) + np.cos(phi) * np.sin(omega)
+        z =  - np.sin(theta) * np.cos(omega)
+        
+        if view == 'x':
+            x,z = -z, x
+        elif view == 'y':
+            y,z = -z, y
+    
+        out[i,...,0][m] = x
+        out[i,...,1][m] = y
+        out[i,...,2][m] = z
+
     if retmask == True:
         return mask, out
     else: 
@@ -973,7 +1069,7 @@ def nematic_droplet_data(shape, radius, profile = "r", no = 1.5, ne = 1.6, nhost
     mask, director = nematic_droplet_director(shape, radius, profile = profile, retmask = True)
     return director2data(director, mask = mask, no = no, ne = ne, nhost = nhost)
 
-def cholesteric_droplet_data(shape, radius, pitch, hand = "left", no = 1.5, ne = 1.6, nhost = 1.5):
+def cholesteric_droplet_data(shape, radius, pitch, hand = "left", no = 1.5, ne = 1.6, nhost = 1.5, core = 0., d = 1., s0 = 1, omega0 = 0, view = "z"):
     """Returns cholesteric droplet optical block.
     
     This function returns a thickness,  material_eps, angles, info tuple 
@@ -1002,9 +1098,10 @@ def cholesteric_droplet_data(shape, radius, pitch, hand = "left", no = 1.5, ne =
     out : tuple of length 3
         A (thickness, material_eps, angles) tuple of three arrays
     """
-    director = cholesteric_director(shape, pitch, hand = hand)
-    mask = sphere_mask(shape, radius)
-    return director2data(director, mask = mask, no = no, ne = ne, nhost = nhost)    
+    director = cholesteric_droplet_director(shape, radius, pitch, hand = hand, core = core, d = d, s0 = s0, omega0 = omega0, view = view)
+    mask = sphere_mask(shape, radius, d = d)
+    thickness = np.ones(shape = (director.shape[0],))*d 
+    return director2data(director, mask = mask, no = no, ne = ne, nhost = nhost, thickness = thickness)    
 
 @numba.guvectorize([(NF32DTYPE[:],NF32DTYPE[:]),(NF64DTYPE[:],NFDTYPE[:])], "(n)->()", cache = NUMBA_CACHE)
 def director2order(data, out):

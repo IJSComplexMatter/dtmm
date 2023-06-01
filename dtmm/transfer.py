@@ -779,12 +779,14 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
     #field_in[...] = 0.
             
     if norm == 2:
+        pass
         #make sure we take only the forward propagating part of the field
-        transmitted_field(field, ks, n = nin, betamax = min(betamax,nin), out = field)
-        field_in[...] = field
+        #transmitted_field(field, ks, n = nin, betamax = min(betamax,nin), out = field)
+        #field_in[...] = field
         
     if calc_reference:
-        ref = field.copy()
+        ref = transmitted_field(field, ks, n = nin, betamax = min(betamax,nin))
+        #ref = field.copy()
     else:
         ref = None    
     

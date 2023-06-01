@@ -1333,7 +1333,8 @@ def reflection_mat(smat, out = None):
     m1[...,:,0::2] = -smat[...,:,0::2]
     m2[...,:,1::2] = smat[...,:,1::2]
     m1 = inv(m1)
-    return dotmm(m1,m2, out = out)
+    out = dotmm(m1,m2, out = out)
+    return out
 
 def fvec2E(fvec, fmat = None, fmati = None, mode = +1, inplace = False):
     """Converts field vector to E vector. If inplace == True, it also 

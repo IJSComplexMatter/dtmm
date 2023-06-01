@@ -256,6 +256,7 @@ def _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis, indices, method, nsteps, res
     n = len(betas)
     power = int(math.log2(nsteps))
     steps = 2**power
+        
     kd = k0*d/steps
     shape = mask.shape[-2:]
     
@@ -278,41 +279,44 @@ def _layer_mat3d(k0,d,epsv,epsa, mask, betas, phis, indices, method, nsteps, res
     else:
         out = np.empty(shape = (n, n, 4, 4), dtype = CDTYPE)
 
-    for j,(beta,phi) in enumerate(zip(betas,phis)):    
+    for j,(beta,phi) in enumerate(zip(betas,phis)):  
         
-        if j == 0:
-            if method.startswith("2x2"):
-                alpha,fmat = alphaf(beta,phi,epsv,epsa)
-                f = tmm.E_mat(fmat, mode = +1, copy = False)
-                fi = inv(f)
-                pmat = phase_mat(alpha[...,::2],kd)
-            else:
-    
-                alpha,f,fi = alphaffi(beta,phi,epsv,epsa)
-                pmat = phase_mat(alpha,-kd)
-                if method == "4x4_1":
-                    pmat[...,1::2] = 0.
-                elif method != "4x4":
-                    raise ValueError("Unsupported method.")
-                    
-            m = dotmdm(f,pmat,fi) 
-                
         ii = indices[j,0]
         jj = indices[j,1]
-
-        wave = eigenwave(shape, ii,jj, amplitude = 1)
+        
 
         
+        if method.startswith("2x2"):
+            alpha,fmat = alphaf(beta,phi,epsv,epsa)
+            f = tmm.E_mat(fmat, mode = +1, copy = False)
+            fi = inv(f)
+            pmat = phase_mat(alpha[...,::2],kd)
+        else:
+
+            alpha,f,fi = alphaffi(beta,phi,epsv,epsa)
+            pmat = phase_mat(alpha,-kd)
+            if method == "4x4_1":
+                pmat[...,1::2] = 0.
+            elif method != "4x4":
+                raise ValueError("Unsupported method.")
+                        
+        m = dotmdm(f,pmat,fi) 
+                    
+    
+    
+        wave = eigenwave(shape, ii,jj, amplitude = 1)
+
+            
         mw = m*wave[...,None,None]
                 
         mf = mfft2(mw, overwrite_x = True)        
         mf = mf[mask,...]
-        
+    
         out[:,j,:,:] = mf
         
     for i in range(power):
         out = bdotmm(out,out)
-        
+                
     return [out]
 
 def dispersive_layer_mat3d(k0, d, epsv,epsa, mask = None, method = "4x4", nsteps = 1, resize = 1, wavelength = None):
@@ -387,7 +391,6 @@ def stack_mat3d(k,d,epsv,epsa, mask = None, method = "4x4", nsteps = 1, resize =
                     out = dotmm(mat,out)
                 else:
                     out = dotmm(out,mat)   
-         
     print_progress(n,n) 
     return out
 

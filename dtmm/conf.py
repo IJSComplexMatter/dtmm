@@ -178,13 +178,15 @@ else:
 
 
 _matplotlib_3_4_or_greater = False
-
+_matplotlib_3_7_or_greater = False
 
 try:
     import matplotlib
     major, minor = matplotlib.__version__.split(".")[0:2]
     if int(major) >= 3 and int(minor) >=4:
         _matplotlib_3_4_or_greater = True
+    if int(major) >= 3 and int(minor) >=7:
+        _matplotlib_3_7_or_greater = True        
 except:
     print("Could not determine matplotlib version you are using, assuming < 3.4")
 
