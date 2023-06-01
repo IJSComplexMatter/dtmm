@@ -25,4 +25,3 @@ def E_magnification_matrix(shape, ks,  m = 1., epsv = (1,1,1), epsa = (0,0,0.), 
     _,_, ji = E_diffraction_alphaEEi(shape, ks, epsv = epsv, epsa = epsa, mode = mode, betamax = betamax)
     _, j = E_diffraction_alphaE(shape, ksm, epsv = epsv, epsa = epsa, mode = mode, betamax = betamax)
     return dotmm(j,ji,out = out) 
-

@@ -1,3 +1,4 @@
+
 """Hello nematic droplet example using matrix solver."""
 
 import dtmm.solver
@@ -61,5 +62,4 @@ viewer3.set_parameters(polarizer = "h", analyzer = "h", rows = 196)
 fig,ax = viewer3.plot()
 
 plt.show()
-
 
