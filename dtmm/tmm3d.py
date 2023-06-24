@@ -426,6 +426,18 @@ def dotmv3d(m, v):
             raise ValueError("Matrix is a list of matrices, so vector should be a ist of vectors.")
     else:
         return dotmv(m,v)
+    
+    
+def add3d(a, b):
+    if isinstance(a, tuple):
+        return tuple((add3d(_m,_v) for _m, _v in zip(a,b)))
+    if isinstance(a, list):
+        if isinstance(b, list):
+            return [aa + bb for aa,bb in zip(a,b)]
+        else:
+            raise ValueError("Matrix is a list of matrices, so vector should be a ist of vectors.")
+    else:
+        return a + b
 
 def _upscale1(mat,mask):
     #total number of modes
@@ -619,7 +631,7 @@ def transmission_mat3d(cmat):
     else:
         return _transmission_mat3d(cmat)    
 
-def _reflect3d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None):
+def _reflect3d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None, gvec = None):
     """Reflects/Transmits field vector using 4x4 method.
     
     This functions takes a field vector that describes the input field and
@@ -632,16 +644,26 @@ def _reflect3d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None):
         #2d and 3d case, we must iterate over modes
         if fvec_out is None:
             fvec_out = [None] * len(fvec_in)
-        return [_reflect3d(*args) for args in zip(fvec_in,fmat_in,rmat,fmat_out,fvec_out)]
+        return [_reflect3d(*args) for args in zip(fvec_in,fmat_in,rmat,fmat_out,fvec_out, gvec)]
     
     dim = 1 if rmat.shape[-1] == 4 else 3
 
     fmat_ini = inv(fmat_in)
         
     avec = dotmv(fmat_ini,fvec_in)
+    
+    
+    if gvec is not None:
+        gvec = dotmv(fmat_ini,gvec)
+        #print(gvec)
 
     a = np.zeros(avec.shape, avec.dtype)
     a[...,0::2] = avec[...,0::2]
+    
+    # field gain
+    if gvec is not None:
+        a[...,0::2] -= gvec[...,0::2]
+        
 
     if fvec_out is not None:
         fmat_outi = inv(fmat_out)
@@ -650,20 +672,25 @@ def _reflect3d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None):
     else:
         bvec = np.zeros_like(avec)
     if dim == 1:
-        out = dotmv(rmat,a)
+        out = dotmv(rmat,a) 
+          
     else:
         av = a.reshape(a.shape[:-2] + (a.shape[-2]*a.shape[-1],))
         out = dotmv(rmat,av).reshape(a.shape)
 
     avec[...,1::2] = out[...,1::2]
     bvec[...,::2] = out[...,::2]
+    
+    if gvec is not None:
+        avec[...,1::2] += gvec[...,1::2]
         
     dotmv(fmat_in,avec,out = fvec_in)   
     out = dotmv(fmat_out,bvec,out = out)
+    
 
     return out
 
-def reflect3d(fvecin, rmat, fmatin, fmatout, fvecout = None):
+def reflect3d(fvecin, rmat, fmatin, fmatout, fvecout = None, gvec = None):
     """Transmits/reflects field vector using 4x4 method.
     
     This functions takes a field vector that describes the input field and
@@ -676,12 +703,14 @@ def reflect3d(fvecin, rmat, fmatin, fmatout, fvecout = None):
         print ("Transmitting field.")   
     if isinstance(fvecin, tuple):
         n = len(fvecin)
-        if fvecout is None:
+        if fvecout is None and gvec is None:
             return tuple((_reflect3d(fvecin[i], fmatin[i], rmat[i], fmatout[i]) for i in range(n)))
-        else:
+        elif gvec is None:
             return tuple((_reflect3d(fvecin[i], fmatin[i], rmat[i], fmatout[i], fvecout[i]) for i in range(n)))
+        else:
+            return tuple((_reflect3d(fvecin[i], fmatin[i], rmat[i], fmatout[i], fvecout[i], gvec[i]) for i in range(n)))
     else:
-        return _reflect3d(fvecin, fmatin, rmat, fmatout, fvecout)
+        return _reflect3d(fvecin, fmatin, rmat, fmatout, fvecout, gvec)
 
 def _transmit3d(fvec_in, fmat_in, mat, fmat_out, fvec_out = None):
     """Transmits field vector using 2x2 matrix
@@ -819,3 +848,4 @@ _transmit = transmit3d
 _multiply_mat = multiply_mat3d
 _validate_modes = validate_modes3d
 _dotmv = dotmv3d
+_add = add3d

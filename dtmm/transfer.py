@@ -693,7 +693,7 @@ def _transfer_field(field_data, optical_data, beta, phi, nin, nout,
 def transfer_4x4(field_data, optical_data, beta = 0., 
                    phi = 0., eff_data = None, nin = 1., nout = 1., npass = 1,nstep=1,
               diffraction = True, reflection = 1, multiray = False,norm = DTMM_NORM_FFT, smooth = SMOOTH,
-              betamax = None, ret_bulk = False, out = None):
+              betamax = None, ret_bulk = False, out = None, invert = False, project = True):
     """Transfers input field data through optical data. See transfer_field.
     
     """
@@ -725,6 +725,8 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
                    
     #define input field data
     field_in, wavelengths, pixelsize = field_data
+    
+    print('sdsd',field_in.mean())
     
     shape = field_in.shape[-2:]
 
@@ -772,8 +774,12 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
     #    field0 = field_in.copy()
  
     #field0 = field_in.copy()
-    field0 = transmitted_field(field_in, ks, n = nin, betamax = betamax)
+    if project == True:
+        field0 = transmitted_field(field_in, ks, n = nin, betamax = betamax)
+    else:
+        field0 = field_in.copy()
     field = field_in.copy()
+    
 
     
     #field_in[...] = 0.
@@ -819,7 +825,8 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
             suffix = "{}/{}".format(i+1,npass)
 
         _bulk_out = bulk_out
-        direction = (-1)**i 
+        direction = (-1)**i if invert == False else (-1)**(i+1)
+                
         _nstep, (thickness,ev,ea)  = layers[indices[0]]
         
         if direction == 1:
@@ -837,6 +844,7 @@ def transfer_4x4(field_data, optical_data, beta = 0.,
 
             d,e,a = output_layer_eff
             output_layer_eff = d*direction, e,a 
+            
             
             if ray_tracing == True:
                 if work_in_fft:

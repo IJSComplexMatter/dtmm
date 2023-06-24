@@ -17,20 +17,26 @@ SCALE = 1
 
 RESOLUTION = 2
 
-RADIUS = 18
+RADIUS = 20
 CORE = 0
-PITCH = 0.300
+PITCH = 0.375
 
 HEIGHT = RADIUS*2.1
 WIDTH = RADIUS*2.1
 
 
-PIXELSIZE = 80//SCALE
+
+
+PIXELSIZE = 100//SCALE
 
 RADIUS = int(RADIUS*1000/PIXELSIZE)
 CORE = int(CORE*1000/PIXELSIZE)
 HEIGHT = int(HEIGHT*1000/PIXELSIZE)
 WIDTH = int(WIDTH*1000/PIXELSIZE)
+
+
+HEIGHT = 400
+WIDTH = 400
 
 PITCH = PITCH * 1000 / PIXELSIZE
 
@@ -45,6 +51,9 @@ WAVELENGTHS = np.linspace(380,780,11)
 
 NO= 1.525
 NE = NO + 0.236
+
+NO = 1.5
+NE = 1.6
 
 
 #: create some experimental data (stack)
@@ -77,11 +86,11 @@ for nlayers in np.linspace(0,NLAYERS,2)[1:]:
     data = [(optical_block[0][0:nlayers], optical_block[1][0:nlayers], optical_block[2][0:nlayers])]
 
     field_data_out = dtmm.transfer_field(field_data_in, data, 
-                                     betamax = 1., reflection = 2, 
-                                     diffraction = 1, npass = 2, 
-                                     method = '2x2',
+                                     betamax = 0.9, reflection = 2, 
+                                     diffraction = 1, npass = 3, 
+                                     method = '4x4',
                                      norm = 2,
-                                     split_wavelengths = True)
+                                     split_wavelengths = False)
 #: visualize output field
 viewer1 = dtmm.field_viewer(field_data_in, mode = "r", n = 1.5)
 viewer1.set_parameters(polarizer = "v", analyzer = "h", focus = 100)

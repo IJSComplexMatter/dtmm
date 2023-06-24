@@ -1342,7 +1342,7 @@ where are c is the coefficient vector and w is wavelength in microns.
     def __call__(self, wavelength):
         return cauchy2eps(self.coefficients,wavelength/1000)    
     
-class EpsilonSellmeier(object):
+class EpsilonSellmeier(EpsilonDispersive):
     """A callable epsilon tensor described with Sellmeier coefficients.
     
 eps = c[0] + w**2 * c[1] / (w**2 - c[2]) + w**2 * c[3] / (w**2 - c[4]) + ...
