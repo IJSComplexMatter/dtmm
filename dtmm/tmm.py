@@ -581,6 +581,9 @@ def _phasem(alpha,kd,out = None):
 def phasem(*args,**kwargs):
     return _phasem(*args,**kwargs)
     
+
+DELETEME = {1: 0., -1 : 0.}
+
 def phase_mat(alpha, kd, mode = None,  out = None):
     """Computes a 4x4 or 2x2 diagonal matrix from eigenvalue matrix alpha 
     and wavenumber. 
@@ -621,7 +624,12 @@ def phase_mat(alpha, kd, mode = None,  out = None):
         else:
             b = np.broadcast(alpha[...,::2],kd[...,None])
         out = np.empty(b.shape, dtype = CDTYPE)
-
+        
+   # alpha = alpha.copy()
+    
+    #alpha[...,1::2] -= 1j*DELETEME[-1]
+    #alpha[...,::2] += 1j*DELETEME[+1]
+    
     if mode == +1:
         phasem(alpha[...,::2],kd, out = out)
     elif mode == -1:
@@ -630,6 +638,9 @@ def phase_mat(alpha, kd, mode = None,  out = None):
         out = phasem(alpha,kd, out = out) 
     else:
         raise ValueError("Unknown propagation mode.")
+    if DELETEME[-1] != 0:  
+        out[...,1::2] *= DELETEME[-1]
+        
     return out 
 
 def iphase_mat(alpha, kd, cfact = 0.1, mode = +1,  out = None):

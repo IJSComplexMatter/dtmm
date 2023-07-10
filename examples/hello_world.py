@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import dtmm.conf
 from dtmm.sim import ScatteringBlockSolver3D, MatrixBlockSolver3D
+import dtmm.tmm as tmm
 
 dtmm.conf.set_verbose(2)
 #: pixel size in nm
@@ -116,6 +117,8 @@ solver = ScatteringBlockSolver3D((HEIGHT,WIDTH), WAVELENGTHS, PIXELSIZE, method=
 field_in = field_data_in[0]
 field_out = np.zeros_like(field_in)
 
+
+
 for i in [1]:
     
     solver = ScatteringBlockSolver3D((HEIGHT,WIDTH), WAVELENGTHS, PIXELSIZE, method= "4x4", betamax = 0.9,resolution = 1)
@@ -128,14 +131,46 @@ for i in [1]:
     print ('sds',field_in.mean())
     
     solver.transfer_field()
+    
+    tmm.DELETEME[-1] = 0.99
     solver.scatter_field()
-    solver.field_out = field_out
-    solver.field_in = field_in
-
+    #solver.field_out = field_out
+    #solver.field_in = field_in
+    tmm.DELETEME[-1] = 0
     solver.transfer_field()
+    tmm.DELETEME[-1] = 0.99
+    solver.scatter_field()
+    
+    tmm.DELETEME[-1] = 0
+    solver.transfer_field()
+    tmm.DELETEME[-1] = 0.99
+    solver.scatter_field()
+    
+    tmm.DELETEME[-1] = 0
+    solver.transfer_field()
+    tmm.DELETEME[-1] = 0.99
+    solver.scatter_field()
+    
+    tmm.DELETEME[-1] = 0
+    solver.transfer_field()
+    tmm.DELETEME[-1] = 0.99
+    solver.scatter_field()
+    
+    tmm.DELETEME[-1] = 0
+    solver.transfer_field()    
+    # tmm.DELETEME[-1] = 0.99
+    # solver.scatter_field()
+    # tmm.DELETEME[-1] = 0
+    # solver.transfer_field()
+    # tmm.DELETEME[-1] = 0.99
 
-    #solver.scatter_field()
-    #solver.transfer_field()     
+    # solver.scatter_field()
+    # tmm.DELETEME[-1] = 0
+    # solver.transfer_field()
+    # tmm.DELETEME[-1] = 0.99
+    # solver.scatter_field()
+    # tmm.DELETEME[-1] = 0    
+    # solver.transfer_field()     
     field_in = solver.field_in.copy() 
 
 
