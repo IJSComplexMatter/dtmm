@@ -878,6 +878,8 @@ from dtmm.propagate_4x4 import propagate_4x4_effective_4
 
 class ScatteringBlockSolver3D(MatrixBlockSolver3D):
     scattering_matrices = []
+    scattered_modes = None
+    scattered_modes_list = None
     ref = None
     
     def _group_modes(self, modes):
@@ -960,13 +962,13 @@ class ScatteringBlockSolver3D(MatrixBlockSolver3D):
                                                    eff_data = [[1]*len(self.d)],
                                                    #eff_data = [(self.d[i], self.epsv[i,...,0,0,:], self.epsa[i,...,0,0,:]) for i in range(len(self.d))],
                                                    betamax = 0.9,
-                                                   reflection = 4,
+                                                   reflection = 2,
                                                    nin = 1.5, nout = 1.5,
                                                    invert = False,
                                                    project = False)
         
-        for mode_out in self.propagate_modes(invert = True):
-            pass
+        #for mode_out in self.propagate_modes(invert = True):
+        #    pass
         
         #self.modes_out = mode_out
         
@@ -988,22 +990,131 @@ class ScatteringBlockSolver3D(MatrixBlockSolver3D):
         #                         betamax = 0.9, out = None)
         
         
-        scattered_modes = self.tmm._add(self.modes_out, self._field2modes(-field_out))
+        #fref = -refin
+        
+ 
+        
+        #scattered_modes = self.tmm._add(self.modes_out, self._field2modes(-field_out))
+        
+        ref = self.field_out.copy()
+        
+        
+        I0 = (ref[...,0,:,:] * np.conj(field_out[...,1,:,:])).sum(axis = (-1,-2))
+        I1 = (ref[...,1,:,:] * np.conj(field_out[...,0,:,:])).sum(axis = (-1,-2))
+        I2 = -(ref[...,2,:,:] * np.conj(field_out[...,3,:,:])).sum(axis = (-1,-2))
+        I3 = -(ref[...,3,:,:] * np.conj(field_out[...,2,:,:])).sum(axis = (-1,-2))
+        
+        I = I0+I1+I2+I3
+        
+        I0 = (ref[...,0,:,:] * np.conj(ref[...,1,:,:])).sum(axis = (-1,-2))
+        I1 = (ref[...,1,:,:] * np.conj(ref[...,0,:,:])).sum(axis = (-1,-2))
+        I2 = -(ref[...,2,:,:] * np.conj(ref[...,3,:,:])).sum(axis = (-1,-2))
+        I3 = -(ref[...,3,:,:] * np.conj(ref[...,2,:,:])).sum(axis = (-1,-2))         
+        
+        Ir = I0+I1+I2+I3
+        
+        factor = np.abs(Ir/I) 
+        
+        print('forward',factor)
+        
+        mask = factor >1
+        factor[mask] = 1
+
+        field_out = field_out * factor[...,None,None,None] 
+    
+        
+        scattered_modes = self.tmm._dotmv(self.stack_matrix, self._field2modes(field_out))
+        
+        
+        self.scattered_modes = self.tmm._add(scattered_modes,self._field2modes(-self.field_in))
+       
+        
+        #if self.scattered_modes is not None:
+        #    self.scattered_modes = self.tmm._add(self.scattered_modes, scattered_modes)
+        #else:
+        #    self.scattered_modes = scattered_modes
+
+
+    def scatter_field_b(self, refin = None):
+        field_in, _ , _ = transfer_4x4((self.field_out, self.wavelengths, self.pixelsize), [(self.d,self.epsv,self.epsa)], 
+                                                   eff_data = [[1]*len(self.d)],
+                                                   #eff_data = [(self.d[i], self.epsv[i,...,0,0,:], self.epsa[i,...,0,0,:]) for i in range(len(self.d))],
+                                                   betamax = 0.9,
+                                                   reflection = 4,
+                                                   nin = 1.5, nout = 1.5,
+                                                   invert = True,
+                                                   project = False)
+        
+        #for mode_in in self.propagate_modes():
+        #    pass
+        
+        #self.modes_out = mode_out
+        
+        print('mean',field_in.mean())
+        
+        ps = list((range(self.nlayers)))
+        
+        
+        
+        # for p in range(self.nlayers): 
+        #     print_progress(p,self.nlayers) 
+
+            
+        #     layer = (self.d[p], self.epsv[p], self.epsa[p])
+        #     effective_layer =(-self.d[p], self.epsv_eff[p], self.epsa_eff[p])
+            
+        #     field = propagate_4x4_effective_4(field, self.wavenumbers, layer, effective_layer, beta = 0, phi=0,
+        #                         nsteps = 1, diffraction = True, 
+        #                         betamax = 0.9, out = None)
+        
+        ref = refin
+        
+        I0 = (ref[...,0,:,:] * np.conj(field_in[...,1,:,:])).sum(axis = (-1,-2))
+        I1 = (ref[...,1,:,:] * np.conj(field_in[...,0,:,:])).sum(axis = (-1,-2))
+        I2 = -(ref[...,2,:,:] * np.conj(field_in[...,3,:,:])).sum(axis = (-1,-2))
+        I3 = -(ref[...,3,:,:] * np.conj(field_in[...,2,:,:])).sum(axis = (-1,-2))
+        
+        I = I0+I1+I2+I3
+        
+        I0 = (ref[...,0,:,:] * np.conj(ref[...,1,:,:])).sum(axis = (-1,-2))
+        I1 = (ref[...,1,:,:] * np.conj(ref[...,0,:,:])).sum(axis = (-1,-2))
+        I2 = -(ref[...,2,:,:] * np.conj(ref[...,3,:,:])).sum(axis = (-1,-2))
+        I3 = -(ref[...,3,:,:] * np.conj(ref[...,2,:,:])).sum(axis = (-1,-2))         
+        
+        Ir = I0+I1+I2+I3
+        
+        factor = np.abs(Ir/I)
+        
+        print(factor)
+        
+        mask = factor >1
+        factor[mask] = 1
+
+        field_in = field_in * factor[...,None,None,None] 
+        
+        
+        
+        scattered_modes = self.tmm._add(self._field2modes(field_in),self._field2modes(-refin))
         
         if self.scattered_modes is not None:
             self.scattered_modes = self.tmm._add(self.scattered_modes, scattered_modes)
+            self.scattered_modes = self._field2modes(self._modes2field(self.scattered_modes)*0.5)
         else:
+            self.scattered_modes = scattered_modes
         
-            self.scattered_modes = self.tmm._dotmv(self.stack_matrix, scattered_modes)
-            
-     
+        #scattered_modes = self.tmm._dotmv(self.stack_matrix, scattered_modes)
+        
+        #if self.scattered_modes is not None:
+        #    self.scattered_modes = self.tmm._add(self.scattered_modes, scattered_modes)
+        #else:
+        #    self.scattered_modes = scattered_modes
 
     
-    def scatter_field2(self):
-        for field in self.propagate_scattered_field():
+    def scatter_field2(self, factor = 1):
+        for field in self.propagate_scattered_modes(factor = factor):
             pass
         
-        self.scattered_field = field #+ self.field_in
+        self.scattered_modes = field 
     
     def propagate_scattered_field(self, field = None):
         if field is not None:
@@ -1015,7 +1126,7 @@ class ScatteringBlockSolver3D(MatrixBlockSolver3D):
             yield self._modes2field(modesi)
     
     
-    def propagate_scattered_modes(self, transmitted_modes = None):
+    def propagate_scattered_modes(self, transmitted_modes = None, factor = 1):
         if self.epsv is None:
             raise ValueError("You must first set material data.")
         verbose_level = DTMMConfig.verbose
@@ -1028,7 +1139,10 @@ class ScatteringBlockSolver3D(MatrixBlockSolver3D):
                 transmitted_modes = self.modes_in 
             elif direction == -1:
                 transmitted_modes = self.modes_out
+                
         layer_matrices = self.layer_matrices
+        
+        transmitted_modes_ref = transmitted_modes
         
         if layer_matrices != []:
             if direction == -1 :
@@ -1037,16 +1151,28 @@ class ScatteringBlockSolver3D(MatrixBlockSolver3D):
             layer_matrices = self.iterate_layer_matrices(reverse = (direction == -1))
 
         grouped_transmitted_modes = self._group_modes(transmitted_modes)
-        grouped_scattered_modes = None
         
         ps = list(reversed(range(self.nlayers)))
         
+        if self.scattered_modes_list is None:
+            self.scattered_modes_list = [0] * self.nlayers
+            
+        grouped_scattered_modes = None
+        
+        gain = 0
         
         for i,layer_matrix in enumerate(layer_matrices): 
             print_progress(i,self.nlayers) 
             p = ps[i]
             
-            ref = self._modes2field(transmitted_modes)
+            if gain != 0:
+                grouped_transmitted_modes_ref = self.tmm._add(grouped_transmitted_modes, gain)
+            else:
+                grouped_transmitted_modes_ref = grouped_transmitted_modes
+            
+            ref = self._modes2field(grouped_transmitted_modes_ref)
+            
+            
             
             layer = (-self.d[p], self.epsv[p], self.epsa[p])
             effective_layer =(-self.d[p], self.epsv_eff[p], self.epsa_eff[p])
@@ -1056,22 +1182,61 @@ class ScatteringBlockSolver3D(MatrixBlockSolver3D):
                                 betamax = 0.9, out = None)
             
             grouped_transmitted_modes = self.tmm._dotmv(layer_matrix, grouped_transmitted_modes)
-            
-            if grouped_scattered_modes is not None:
-                grouped_scattered_modes = self.tmm._dotmv(layer_matrix, grouped_scattered_modes)
-            
+            grouped_transmitted_modes_ref = self.tmm._dotmv(layer_matrix, grouped_transmitted_modes_ref)
+ 
+            transmitted_modes_ref = self._ungroup_modes(grouped_transmitted_modes_ref)
+            transmitted_field_ref = self._modes2field(transmitted_modes_ref)
+
             transmitted_modes = self._ungroup_modes(grouped_transmitted_modes)
             transmitted_field = self._modes2field(transmitted_modes)
             
+            I0 = (ref[...,0,:,:] * np.conj(transmitted_field_ref[...,1,:,:])).sum(axis = (-1,-2))
+            I1 = (ref[...,1,:,:] * np.conj(transmitted_field_ref[...,0,:,:])).sum(axis = (-1,-2))
+            I2 = -(ref[...,2,:,:] * np.conj(transmitted_field_ref[...,3,:,:])).sum(axis = (-1,-2))
+            I3 = -(ref[...,3,:,:] * np.conj(transmitted_field_ref[...,2,:,:])).sum(axis = (-1,-2))
             
-            scattered_field = ref - transmitted_field
+            I = I0+I1+I2+I3
+            
+            I0 = (ref[...,0,:,:] * np.conj(ref[...,1,:,:])).sum(axis = (-1,-2))
+            I1 = (ref[...,1,:,:] * np.conj(ref[...,0,:,:])).sum(axis = (-1,-2))
+            I2 = -(ref[...,2,:,:] * np.conj(ref[...,3,:,:])).sum(axis = (-1,-2))
+            I3 = -(ref[...,3,:,:] * np.conj(ref[...,2,:,:])).sum(axis = (-1,-2))         
+            
+            Ir = I0+I1+I2+I3
+            
+            norm = np.abs(I/Ir)**0.5 
+            
+            print('norm',norm)
+            
+            transmitted_field_ref = transmitted_field_ref * norm[...,None,None,None]
+            transmitted_field = transmitted_field * norm[...,None,None,None]
+            
+            transmitted_modes_ref = self._field2modes(transmitted_field_ref)
+            transmitted_modes = self._field2modes(transmitted_field)
+            
+            grouped_transmitted_modes = self._group_modes(transmitted_modes)
+            grouped_transmitted_modes_ref = self._group_modes(transmitted_modes_ref)
+    
+            scattered_field = (ref - transmitted_field_ref)*factor
+            
+            
+
             scattered_modes = self._field2modes(scattered_field )
-            if grouped_scattered_modes is not None:
-                grouped_scattered_modes = self.tmm._add(grouped_scattered_modes, self._group_modes(scattered_modes))
-            else:
-                grouped_scattered_modes = self._group_modes(scattered_modes)
-            scattered_modes = self._ungroup_modes(grouped_scattered_modes)
             
+            
+            
+            gain = self.scattered_modes_list[i]
+            
+            self.scattered_modes_list[i] = self._group_modes(scattered_modes) 
+            
+            if i != 0:
+                g = self.tmm._dotmv(layer_matrix, self.scattered_modes_list[i-1])
+                
+                self.scattered_modes_list[i] = self.tmm._add(self.scattered_modes_list[i], g)
+            
+            scattered_modes = self._ungroup_modes(self.scattered_modes_list[i])
+
+
             yield scattered_modes
             
             

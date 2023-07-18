@@ -383,6 +383,8 @@ def _as_field_vec(fvec):
 # user functions
 #---------------
 
+FORCEPSV = {'factor' : 1} 
+
 def alphaf(beta = None, phi = None, epsv = None, epsa = None, out = None):
     """Computes alpha and field arrays (eigen values and eigen vectors arrays).
     
@@ -410,9 +412,25 @@ def alphaf(beta = None, phi = None, epsv = None, epsa = None, out = None):
     epsv, epsa = _default_epsv_epsa(epsv, epsa)
     rv = rotation_vector2(phi) 
     if out is None:
-        return _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array)
+        out = _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array)
     else:
-        return _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array, out = out)
+        1/0
+        out = _alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array, out = out)
+        
+    if FORCEPSV['factor'] != 1:
+        epsveff = (epsv[...,0] + epsv[...,1] + epsv[...,2])/3
+        delta = (epsv[...,0] - epsveff) * FORCEPSV['factor']
+        
+        epsv = epsv.copy()
+        epsv[...,0] = epsveff + delta
+        epsv[...,1] = epsveff + delta
+        epsv[...,2] = epsveff - 2*delta
+                   
+
+        
+        _, f =_alphaf_vec(beta,phi,rv,epsv,epsa,_dummy_array)
+        out = out[0], f
+    return out
 
 def f(beta = None, phi = None, epsv = None, epsa = None):
     """Computes field arrays ( eigen vectors arrays).
@@ -640,7 +658,8 @@ def phase_mat(alpha, kd, mode = None,  out = None):
         raise ValueError("Unknown propagation mode.")
     if DELETEME[-1] != 0:  
         out[...,1::2] *= DELETEME[-1]
-        
+    if DELETEME[1] != 0:  
+        out[...,::2] *= DELETEME[1]       
     return out 
 
 def iphase_mat(alpha, kd, cfact = 0.1, mode = +1,  out = None):

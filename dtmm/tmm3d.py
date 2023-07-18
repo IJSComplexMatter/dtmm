@@ -644,6 +644,8 @@ def _reflect3d(fvec_in, fmat_in, rmat, fmat_out, fvec_out = None, gvec = None):
         #2d and 3d case, we must iterate over modes
         if fvec_out is None:
             fvec_out = [None] * len(fvec_in)
+        if gvec is None:
+            gvec = [None] * len(fvec_in)
         return [_reflect3d(*args) for args in zip(fvec_in,fmat_in,rmat,fmat_out,fvec_out, gvec)]
     
     dim = 1 if rmat.shape[-1] == 4 else 3

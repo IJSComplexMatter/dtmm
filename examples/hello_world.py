@@ -15,9 +15,12 @@ NLAYERS, HEIGHT, WIDTH = 60, 96, 96
 #: illumination wavelengths in nm
 WAVELENGTHS = np.linspace(380,780,9)
 
+NO = 1.5
+NE = 1.6
+
 #: create some experimental data (stack)
 optical_block = dtmm.nematic_droplet_data((NLAYERS, HEIGHT, WIDTH), 
-          radius = 30, profile = "r", no = 1.5, ne = 1.6, nhost = 1.5)
+          radius = 30, profile = "r", no = NO, ne = NE, nhost = 1.5)
 
 
 
@@ -26,7 +29,7 @@ SCALE = 1
 
 RESOLUTION = 4
 
-RADIUS = 4
+RADIUS = 3
 CORE = 0
 PITCH = 0.375
 
@@ -59,8 +62,8 @@ WAVELENGTHS = np.linspace(380,780,11)
 NO= 1.525
 NE = NO + 0.236
 
-NO = 1.5
-NE = 1.6
+#NO = 1.5
+#NE = 1.6
 
 
 #: create some experimental data (stack)
@@ -118,8 +121,14 @@ field_in = field_data_in[0]
 field_out = np.zeros_like(field_in)
 
 
+#epseff = (NO**2 + NO**2 + NE**2)/3
+#deltaeps = NO**2 - epseff
 
-for i in [1]:
+scattered_modes = None
+refin = None
+
+for i in [1]:#np.linspace(0,1,5):
+    #tmm.DELETEME[-1] = 0.4
     
     solver = ScatteringBlockSolver3D((HEIGHT,WIDTH), WAVELENGTHS, PIXELSIZE, method= "4x4", betamax = 0.9,resolution = 1)
     
@@ -129,49 +138,120 @@ for i in [1]:
     solver.calculate_reflectance_matrix()
     solver.field_in = field_in
     print ('sds',field_in.mean())
+    #solver.transfer_field()
+    refin = solver.field_in.copy()
+    #solver.scattered_modes = scattered_modes
+    #solver.transfer_field()
+    #field_in = solver.field_in.copy()
+    #solver.scatter_field(refin = refin)
+    #scattered_modes = solver.scattered_modes
+    #solver.transfer_field()
     
-    solver.transfer_field()
+    for factor in np.linspace(0.,1,20):
+        print(factor)
+        #tmm.FORCEPSV['factor'] = factor
+        solver.transfer_field()
+        solver.scatter_field()
+        solver.transfer_field()
+        solver.scatter_field_b(refin = refin)
+        solver.transfer_field()
+        
+
     
-    tmm.DELETEME[-1] = 0.99
-    solver.scatter_field()
-    #solver.field_out = field_out
-    #solver.field_in = field_in
-    tmm.DELETEME[-1] = 0
-    solver.transfer_field()
-    tmm.DELETEME[-1] = 0.99
-    solver.scatter_field()
+
+    # for factor in range(200):#np.linspace(0.1,0.2,2):
+        
+    #     print(factor)
+    #     #tmm.FORCEPSV['factor'] = factor
+    #     #print('factor', tmm.FORCEPSV['factor'])
+
+
+
+    #     tmm.DELETEME[-1] = 0.4
+
+    #     solver.transfer_field()
+    #     if factor == 0:
+    #         refin = solver.field_in.copy()
+    #     solver.scatter_field(refin = refin)
+    #     solver.transfer_field()
     
-    tmm.DELETEME[-1] = 0
-    solver.transfer_field()
-    tmm.DELETEME[-1] = 0.99
-    solver.scatter_field()
-    
-    tmm.DELETEME[-1] = 0
-    solver.transfer_field()
-    tmm.DELETEME[-1] = 0.99
-    solver.scatter_field()
-    
-    tmm.DELETEME[-1] = 0
-    solver.transfer_field()
-    tmm.DELETEME[-1] = 0.99
-    solver.scatter_field()
-    
-    tmm.DELETEME[-1] = 0
-    solver.transfer_field()    
-    # tmm.DELETEME[-1] = 0.99
+
+  
     # solver.scatter_field()
-    # tmm.DELETEME[-1] = 0
     # solver.transfer_field()
-    # tmm.DELETEME[-1] = 0.99
 
     # solver.scatter_field()
+    # solver.transfer_field()    
+    # solver.scatter_field()
+    # solver.transfer_field()    
+    # solver.scatter_field()
+    # solver.transfer_field()  
+    # solver.scatter_field()
+    # solver.transfer_field()  
+    # solver.scatter_field()
+    # solver.transfer_field()  
+    # #solver.scatter_field()
+    # #solver.transfer_field()
+    # tmm.DELETEME[-1] = 0.992
+    # solver.scatter_field()
     # tmm.DELETEME[-1] = 0
     # solver.transfer_field()
-    # tmm.DELETEME[-1] = 0.99
+    
+
+    # tmm.DELETEME[-1] = 0.994
     # solver.scatter_field()
-    # tmm.DELETEME[-1] = 0    
-    # solver.transfer_field()     
-    field_in = solver.field_in.copy() 
+    # tmm.DELETEME[-1] = 0
+    # solver.transfer_field()
+    
+    # tmm.DELETEME[-1] = 0.994
+    # solver.scatter_field()
+    # tmm.DELETEME[-1] = 0
+    # solver.transfer_field()
+    
+    # tmm.DELETEME[-1] = 0.994
+    # solver.scatter_field()
+    # tmm.DELETEME[-1] = 0
+    # solver.transfer_field()
+
+    
+    # tmm.DELETEME[-1] = 0.996
+    # solver.scatter_field()
+    # tmm.DELETEME[-1] = 0
+    # solver.transfer_field()
+    
+    # tmm.DELETEME[-1] = 0.998
+    # solver.scatter_field()
+    # tmm.DELETEME[-1] = 0
+    # solver.transfer_field() 
+    
+    # tmm.DELETEME[-1] = 0.999
+    # solver.scatter_field()
+    # tmm.DELETEME[-1] = 0
+    # solver.transfer_field()    
+
+    # tmm.DELETEME[-1] = 0.9994
+    # solver.scatter_field()
+    # tmm.DELETEME[-1] = 0
+    # solver.transfer_field()  
+
+    # tmm.DELETEME[1] = 0.99
+    # solver.scatter_field()
+    # tmm.DELETEME[1] = 0
+    # solver.transfer_field()  
+    # tmm.DELETEME[1] = 0.99
+    # solver.scatter_field()
+    # tmm.DELETEME[1] = 0
+    # solver.transfer_field()  
+    # tmm.DELETEME[1] = 0.9999
+    # solver.scatter_field()
+    # tmm.DELETEME[1] = 0
+    # solver.transfer_field()  
+    # tmm.DELETEME[1] = 0.9999
+    # solver.scatter_field()
+    # tmm.DELETEME[1] = 0
+    # solver.transfer_field()  
+    
+    #field_in = solver.field_in.copy() 
 
 
 

@@ -1584,7 +1584,7 @@ def _parse_symmetry_argument(arg):
             return _symmetry_arg_to_int(arg)
 
         
-def effective_block(optical_block, symmetry = 0, broadcast = True):
+def effective_block(optical_block, symmetry = 0, broadcast = True, window = None):
     """Builds effective block from the optical_block.
     
     The material epsilon is averaged over the layers.
@@ -1604,7 +1604,10 @@ def effective_block(optical_block, symmetry = 0, broadcast = True):
     broadcast : bool, optional
         If set to True, output is assured to be broadcastable with optical_block
         elements.
-        
+    window : ndarray
+        If set, it will take the window float array for averaging. It can be a 3D
+        array, specifying a window function for each of the layers in the block.
+        If set as a 2D array, each layer uses same window function.
     Returns
     -------
     out : tuple
@@ -1614,9 +1617,26 @@ def effective_block(optical_block, symmetry = 0, broadcast = True):
     #Whic axes are used for averaging averaging
     axis = list(range(len(epsv.shape)-1))
     
+    if window is not None:
+        if window.ndim == 3:
+            norm = window.sum(axis = (1,2))
+            window = window / norm
+        elif window.ndim == 2:
+            norm = window.sum()
+            window = window / norm
+            #make it 3D for broadcasting
+            window = window[None,...]
+        else:
+            raise ValueError("Invalid window")
+    
     if symmetry in ("isotropic",0):
+        epsv = eig_symmetry(0, epsv)
         #no need to convert from eigenframe to laboratory frame to do averaging, just average out the
-        epsv = eig_symmetry(0, epsv).mean(tuple(axis))
+        if window is not None:
+            epsv = epsv * window[...,None]
+            epsv = epsv.sum(tuple(axis))
+        else:
+            epsv = epsv.mean(tuple(axis))
         epsa = np.zeros_like(epsv)
     else:
         order = np.asarray(_parse_symmetry_argument(symmetry),int)
@@ -1631,7 +1651,12 @@ def effective_block(optical_block, symmetry = 0, broadcast = True):
         
         #convert to laboratory frame, and perform averaging
         eps0 = epsva2eps(epsv,epsa)
-        eps = eps0.mean(axis)
+        
+        if window is not None:
+            eps = eps0 * window[..., None]
+            eps = eps.sum(axis)
+        else:
+            eps = eps0.mean(axis)
         
         #convert back to eigenframe
         epsv, epsa = eps2epsva(eps)
